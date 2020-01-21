@@ -1,0 +1,11 @@
+filename none.shot
+name None
+clock 1545215838
+espresso_elapsed {0}
+espresso_pressure {0.0}
+espresso_weight {0.0}
+espresso_flow {0.0}
+espresso_flow_weight {0.0}
+espresso_temperature_basket {88.0}
+espresso_temperature_mix {88.0}
+

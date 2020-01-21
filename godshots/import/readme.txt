@@ -1,0 +1,1 @@
+This app can import espresso data from other apps. Different formats are supported in different subdirectories.

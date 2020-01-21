@@ -27,12 +27,15 @@ array set ::de1 {
     found    0
     scanning 1
     device_handle 0
-    skale_device_handle 0
+    scale_device_handle 0
+    decentscale_device_handle 0
 	suuid "0000A000-0000-1000-8000-00805F9B34FB"
 	sinstance 12
 	cuuid "0000A002-0000-1000-8000-00805F9B34FB"
 	cuuid_01 "0000A001-0000-1000-8000-00805F9B34FB"
 	cuuid_02 "0000A002-0000-1000-8000-00805F9B34FB"
+	cuuid_05 "0000A005-0000-1000-8000-00805F9B34FB"
+	cuuid_06 "0000A006-0000-1000-8000-00805F9B34FB"
 	cuuid_0A "0000A00A-0000-1000-8000-00805F9B34FB"
 	cuuid_0B "0000A00B-0000-1000-8000-00805F9B34FB"
 	cuuid_0C "0000A00C-0000-1000-8000-00805F9B34FB"
@@ -48,8 +51,14 @@ array set ::de1 {
 	cuuid_skale_EF81 "0000EF81-0000-1000-8000-00805F9B34FB"
 	cuuid_skale_EF82 "0000EF82-0000-1000-8000-00805F9B34FB"
 	suuid_skale "0000FF08-0000-1000-8000-00805F9B34FB"
+	cuuid_decentscale_read "0000FFF4-0000-1000-8000-00805F9B34FB"
+	cuuid_decentscale_write "000036F5-0000-1000-8000-00805F9B34FB"
+	suuid_decentscale "0000FFF0-0000-1000-8000-00805F9B34FB"
 	cinstance 0
+	fan_threshold 0
+	tank_temperature_threshold 0
 	pressure 0
+	ghc_mode 0
 	head_temperature 0
 	mix_temperature 0
 	flow 0
@@ -62,6 +71,8 @@ array set ::de1 {
 	volume 0
 	wrote 0
 	cmdstack {}
+	widget_current_profile_name_color_normal "#ff6b6b"
+	widget_current_profile_name_color_changed "#969eb1"
 	water_level_mm_correction 5
 	scale_autostop_triggered 1
 	water_level_full_point 40
@@ -78,6 +89,7 @@ array set ::de1 {
 	scale_sensor_weight 0
 	scale_weight {}
 	scale_weight_rate 0
+	scale_weight_rate_raw 0
 	final_water_weight 0
 	voltage 110
 	has_catering_kit 0
@@ -127,6 +139,7 @@ if {$android == 0 || $undroid == 1} {
 }
 
 
+
 #namespace import blt::*
 #namespace import -force blt::tile::*
 
@@ -151,18 +164,25 @@ if {$android == 0 || $undroid == 1} {
 array set ::settings {
 	preset_counter 1
 	screen_size_width {}
+	tank_desired_water_temperature 0
 	screen_size_height {}
-	current_frame_description {asdfasdfsa}
+	current_frame_description {}
 	default_font_calibration 0.5
 	language en
-	steam_over_temp_threshold 175
-	steam_over_pressure_threshold 3
+	steam_over_temp_threshold 180
+	steam_over_pressure_threshold 5
+	automatically_ble_reconnect_forever_to_scale 0
+	chart_total_shot_flow 1
+	tare_only_on_espresso_start 0
 	steam_over_pressure_count_trigger 10
 	steam_over_temp_count_trigger 10
 	active_settings_tab settings_2a
+	chart_total_shot_weight 1
+	fan_threshold 45
 	color_stage_1 "#c8e7d5"
 	color_stage_2 "#efdec2"
 	color_stage_3 "#edceca"
+	start_espresso_only_if_scale_connected 0
 	logfile "log.txt"
 	water_refill_point 5
 	max_steam_pressure 3
@@ -170,31 +190,41 @@ array set ::settings {
 	flying 0
 	ble_unpair_at_exit 1
 	preload_all_page_images 0
+	export_history_automatically_to_csv 1
 	advanced_shot_chart_temp_max 100
 	advanced_shot_chart_temp_min 80
+	show_mixtemp_during_espresso 0
 	bean_notes {}
 	chart_dashes_flow ""
+	chart_dashes_espresso_weight {2 1}
 	chart_dashes_temperature ""
+	zoomed_y_axis_scale 12
 	name {}
+	display_espresso_water_temp_difference 0
 	chart_dashes_pressure ""
+	insight_skin_show_weight_activity_bar 0
+	debuglog_window_size 35
 	water_level_sensor_max 50
 	espresso_notes {}
 	profile_graph_smoothing_technique "quadratic"
+	live_graph_smoothing_technique "linear"
 	espresso_count 0
 	steaming_count 0
 	profile_has_changed 0
 	water_count 0
 	advanced_shot {}
 	water_time_max 60
+	battery_medium_trigger 90
+	battery_medium_brightness 70
 	battery_low_trigger 60
 	battery_low_brightness 50
 	battery_very_low_trigger 30
 	battery_very_low_brightness 10
 	orientation "landscape"
-	refill_check_at_sleep 0
 	grinder_dose_weight 0
 	scentone {}
 	seconds_after_espresso_stop_to_continue_weighing 8
+	display_volumetric_usage 0
 	one_tap_mode 0
 	allow_unheated_water 1
 	minimum_water_temperature 80
@@ -234,17 +264,21 @@ array set ::settings {
 	display_espresso_water_delta_number 1
 	display_fluid_ounces_option 0
 	has_scale 1
+    scale_type ""
 	enable_fahrenheit 0
 	enable_ampm 0
 	settings_1_page settings_1
 	settings_profile_type "settings_2"
 	steam_max_time 120
+	scale_bluetooth_address {}
 	skale_bluetooth_address {}
 	bluetooth_address {}
 	water_max_vol 500
 	water_temperature 80
 	final_desired_shot_weight 36
+	final_desired_shot_volume 36
 	final_desired_shot_weight_advanced 0
+	final_desired_shot_volume_advanced 0
 	espresso_max_time 60
 	scale_button_starts_espresso 0
 	espresso_temperature 92
@@ -315,6 +349,8 @@ array set ::settings {
 	preheat_volume 50
 	preheat_temperature 95
 	water_volume 50
+    ghc_is_installed 0
+
 }
 
 if {[de1plus]} {
@@ -322,9 +358,21 @@ if {[de1plus]} {
 	set ::settings(skin) "Insight"
 }
 
+if {$::android != 1} {
+	set ::settings(ghc_is_installed) 0
+}
+
+
+
 # default the listbox to the currently set ble addresses
 set ::de1_bluetooth_list $settings(bluetooth_address)
-set ::skale_bluetooth_list $settings(skale_bluetooth_address)
+
+#msg "init was run '$::settings(scale_type)'"
+
+	#error "atomaxscale"
+# initial filling of BLE scale list
+#set ::scale_bluetooth_list $::settings(scale_bluetooth_address)
+
 
 array set ::de1_state {
 	Sleep \x00
@@ -377,7 +425,7 @@ array set ::de1_num_state {
 
 
 
-
+set ::scale_bluetooth_list ""
 array set ::de1_num_state_reversed [reverse_array ::de1_num_state]
 
 
@@ -474,15 +522,28 @@ proc start_cleaning {} {
 	}
 }
 
-proc start_hot_water_rinse {} {
+
+proc reset_gui_starting_hot_water_rinse {} {
 	msg "Tell DE1 to start HOT WATER RINSE"
 	set ::de1(timer) 0
 	set ::de1(volume) 0
+}
+
+proc start_hot_water_rinse {} {
+	msg "Tell DE1 to start HOT WATER RINSE"
 	de1_send_state "hot water rinse" $::de1_state(HotWaterRinse)
+
+	if {$::settings(ghc_is_installed) == 3} {
+		# show the user what button to press on the group head
+		ghc_message ghc_flush
+		return
+	}
+
 
 	if {$::android == 0} {
 		#after [expr {1000 * $::settings(steam_max_time)}] {page_display_change "steam" "off"}
 		after 200 [list update_de1_state "$::de1_state(HotWaterRinse)\x5"]
+		after 10000 [list update_de1_state "$::de1_state(Idle)\x5"]
 	}
 }
 
@@ -498,11 +559,9 @@ proc start_steam_rinse {} {
 	}
 }
 
-proc start_steam {} {
-	msg "Tell DE1 to start making STEAM"
+proc reset_gui_starting_steam {} {
 	set ::de1(timer) 0
 	set ::de1(volume) 0
-	de1_send_state "make steam" $::de1_state(Steam)
 
 	incr ::settings(steaming_count)
 	save_settings
@@ -510,25 +569,37 @@ proc start_steam {} {
 	steam_elapsed length 0
 	steam_pressure length 0
 	steam_flow length 0
+	steam_temperature length 0
 	#steam_pressure append 0
 	#steam_elapsed append 0
+}
+
+proc start_steam {} {
+	msg "Tell DE1 to start making STEAM"
+
+	de1_send_state "make steam" $::de1_state(Steam)
+	if {$::settings(ghc_is_installed) == 3} {
+		# show the user what button to press on the group head
+		ghc_message ghc_steam
+		return
+	}
+
 
 	if {$::settings(stress_test) == 1} {
 		set ::idle_next_step start_steam
 	}
 
-
-
 	if {$::android == 0} {
 		#after [expr {1000 * $::settings(steam_max_time)}] {page_display_change "steam" "off"}
 		after 200 [list update_de1_state "$::de1_state(Steam)\x5"]
+		after 10000 [list update_de1_state "$::de1_state(Idle)\x5"]
 	}
 }
 
-proc start_espresso {} {
-	msg "Tell DE1 to start making ESPRESSO"
-	msg [stacktrace]
-	
+proc reset_gui_starting_espresso {} {
+
+	set ::previous_FrameNumber -1
+
 	set ::settings(history_saved) 0
 
 	set ::de1(timer) 0
@@ -551,7 +622,6 @@ proc start_espresso {} {
 	set ::settings(drink_ey) 0
 	############
 
-	de1_send_state "make espresso" $::de1_state(Espresso)
 
 	clear_espresso_chart
 	clear_espresso_timers
@@ -562,44 +632,88 @@ proc start_espresso {} {
 
 	#start_timers
 
-	if {$::de1(skale_device_handle) != 0} {
+	if {$::de1(scale_device_handle) != 0} {
 		# this variable prevents the stop trigger from happening until the Tare has succeeded.
 		set ::de1(scale_autostop_triggered) 1
-		skale_tare
-		skale_timer_off
-		#skale_timer_start
+		scale_tare
+		scale_timer_off
+	}
+
+
+	if {$::settings(stress_test) == 1} {
+		# this will cease to work once the GHC is installed
+		set ::idle_next_step start_espresso
+	}
+}
+
+proc ghc_message {type} {
+	# display READY instead of START, because they have to tap the group head to start, they cannot tap the tablet, due to UL compliance limits
+	if {[info exists ::nextpage(machine:off)] == 1} {
+		set currentpage $::nextpage(machine:off)
+	} else {
+		set currentpage "off"
+	}
+
+	set_next_page off $type
+	page_show $type
+	after 1000 "set ::nextpage(machine:off) $currentpage"
+}
+
+proc start_espresso {} {
+	msg "Tell DE1 to start making ESPRESSO"
+
+	if {$::settings(start_espresso_only_if_scale_connected) == 1 && $::de1(scale_device_handle) == 0 && $::settings(scale_bluetooth_address) != ""} {
+		msg "Refusing to START espresso without the scale being connected"
+		info_page [translate "Please connect your scale"] [translate "Ok"]
+		return
+	}
+
+
+	de1_send_state "make espresso" $::de1_state(Espresso)
+
+	if {$::settings(ghc_is_installed) == 3} {
+		# show the user what button to press on the group head
+		ghc_message ghc_espresso
+		return
 	}
 
 	if {$::android == 0} {
 		#after [expr {1000 * $::settings(espresso_max_time)}] {page_display_change "espresso" "off"}
 		after 200 [list update_de1_state "$::de1_state(Espresso)\x1"]
+		after 30000 [list update_de1_state "$::de1_state(Idle)\x5"]
 	}
 
-	if {$::settings(stress_test) == 1} {
-		set ::idle_next_step start_espresso
-	}
+	return	
+}
 
+proc reset_gui_starting_hotwater {} {
+	set ::de1(timer) 0
+	set ::de1(volume) 0
+	incr ::settings(water_count)
+	save_settings
 
-	#run_next_userdata_cmd
 }
 
 proc start_water {} {
 	msg "Tell DE1 to start making HOT WATER"
-	set ::de1(timer) 0
-	set ::de1(volume) 0
 	de1_send_state "make hot water" $::de1_state(HotWater)
 
-	incr ::settings(water_count)
-	save_settings
+	if {$::settings(ghc_is_installed) == 3} {
+		# show the user what button to press on the group head
+		ghc_message ghc_hotwater
+		return
+	}
 
 
 	if {$::android == 0} {
 		#after [expr {1000 * $::settings(water_max_time)}] {page_display_change "water" "off"}
 		after 200 [list update_de1_state "$::de1_state(HotWater)\x5"]
+		after 10000 [list update_de1_state "$::de1_state(Idle)\x5"]
 	}
 
 	if {$::settings(stress_test) == 1} {
 		set ::idle_next_step start_water
+		after 1200 [list update_de1_state "$::de1_state(Idle)\x5"]
 	}
 
 }
@@ -607,14 +721,11 @@ proc start_water {} {
 proc start_idle {} {
 	msg "Tell DE1 to start to go IDLE (and stop whatever it is doing)"
 
-
-	if {$::de1(skale_device_handle) == 0 && $::settings(skale_bluetooth_address) != ""} {
-		#scanning_restart
-		ble_connect_to_skale
+	if {$::de1(scale_device_handle) == 0 && $::settings(scale_bluetooth_address) != ""} {
+		ble_connect_to_scale
 	}
 
 	if {$::de1(device_handle) == 0} {
-		#scanning_restart
 		update_de1_state "$::de1_state(Idle)\x0"
 		ble_connect_to_de1
 		return
@@ -632,9 +743,16 @@ proc start_idle {} {
 		unset -nocomplain ::idle_next_step 
 	}
 
+	# john 1/15/2020 this is a bit of a hack to work around a firmware bug in 7C24F200 that has the fan turn on during sleep, if the fan threshold is set > 0
+	set_fan_temperature_threshold $::settings(fan_threshold)
 
 	set ::settings(flying) 0
 	de1_send_state "go idle" $::de1_state(Idle)
+	
+	if {$::de1(scale_device_handle) != 0} {
+		#scale_enable_lcd
+	}
+
 	if {$::android == 0} {
 		#after [expr {1000 * $::settings(water_max_time)}] {page_display_change "water" "off"}
 		after 200 [list update_de1_state "$::de1_state(Idle)\x0"]
@@ -646,12 +764,17 @@ proc start_idle {} {
 
 proc start_sleep {} {
 
-	if {$::settings(refill_check_at_sleep) == 1} {
-		msg "check refill first before sleep"
-		set ::sleep_after_refill 1
-		start_refill_kit
-		return
-	}
+	# obsolete, now done in fw
+	#if {$::settings(refill_check_at_sleep) == 1} {
+	#	msg "check refill first before sleep"
+	#	set ::sleep_after_refill 1
+	#	start_refill_kit
+	#	return
+	#}
+
+
+	# john 1/15/2020 this is a bit of a hack to work around a firmware bug in 7C24F200 that has the fan turn on during sleep, if the fan threshold is set > 0
+	set_fan_temperature_threshold 0
 
     if {[ifexists ::app_updating] == 1} {
 		msg "delaying screen saver because tablet app is updating"
@@ -672,6 +795,11 @@ proc start_sleep {} {
 
 	msg "Tell DE1 to start to go to SLEEP (only send when idle)"
 	de1_send_state "go to sleep" $::de1_state(Sleep)
+
+	if {$::de1(scale_device_handle) != 0} {
+		#scale_disable_lcd
+	}
+
 	
 	if {$::android == 0} {
 		#after [expr {1000 * $::settings(water_max_time)}] {page_display_change "water" "off"}
@@ -682,10 +810,24 @@ proc start_sleep {} {
 
 proc check_if_steam_clogged {} {
 
+	if {[steam_pressure length] < 30} {
+		# if steaming was for less than 3 seconds, then don't run this test, as that was just a short purge
+		return 
+	}
+
+	set ::settings(steam_over_temp_threshold) 180
+	set ::settings(steam_over_pressure_threshold) 5
+
 	set bad_pressure 0
 	set bad_temp 0
 	if {$::settings(steam_over_pressure_count_trigger) != 0} {
-		set over_pressure [steam_pressure search $::settings(steam_over_pressure_threshold) 999]
+
+		# remove the first 20 samples (2 seconds) of data, as pressure is high to start, by design
+		steam_pressure dup trimmed_steam_pressure
+		catch {trimmed_steam_pressure delete 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20}
+
+		set over_pressure [trimmed_steam_pressure search $::settings(steam_over_pressure_threshold) 999]
+
 		if {[llength $over_pressure] > $::settings(steam_over_pressure_count_trigger)} {
 			set bad_pressure 1
 		}
@@ -696,7 +838,7 @@ proc check_if_steam_clogged {} {
 
 	if {$::settings(steam_over_temp_count_trigger) != 0} {
 		# steam_temperature is mapped to the charts at 1/100th scale, so we need to multiple the threshold here by 100
-		set over_temp [steam_temperature search [expr {$::settings(steam_over_temp_threshold) / 100.0}] 999]
+		set over_temp [steam_temperature search $::settings(steam_over_temp_threshold) 999]
 		if {[llength $over_temp] > $::settings(steam_over_temp_count_trigger)} {
 			set bad_temp 1
 		}

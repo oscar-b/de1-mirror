@@ -26,6 +26,9 @@ proc setup_environment {} {
         # this causes the app to exit if the main window is closed
         wm protocol . WM_DELETE_WINDOW exit
 
+        # set the window title of the app. Only visible when casting the app via jsmpeg, and when running the app in a window using undroidwish
+        wm title . "Decent"
+
         # force the screen into landscape if it isn't yet
         msg "orientation: [borg screenorientation]"
         if {[borg screenorientation] != "landscape" && [borg screenorientation] != "reverselandscape"} {
@@ -170,8 +173,9 @@ proc setup_environment {} {
         font create Helv_16_bold -family $helvetica_bold_font -size [expr {int($fontm * 27)}] 
         font create Helv_17_bold -family $helvetica_bold_font -size [expr {int($fontm * 30)}] 
         font create Helv_18_bold -family $helvetica_bold_font -size [expr {int($fontm * 32)}] 
-        font create Helv_19_bold -family $helvetica_bold_font -size [expr {int($fontm * 34)}] 
-        font create Helv_20_bold -family $helvetica_bold_font -size [expr {int($fontm * 36)}]
+        font create Helv_19_bold -family $helvetica_bold_font -size [expr {int($fontm * 35)}] 
+        font create Helv_20_bold -family $helvetica_bold_font -size [expr {int($fontm * 37)}]
+        font create Helv_30_bold -family $helvetica_bold_font -size [expr {int($fontm * 54)}]
 
         # enable swipe gesture translating, to scroll through listboxes
         # sdltk touchtranslate 1
@@ -273,8 +277,9 @@ proc setup_environment {} {
         font create Helv_16_bold -family $boldfont -size [expr {int($fontm * 33)}]
         font create Helv_17_bold -family $boldfont -size [expr {int($fontm * 37)}]
         font create Helv_18_bold -family $boldfont -size [expr {int($fontm * 40)}]
-        font create Helv_19_bold -family $boldfont -size [expr {int($fontm * 43)}]
-        font create Helv_20_bold -family $boldfont -size [expr {int($fontm * 46)}]
+        font create Helv_19_bold -family $boldfont -size [expr {int($fontm * 45)}]
+        font create Helv_20_bold -family $boldfont -size [expr {int($fontm * 48)}]
+        font create Helv_30_bold -family $boldfont -size [expr {int($fontm * 69)}]
 
         font create global_font -family "Noto Sans CJK JP" -size [expr {int($fontm * 23)}] 
         android_specific_stubs
@@ -304,7 +309,7 @@ proc setup_environment {} {
 # dim the screen automaticaly if the battery is low
 proc check_battery_low {brightness_to_use} {
     array set powerinfo [sdltk powerinfo]
-    set current_brightness [borg brightness]
+    set current_brightness [get_set_tablet_brightness]
     if {$current_brightness == ""} {
         set current_brightness 100
     } else {
@@ -321,7 +326,7 @@ proc check_battery_low {brightness_to_use} {
     #puts "check_battery_low: $brightness_to_use / borg brightness = [borg brightness] / powerinfo(percent) = [ifexists powerinfo(percent)]"
     if {$percent < $::settings(battery_very_low_trigger)} {
         if {$current_brightness > $::settings(battery_very_low_brightness)} {
-            borg brightness $::settings(battery_very_low_brightness)
+            get_set_tablet_brightness $::settings(battery_very_low_brightness)
             msg "Battery is very low ($percent < $::settings(battery_very_low_trigger)) so lowering screen to $::settings(battery_very_low_brightness)"
         }
         if {$brightness_to_use > $::settings(battery_very_low_brightness)} {
@@ -329,11 +334,20 @@ proc check_battery_low {brightness_to_use} {
         }
     } elseif {$percent < $::settings(battery_low_trigger)} {
         if {$current_brightness > $::settings(battery_low_brightness)} {
-            borg brightness $::settings(battery_low_brightness)
+            get_set_tablet_brightness $::settings(battery_low_brightness)
             msg "Battery is low ($percent < $::settings(battery_low_trigger)) so lowering screen to $::settings(battery_low_brightness)"
         }
         if {$brightness_to_use > $::settings(battery_low_brightness)} {
             return $::settings(battery_low_brightness)
+        }
+        #return $brightness_to_use
+    } elseif {$percent < $::settings(battery_medium_trigger)} {
+        if {$current_brightness > $::settings(battery_medium_brightness)} {
+            get_set_tablet_brightness $::settings(battery_medium_brightness)
+            msg "Battery is medium ($percent < $::settings(battery_medium_trigger)) so lowering screen to $::settings(battery_medium_brightness)"
+        }
+        if {$brightness_to_use > $::settings(battery_medium_brightness)} {
+            return $::settings(battery_medium_brightness)
         }
         #return $brightness_to_use
     }
@@ -654,7 +668,7 @@ proc skin_directory {} {
 
 proc android_specific_stubs {} {
 
-    proc ble {args} { puts "    ble $args"; return 1 }
+    proc ble {args} { msg "ble $args"; return 1 }
     
     if {$::android != 1 && $::undroid != 1} {
         proc sdltk {args} {
@@ -671,6 +685,14 @@ proc android_specific_stubs {} {
             return [list "language" "en"]
         } elseif {[lindex $args 0] == "log"} {
             # do nothing
+        } elseif {[lindex $args 0] == "beep"} {
+            # do nothing
+        } elseif {[lindex $args 0] == "systemui"} {
+            # do nothing
+        } elseif {[lindex $args 0] == "spinner"} {
+            # do nothing
+        } elseif {[lindex $args 0] == "toast"} {
+            puts "screen popup message: '$args'"
         } elseif {[lindex $args 0] == "brightness"} {
             if {[lindex $args 1] == ""} {
                 return 70
@@ -682,8 +704,19 @@ proc android_specific_stubs {} {
             puts "unknown 'borg $args'"
         }
     }
+}
 
+proc get_set_tablet_brightness { {setting ""} } {
+    set actual [borg brightness]
+    if {$setting == ""} {
+        # no parameter means: return current value
+        return $actual
+    }
 
+    # only call the Android setting if the setting needs to be changed.
+    if {$actual != $setting} {
+        borg brightness $setting
+    }
 }
 
 
@@ -959,7 +992,23 @@ proc god_shot_clear {} {
 }
 
 proc save_settings {} {
-    msg "saving settings"
+
+    set compare_settings 1
+
+    if {$compare_settings == 1} {
+        array set ::settings_saved [encoding convertfrom utf-8 [read_binary_file [settings_filename]]]
+
+        foreach k [lsort [array names ::settings]] {
+            set v $::settings($k)
+
+            set sv [ifexists ::settings_saved($k)]
+            if {$sv != $v} {
+                msg "New setting: '$k' = '$v' (was '$sv')"
+            }
+        }
+    }
+
+    msg "saving settings: [stacktrace]"
     save_array_to_file ::settings [settings_filename]
 
     catch {
@@ -994,8 +1043,21 @@ proc load_settings {} {
         set settings(water_volume) 100
     }
 
-    blt::vector create espresso_elapsed god_espresso_elapsed god_espresso_pressure steam_pressure steam_temperature steam_flow steam_elapsed espresso_pressure espresso_flow god_espresso_flow espresso_flow_weight god_espresso_flow_weight espresso_flow_weight_2x god_espresso_flow_weight_2x espresso_flow_2x god_espresso_flow_2x espresso_flow_delta espresso_pressure_delta espresso_temperature_mix espresso_temperature_basket god_espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_weight
-    blt::vector create espresso_de1_explanation_chart_pressure espresso_de1_explanation_chart_flow espresso_de1_explanation_chart_elapsed espresso_de1_explanation_chart_elapsed_flow 
+    # copy the BLE address from Skale to the new generic "scale" BLE address (20-9-19 added support for two kinds of scales)
+    if {$::settings(skale_bluetooth_address) != ""} {
+        set ::settings(scale_bluetooth_address) $::settings(skale_bluetooth_address)
+        set ::settings(scale_type) "atomaxskale"
+        set ::settings(skale_bluetooth_address) ""
+    }
+
+    # if we don't know what kind of scale it is, assume it's a historical Atomax Skale
+    if {$::settings(scale_type) == "" && $::settings(scale_bluetooth_address) != ""} {
+        set ::settings(scale_type) "atomaxskale"
+    }
+
+
+    blt::vector create espresso_elapsed god_espresso_elapsed god_espresso_pressure steam_pressure steam_temperature steam_flow steam_elapsed espresso_pressure espresso_flow god_espresso_flow espresso_flow_weight god_espresso_flow_weight espresso_flow_weight_2x god_espresso_flow_weight_2x espresso_flow_2x god_espresso_flow_2x espresso_flow_delta espresso_pressure_delta espresso_temperature_mix espresso_temperature_basket god_espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_weight espresso_weight_chartable
+    blt::vector create espresso_de1_explanation_chart_pressure espresso_de1_explanation_chart_flow espresso_de1_explanation_chart_elapsed espresso_de1_explanation_chart_elapsed_flow espresso_water_dispensed espresso_flow_weight_raw
     blt::vector create espresso_de1_explanation_chart_flow_1 espresso_de1_explanation_chart_elapsed_flow_1 espresso_de1_explanation_chart_flow_2 espresso_de1_explanation_chart_elapsed_flow_2 espresso_de1_explanation_chart_flow_3 espresso_de1_explanation_chart_elapsed_flow_3
     blt::vector create espresso_de1_explanation_chart_elapsed_1 espresso_de1_explanation_chart_elapsed_2 espresso_de1_explanation_chart_elapsed_3 espresso_de1_explanation_chart_pressure_1 espresso_de1_explanation_chart_pressure_2 espresso_de1_explanation_chart_pressure_3
 
@@ -1018,23 +1080,23 @@ proc settings_filename {} {
     return $fn
 }
 
-proc skin_xskale_factor {} {
+proc skin_xscale_factor {} {
     global screen_size_width
     return [expr {2560.0/$screen_size_width}]
 }
 
-proc skin_yskale_factor {} {
+proc skin_yscale_factor {} {
     global screen_size_height
     return [expr {1600.0/$screen_size_height}]
 }
 
 proc rescale_x_skin {in} {
-    #puts "rescale_x_skin $in / [skin_xskale_factor]"
-    return [expr {int($in / [skin_xskale_factor])}]
+    #puts "rescale_x_skin $in / [skin_xscale_factor]"
+    return [expr {int($in / [skin_xscale_factor])}]
 }
 
 proc rescale_y_skin {in} {
-    return [expr {int($in / [skin_yskale_factor])}]
+    return [expr {int($in / [skin_yscale_factor])}]
 }
 
 proc rescale_font {in} {
@@ -1116,6 +1178,7 @@ proc skin_convert {indir} {
 
                 catch {
                     exec convert $skinfile -resize $dir!  -quality 90 ../$dir/$skinfile 
+                    puts "\nconvert $skinfile -resize $dir!  -quality 90 ../$dir/$skinfile "
                 }
                 if {$skinfile == "icon.jpg"} {
                     # icon files are reduced to 25% of the screen resolution
@@ -1235,20 +1298,104 @@ proc array_item_difference {arr1 arr2 keylist} {
 }
 
 
+proc array_keyvalue_sorted_by_val_limited {arrname {sort_order -increasing} {limit -1} } {
+    upvar $arrname arr
+    foreach k [array names arr] {
+        set k2 "$arr($k) $k"
+        #set k2 "[format {"%0.12i"} $arr($k)] $k"
+        #puts "k2: $k2"
+        set t($k2) $k
+    }
+    
+    set toreturn {}
 
-proc shot_history_export {} {
+    set keys [lsort $sort_order -dictionary [array names t]]
+    foreach k $keys {
+        set v $t($k)
+        lappend toreturn $v [lindex $k 0]
+        if {$limit != -1 && [llength $toreturn] >= $limit} {
+            break
+        }
+        #msg "$k"
+    }
+    return $toreturn
+}
+
+
+proc shot_history_count_profile_use {} {
 
     set dirs [lsort -dictionary [glob -nocomplain -tails -directory "[homedir]/history/" *.shot]]
     set dd {}
-    puts -nonewline "Exporting"
+    #puts -nonewline "Exporting"
     foreach d $dirs {
-        array unset -nocomplain arr
+        unset -nocomplain arr
+        unset -nocomplain sett
+        catch {
+            array set arr [read_file "history/$d"]
+            array set sett [ifexists arr(settings)]
+        }
+            if {[array size arr] == 0} {
+                msg "Corrupted shot history item during count: 'history/$d'"
+                continue
+            }
+
+        #puts [array get sett]
+        #return
+        set profile [ifexists sett(profile)]
+        if {$profile != ""} {
+
+            incr profile_all_shot_count($profile)
+        }
+    }
+
+    #msg "Count of shots by espresso profile: [array get profile_all_shot_count]"
+    #msg "array_kv_keys_sorted_by_val: [array_keyvalue_sorted_by_val_limited profile_all_shot_count -decreasing 10]"
+
+    # only keep the top 5 profiles in this global array, which will be marked with a heart symbol to indicate that they are the user's favrite profiles
+    array set ::profile_shot_count [array_keyvalue_sorted_by_val_limited profile_all_shot_count -decreasing 6]
+    if {[array size ::profile_shot_count] < 3} {
+        # indicate that the DEFAULT profile is a favorite, if there are less than 3 faves, as it's a good basic choice
+        array set ::profile_shot_count [list "default" 1]
+        
+    } 
+
+    if {[array size ::profile_shot_count] < 3} {
+        # indicate that the 'Blooming espresso' profile is a favorite, if there are less than 3 faves, as it's a good choice
+        array set ::profile_shot_count [list "Blooming espresso" 1]
+        
+    } 
+
+    if {[array size ::profile_shot_count] < 3} {
+        # indicate that the 'Gentle and sweet' profile is a favorite, if there are less than 3 faves, as it's a good choice
+        array set ::profile_shot_count [list "Gentle and sweet" 1]
+    }
+}
+
+
+proc shot_history_export {} {
+
+    # optionally disable this feature
+    if {$::settings(export_history_automatically_to_csv) != "1"} {    
+        return
+    }
+
+    set dirs [lsort -dictionary [glob -nocomplain -tails -directory "[homedir]/history/" *.shot]]
+    set dd {}
+    #puts -nonewline "Exporting"
+    foreach d $dirs {
         set tailname [file tail $d]
         set newfile [file rootname $tailname]
-        array set arr [read_file "history/$d"]
         set fname "history/$newfile.csv" 
         if {[file exists $fname] != 1} {
-            msg "exporting history item: $fname"
+            array unset -nocomplain arr
+            catch {
+                array set arr [read_file "history/$d"]
+            }
+            if {[array size arr] == 0} {
+                msg "Corrupted shot history item: 'history/$d'"
+                continue
+            }
+            msg "Exporting history item: $fname"
             export_csv arr $fname
         }
         #puts "keys: [array names arr]"
@@ -1265,9 +1412,19 @@ proc export_csv {arrname fn} {
     set lines {}
     set lines [subst {espresso_elapsed,espresso_pressure,espresso_flow,espresso_flow_weight,espresso_temperature_basket,espresso_temperature_mix,espresso_weight\n}]
 
-    for {set x 0} {$x < [llength $arr(espresso_elapsed)]} {incr x} {
-        set line [subst {[lindex $arr(espresso_elapsed) $x],[lindex $arr(espresso_pressure) $x],[lindex $arr(espresso_flow) $x],[lindex $arr(espresso_flow_weight) $x],[lindex $arr(espresso_temperature_basket) $x],[lindex $arr(espresso_temperature_mix) $x],[lindex $arr(espresso_weight) $x]\n}]
-        append lines $line
+    set elapsed [llength $arr(espresso_elapsed)]
+    for {set x 0} {$x < $elapsed} {incr x} {
+        catch {
+            set failed 1
+            set line [subst {[lindex $arr(espresso_elapsed) $x],[lindex $arr(espresso_pressure) $x],[lindex $arr(espresso_flow) $x],[lindex $arr(espresso_flow_weight) $x],[lindex $arr(espresso_temperature_basket) $x],[lindex $arr(espresso_temperature_mix) $x],[lindex $arr(espresso_weight) $x]\n}]
+            append lines $line
+            set failed 0
+        } err
+
+        if {$failed == 1} {
+            puts "$err: '$fn'"
+        }
+
     }
 
     #set newfile "[file rootname $rootname].csv"
@@ -1705,4 +1862,107 @@ proc iso8601stringparse {in} {
     }
     set timestring "$date $time UTC"
     return [clock scan $timestring]
+}
+
+proc zero_pad {number len} {
+    set out $number
+    while {[string length $out] < $len} {
+        set out "0$out"
+    }
+    return $out
+}
+
+proc wrapped_string_part {input threshold partnumber} {
+    set l [wrap_string $input $threshold 1]
+    return [lindex $l $partnumber]
+}
+
+##
+# wrap_string --- line wraps a given paragraph of text
+#
+# DESCRIPTION
+#
+# This function will line wrap the given text paragraph.
+#
+# PROTOTYPE
+#
+# [proc text::wrap_string {input {threshold 75}}]
+#
+# EXAMPLE
+#
+# [
+#    set para "asdfas dasdf klasljdf aslkdfj alk jsdlfkja sld kfaslkdfj laksdj flas dfla jsdlfj alskdj flaksj dflkaj sdlfkj asdf\naa sdfhakj sdfkjah sdkfh asf\n\nasjdf ajksdh fkjash dfkha sdfh aksjdh fkjash df\nasdf akjsdhf kjha sdkfja hsdkfhas\nasdfasdf"
+#    puts $para
+#    puts "================================="
+#    set newpara [wrap_string $para]
+#    puts $newpara
+# ]
+#
+##
+# wraps a string to be no wider than 80 columns by inserting line breaks
+proc wrap_string {input {threshold 75} {returnlist 0}} {
+    set result_rows [list]
+    set start_of_line_index 0
+    while 1 {
+        
+        set this_line [string range $input $start_of_line_index [expr $start_of_line_index + $threshold - 1]]
+        if { $this_line == "" } {
+            if {$returnlist == 0} {
+                return [join $result_rows "\n"]
+            } else {
+                return $result_rows
+            }
+        }
+        
+        set first_new_line_pos [string first "\n" $this_line]
+        if { $first_new_line_pos != -1 } {
+            # there is a newline
+            lappend result_rows [string range $input $start_of_line_index [expr $start_of_line_index + $first_new_line_pos - 1]]
+            set start_of_line_index [expr $start_of_line_index + $first_new_line_pos + 1]
+            continue
+        }
+        if { [expr $start_of_line_index + $threshold + 1] >= [string length $input] } {
+            # we're on the last line and it is < threshold so just return it
+            lappend result_rows $this_line
+            #return [join $result_rows "\n"]
+            if {$returnlist == 0} {
+                return [join $result_rows "\n"]
+            } else {
+                return $result_rows
+            }
+        }
+        
+        set last_space_pos [string last " " $this_line]
+        if { $last_space_pos == -1 } {
+            # no space found!  Try the first space in the whole rest of the string
+            set next_space_pos [string first " " [string range $input $start_of_line_index end]]
+            set next_newline_pos [string first "\n" [string range $input $start_of_line_index end]]
+            if {$next_space_pos == -1} {
+                set last_space_pos $next_newline_pos
+                
+            } elseif {$next_space_pos < $next_newline_pos} {
+                set last_space_pos $next_space_pos
+                
+            } else {
+                set last_space_pos $next_newline_pos
+            }
+            
+            if { $last_space_pos == -1 } {
+                # didn't find any more whitespace, append the whole thing as a line
+                lappend result_rows [string range $input $start_of_line_index end]
+                if {$returnlist == 0} {
+                    return [join $result_rows "\n"]
+                } else {
+                    return $result_rows
+                }
+                #return [join $result_rows "\n"]
+            } 
+        }
+        
+        # OK, we have a last space pos of some sort
+        set real_index_of_space [expr $start_of_line_index + $last_space_pos]
+        lappend result_rows [string range $input $start_of_line_index [expr $real_index_of_space - 1]]
+        set start_of_line_index [expr $start_of_line_index + $last_space_pos + 1]
+    }
+    
 }

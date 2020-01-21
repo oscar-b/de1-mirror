@@ -1,12 +1,22 @@
 package provide de1_gui 1.0
 
 
+proc load_skin {} {
+
+	# optional callback for skins, which is reset to normal always, before loading the skin
+	eval {
+		proc skins_page_change_due_to_de1_state_change { textstate } {
+			page_change_due_to_de1_state_change $textstate
+		}
+	}
+	source "[skin_directory]/skin.tcl"
+}
+
 proc setup_images_for_other_pages {} {
 	borg spinner on
-	source "[skin_directory]/skin.tcl"
+	load_skin
 	borg spinner off
     borg systemui $::android_full_screen_flags
-
 	return
 }
 
@@ -89,7 +99,21 @@ proc add_de1_page {names filename {skin ""} } {
 	set pngfilename "[homedir]/skins/$skin/${::screen_size_width}x${::screen_size_height}/$filename"
 	set srcfilename "[homedir]/skins/$skin/2560x1600/$filename"
 
-	if {[file exists $pngfilename] != 1} {
+	set make_new_image 0
+	if {$::screen_size_width == 1280 && $::screen_size_height == 800} {
+		# no redoing, as these are shipping with the app
+	} elseif {$::screen_size_width == 2560 && $::screen_size_height == 1600} {
+		# no redoing, as these are shipping with the app
+	} elseif {[file exists $pngfilename] != 1} {
+		set make_new_image 1
+		msg "Making new image because destination image does not exist: $pngfilename"
+	} elseif {[file mtime $srcfilename] > [file mtime $pngfilename]} {
+		# if the source image is newer than the target image, 
+		set make_new_image 1
+		msg "Making new image because date of src image is newer: $srcfilename"
+	}
+
+	if {$make_new_image == 1} {
 		borg spinner on
     	catch {
     		file mkdir "[homedir]/skins/$skin/${::screen_size_width}x${::screen_size_height}/"
@@ -440,7 +464,7 @@ proc install_de1plus_app_icon {} {
 	set appurl "file://mnt/sdcard/[appdir]/de1plus.tcl"
 	#puts "appurl: $appurl"
 	catch {
-		set x [borg shortcut add "DE1+" $appurl $iconbase64_de1plus]
+		set x [borg shortcut add "Decent" $appurl $iconbase64_de1plus]
 		puts "shortcut added: '$x'"
 	}
 
@@ -457,7 +481,7 @@ proc install_this_app_icon_beta {} {
 
 	set appurl "file://mnt/sdcard/de1beta/de1plus.tcl"
 	catch {
-		set x [borg shortcut add "DE1+" $appurl $iconbase64_de1plus]
+		set x [borg shortcut add "Decent" $appurl $iconbase64_de1plus]
 		puts "shortcut added: '$x'"
 	}
 
@@ -497,71 +521,32 @@ proc platform_button_unpress {} {
 
 set cnt 0
 set debugcnt 0
-set ::debuglog {}					
+set ::debuglog {}	
+# display a debug message into the on-screen debug window, if that's enabled
+# also saves the info to the log file.				
 proc msg {text} {
-#z
-
-	catch {
-		log_to_debug_file $text
-	}
-	incr ::debugcnt
-	#catch {
-	if {[info exists ::debugging] == 1} {
-		if {$::debugging == 1} {
-
-			set ::debuglog "$::debugcnt) $text\n$::debuglog"
-			#return
-			set loglines [split $::debuglog "\n"]
-			if {[llength $loglines] > 35} {
-				unshift loglines
-				set ::debuglog [join $loglines \n]
-				#set ::debuglog [join [lrange $loglines 0 [expr {[llength loglines] - 1}] \n]]
-				#pop 
-				#set loglines [split $::debuglog "\n"]
-			}
-
-	        puts $text
-
-			return
-
-	        $::debugwidget insert end "$text\n"
-	        set txt [$::debugwidget get 1.0 end]
-	        tk::TextSetCursor $::debugwidget {insert display lineend}
-
-	        #append ::debuglog $text\n
-	        return
-
-		}
-	}
-	#}
-	#return
 
 	if {$text == ""} {
 		return
 	}
 
-	#set text "$text ([::thread::id])"
-	puts $text
-return
-
-	borg log 1 "decent" $text
-
-	global debuglog 
-   	global cnt
-    incr cnt
-	lappend debuglog "$cnt: $text"
- 	.can itemconfigure .t -text [join $debuglog \n]
-
- 	if {[llength $debuglog] > 22} {
-		set debuglog [lrange $debuglog 1 end]
+	catch {
+		log_to_debug_file $text
 	}
 
-    catch  {
+	incr ::debugcnt
 
-        #.t insert end "$text\n"
-        #set txt [.t get 1.0 end]
-        #tk::TextSetCursor .t {insert display lineend}
-   }
+	# someone inefficent mechanism, but no better way to prepend a string exists https://stackoverflow.com/questions/10009181/tcl-string-prepend
+	set ::debuglog "$::debugcnt) $text\n$::debuglog"
+
+	set loglines [split $::debuglog "\n"]
+
+	if {[llength $loglines] > $::settings(debuglog_window_size)} {
+		unshift loglines
+		set ::debuglog [join $loglines \n]
+	}
+
+	puts $text
 }
 
 
@@ -856,9 +841,12 @@ proc change_screen_saver_img {} {
 
 		set fn [random_saver_file]
 
-		image create photo saver -file $fn
-		.can create image {0 0} -anchor nw -image saver  -tag saver -state hidden
-		.can lower saver
+		catch {
+			# this can happen during an upgrade
+			image create photo saver -file $fn
+			.can create image {0 0} -anchor nw -image saver  -tag saver -state hidden
+			.can lower saver
+		}
 		#update
 	#}#
 
@@ -964,6 +952,26 @@ proc randomRangeString {length {chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno
     return $txt
 }
 
+proc cancel_borg_notifications {} {
+	borg notification delete
+}
+
+proc display_popup_android_message_if_necessary {intxt} {
+
+	if {[string first "*" $intxt] != -1} {
+		# beep if a * is found in the description
+		borg beep
+	}
+
+	set msg ""
+	regexp {\[(.*?)\]} $intxt discard msg
+	if {$msg != ""} {
+		# post the message 1 second after the start, so that there's a slight delay 
+		after 1000 [list borg toast $msg 1]
+	}
+	
+}
+
 
 proc update_onscreen_variables { {state {}} } {
 
@@ -984,9 +992,14 @@ proc update_onscreen_variables { {state {}} } {
 
 	if {$::android == 0} {
 
-		if {[expr {int(rand() * 100)}] > 95} {
+		if {[expr {int(rand() * 100)}] > 96} {
 			set ::state_change_chart_value [expr {$::state_change_chart_value * -1}]
-			set ::settings(current_frame_description) [randomRangeString 15]
+			
+			if {[expr {rand()}] > 0.5} {
+				set ::settings(current_frame_description) [translate "pouring"]
+			} else {
+				set ::settings(current_frame_description) [translate "preinfusion"]
+			}
 		}
 
 		if {$::de1(state) == 2} {
@@ -1052,7 +1065,19 @@ proc update_onscreen_variables { {state {}} } {
 		foreach label_to_update $labels_to_update {
 			set label_name [lindex $label_to_update 0]
 			set label_cmd [lindex $label_to_update 1]
-			set label_value [subst $label_cmd]
+			
+			set label_value ""
+			set errcode [catch {
+				set label_value [subst $label_cmd]
+			}]
+
+
+		    if {$errcode != 0} {
+		        catch {
+		            msg "update_onscreen_variables error: $::errorInfo"
+		        }
+		    }
+
 			if {[ifexists ::labelcache($label_name)] != $label_value} {
 				.can itemconfig $label_name -text $label_value
 				set ::labelcache($label_name) $label_value
@@ -1062,7 +1087,8 @@ proc update_onscreen_variables { {state {}} } {
 	}
 
 	if {$something_updated == 1} {
-		update
+		# john 3-10-19 not sure we need to do a forced screen update
+		#update
 	}
 
 	#set y [clock milliseconds]
@@ -1111,12 +1137,11 @@ proc page_show {page_to_show} {
 
 proc display_brightness {percentage} {
 	set percentage [check_battery_low $percentage]
-	puts "brightness: $percentage %"
-	borg brightness $percentage
+	#puts "brightness: $percentage %"
+	get_set_tablet_brightness $percentage
 }
 
 proc page_display_change {page_to_hide page_to_show} {
-	msg "page_display_change $page_to_show"
 
 	#if {$page_to_hide == ""} {
 	#}
@@ -1129,23 +1154,27 @@ proc page_display_change {page_to_hide page_to_show} {
 		set page_to_show $::nextpage($key)
 	}
 
-
 	if {$::de1(current_context) == $page_to_show} {
+		#msg "page_display_change returning because ::de1(current_context) == $page_to_show"
 		return 
 	}
+
+	msg "page_display_change $page_to_show"
+
+
 	if {$page_to_hide == "sleep" && $page_to_show == "off"} {
 		msg "discarding intermediate sleep/off state msg"
 		return 
 	} elseif {$page_to_show == "saver"} {
 		if {[ifexists ::exit_app_on_sleep] == 1} {
-			borg brightness 0
+			get_set_tablet_brightness 0
 			close_all_ble_and_exit
 		}
 	}
 
 	# signal the page change with a sound
 	say "" $::settings(sound_button_out)
-	msg "page_display_change $page_to_show"
+	#msg "page_display_change $page_to_show"
 	#set start [clock milliseconds]
 
 	# set the brightness in one place
@@ -1171,20 +1200,57 @@ proc page_display_change {page_to_hide page_to_show} {
 	set ::de1(current_context) $page_to_show
 
 	#puts "page_display_change hide:$page_to_hide show:$page_to_show"
-	.can itemconfigure $page_to_hide -state hidden
+	catch {
+		.can itemconfigure $page_to_hide -state hidden
+	}
 	#.can itemconfigure [list "pages" "splash" "saver"] -state hidden
 
 	if {[info exists ::delayed_image_load($page_to_show)] == 1} {
 		set pngfilename	$::delayed_image_load($page_to_show)
 		unset -nocomplain ::delayed_image_load($page_to_show)
-		puts "png: $pngfilename"
-		image create photo $page_to_show -file $pngfilename
-		.can itemconfigure $page_to_show -image $page_to_show
+		msg "Loading skin image from disk: $pngfilename"
+		
+		set errcode [catch {
+			# this can happen if the image file has been moved/deleted underneath the app
+			#fallback is to at least not crash
+			image create photo $page_to_show -file $pngfilename
+			#msg "image create photo $page_to_show -file $pngfilename"
+		}]
+
+	    if {$errcode != 0} {
+	        catch {
+	            msg "image create photo error: $::errorInfo"
+	        }
+	    }
+
+		set errcode [catch {
+			# this can happen if the image file has been moved/deleted underneath the app
+			#fallback is to at least not crash
+			.can itemconfigure $page_to_show -image $page_to_show
+			#msg ".can itemconfigure $page_to_show -image $page_to_show"
+		}]
+
+	    if {$errcode != 0} {
+	        catch {
+	            msg ".can itemconfigure page_to_show error: $::errorInfo"
+	        }
+	    }
+
 	}
 
-	.can itemconfigure $page_to_show -state normal
+	set errcode [catch {
+		.can itemconfigure $page_to_show -state normal
+	}]
+
+	if {$errcode != 0} {
+		catch {
+			msg ".can itemconfigure page_to_show error: $::errorInfo"
+		}
+
+	}
 
 	set these_labels [ifexists ::existing_labels($page_to_show)]
+	#msg "these_labels: $these_labels"
 
 	if {[info exists ::all_labels] != 1} {
 		set ::all_labels {}
@@ -1197,11 +1263,13 @@ proc page_display_change {page_to_hide page_to_show} {
 	foreach label $::all_labels {
 		if {[.can itemcget $label -state] != "hidden"} {
 			.can itemconfigure $label -state hidden
+			#msg "hiding: '$label'"
 		}
 	}
 
 	foreach label $these_labels {
 		.can itemconfigure $label -state normal
+		#msg "showing: '$label'"
 	}
 
 	update
@@ -1212,11 +1280,15 @@ proc page_display_change {page_to_hide page_to_show} {
 	if {[info exists actions($page_to_show)] == 1} {
 		foreach action $actions($page_to_show) {
 			eval $action
+			#msg "action: '$action"
 		}
 	}
 
-	#update_onscreen_variables
+	#msg "Switched to page: $page_to_show"
+
+	update_onscreen_variables
 	#after 100 update_chart
+	after 1000 update
 
 }
 
@@ -1557,7 +1629,6 @@ proc setup_images_for_first_page {} {
 	image create photo splash -file $fn 
 	.can create image {0 0} -anchor nw -image splash  -tag splash -state normal
 	pack .can
-    #borg brightness 100
 
 	update
 	return
@@ -1572,6 +1643,8 @@ proc ui_startup {} {
 	load_settings
 	setup_environment
 	bluetooth_connect_to_devices
+	shot_history_export
+	shot_history_count_profile_use
 	#ble_find_de1s
 	
 	setup_images_for_first_page
@@ -1740,6 +1813,9 @@ proc water_level_color_check {widget} {
 	if {$::settings(waterlevel_indicator_blink) != 1} {
 		return
 	}
+
+	#puts water_level_color_check
+
 	if {[info exists ::water_level_color_check_count] != 1} {
 		set ::water_level_color_check_count  0
 	}
@@ -1750,29 +1826,25 @@ proc water_level_color_check {widget} {
 	}
 
 	set refill_point_corrected [expr {$::settings(water_refill_point) + $::de1(water_level_mm_correction)}]
-	#set start_blinking_level [expr {$::settings(waterlevel_blink_start_offset) + $refill_point_corrected}]
-	
+	set start_blinking_level [expr {$::settings(waterlevel_blink_start_offset) + $refill_point_corrected}]
+	set remaining_water [expr {$::de1(water_level)  - $refill_point_corrected}]
 	# if using refill kit don't blink
-	set start_blinking_level $::settings(waterlevel_blink_start_offset)
+	#set start_blinking_level $::settings(waterlevel_blink_start_offset)
 	set blinkrate $::settings(waterlevel_indicator_blink_rate)
 
-	if {$::de1(water_level) > $start_blinking_level} {
+	#puts "$::de1(water_level) | $start_blinking_level | $remaining_water"
+	set color [lindex $colors $::water_level_color_check_count]
+	if {$remaining_water > 7} {
 		# check the water rate infrequently if there is enough water and don't blink it
-		set color "#7ad2ff"
-		#set blinkrate 5000
+		set color [lindex $colors 0]
+		set blinkrate 5000
+	} elseif {$remaining_water > 6} {
+		#set color "#7ad2ff"
+		set blinkrate 2000
+	} elseif {$remaining_water > 5} {
+		set blinkrate 1000
 	} else {
-		set color [lindex $colors $::water_level_color_check_count]
-
-		if {$::de1(water_level) > 10} {
-			set color "#7ad2ff"
-			set blinkrate 2000
-		} elseif {$::de1(water_level) > 7} {
-			set blinkrate 1000
-		} elseif {$::de1(water_level) >= 5} {
-			set blinkrate 500
-		} else {
-			set blinkrate 150
-		}
+		set blinkrate 500
 	}
 
 	$widget configure -background $color
@@ -1830,7 +1902,11 @@ proc scale_scroll {lb dest1 dest2} {
 proc calibration_gui_init {} {
 
 	# calibration should always take place in Celsius
-	set ::settings(enable_fahrenheit) 0; 
+	if {[ifexists ::settings(enable_fahrenheit)] == 1} {
+		set ::settings(enable_fahrenheit) 0
+		set ::calibration_disabled_fahrenheit 1
+		msg "Calibration disabled Fahrenheit"
+	}
 
 	# set the entry fields back to normal
 	$::globals(widget_calibrate_temperature) configure -state normal; 
@@ -1844,6 +1920,9 @@ proc calibration_gui_init {} {
 	set ::globals(calibration_espresso_pressure) $::settings(espresso_pressure); 
 	set ::globals(calibration_espresso_temperature) $::settings(espresso_temperature); 
 	set ::globals(calibration_espresso_flow) $::settings(flow_profile_hold); 
+
+	set ::globals(calibration_espresso_flow) $::settings(flow_profile_hold); 
+
 
 	# read factory and current calibration values for pressure, flow, temperature
 	#de1_disable_temp_notifications
@@ -1870,13 +1949,14 @@ proc calibration_gui_init {} {
 		after 2500 calibration_ble_received "\x00\x00\x00\x00\x03\x00\x00\x01\x03\x00\x00\x04\x32\x86"
 	} else {
 
-		de1_read_calibration "temperature"
-		after 500 de1_read_calibration "pressure"
-		after 1000 de1_read_calibration "flow"
+		after 1000 de1_read_calibration "temperature"
+		after 2000 de1_read_calibration "pressure"
+		after 3000 de1_read_calibration "flow"
 
-		after 1500 de1_read_calibration "temperature" "factory"
-		after 2000 de1_read_calibration "pressure" "factory"
-		after 2500 de1_read_calibration "flow" "factory"
+		after 4000 de1_read_calibration "temperature" "factory"
+		after 5000 de1_read_calibration "pressure" "factory"
+		after 6000 de1_read_calibration "flow" "factory"
+
 	}
 }
 
@@ -1884,7 +1964,7 @@ proc import_god_shots_from_common_format {} {
 
 
 	set import_files [lsort -dictionary [glob -nocomplain -tails -directory "[homedir]/godshots/import/common/" *.csv]]
-	puts "import_files: $import_files"
+	#puts "import_files: $import_files"
 	foreach import_file $import_files {
 		set import_files_array($import_file) 1
 	}
@@ -2040,8 +2120,7 @@ proc god_shot_files {} {
 	    
 	    set fn "[homedir]/godshots/$f"
 	    array unset -nocomplete godprops
-	    array set godprops [read_file $fn]
-	    #set skintcl ""
+	    array set godprops [encoding convertfrom utf-8 [read_binary_file $fn]]
 
 	    set name [ifexists godprops(name)]
 	    if {$name == "None"} {
@@ -2123,7 +2202,7 @@ proc save_to_god_shots {} {
 	foreach f $files {
 	    set fn "[homedir]/godshots/$f"
 	    array unset -nocomplete godprops
-	    array set godprops [read_file $fn]
+	    array set godprops [encoding convertfrom utf-8[read_binary_file $fn]]
 	    if {[ifexists godprops(name)] == $::settings(god_espresso_name)} {
 	    	puts "found pre-existing god shot $f with the same description"
 	    	set filename $f
@@ -2203,7 +2282,8 @@ proc load_god_shot { {force 0} } {
 
 	set fn "[homedir]/godshots/$f"
 	array unset -nocomplete godprops
-	array set godprops [read_file $fn]
+	#array set godprops [read_file $fn]
+	array set godprops [encoding convertfrom utf-8 [read_binary_file $fn]]
 
     set ::settings(god_espresso_pressure) $godprops(espresso_pressure)
     set ::settings(god_espresso_temperature_basket) $godprops(espresso_temperature_basket)
@@ -2235,6 +2315,31 @@ proc load_god_shot { {force 0} } {
 
 }
 
+# space = idle
+# e = espresso 
+# f = flush
+# s = steam
+# w = water
+
+proc handle_keypress {keycode} {
+	msg "Keypress detected: $keycode"
+	if {$keycode == 101} {
+		# e = espresso 
+		start_espresso
+	} elseif {$keycode == 32} {
+		# space = idle
+		start_idle
+	} elseif {$keycode == 102} {
+		# f = flush
+		start_hot_water_rinse
+	} elseif {$keycode == 115} {
+		# s = steam
+		start_steam
+	} elseif {$keycode == 119} {
+		# w = water
+		start_water
+	}
+}
 
 #install_de1_app_icon
 #install_de1plus_app_icon

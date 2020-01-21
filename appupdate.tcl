@@ -31,37 +31,36 @@ catch {
 	set tk [package present Tk]
 }
 if {$tk != ""} {
-	button .hello -text "Updating" -command { exit } -height 10 -width 50
-	#-width 200 -height 100
-	button .resetapp -text "Reset app" -command { catch { file delete "settings.tdb"} ; exit } -height 5 -width 40
-	#-width 200 -height 100 -bd 2
-	pack .hello  -pady 10
-	pack .resetapp -side bottom -pady 10
+	button .hello -text "Update Decent App" -command { 
+		catch { .hello configure -text "Working" }
+		catch { pack forget .frame; }
+		start_app_update; 
+	} -height 10 -width 40
+	frame .frame -border 2
+	button .frame.redownloadapp -text " Redownload entire app " -command { 
+		catch { .hello configure -text "Working" }
+		catch { file delete "manifest.txt"; }
+		catch { file delete "timestamp.txt"; }
+		catch { pack forget .frame; }
+		catch { start_app_update; } 
+		exit } 
+	button .frame.exitapp -text " --- Exit --- " -command { exit } 
+	button .frame.resetapp -text " Reset all app settings " -command { 
+		catch { file delete "settings.tdb"; } ; 
+		exit 
+	} 
 	
-}
+	pack .hello  -pady 10 -padx 10
+	pack .frame -side bottom -pady 0 -padx 0
 
-set success 0
-set err [catch {
-	start_app_update
-	set success 1
-}]
-
-if {$err != 0} {
-	puts $errorInfo
-}
-
-if {$tk != ""} {
-	if {$success == 1} {
-		.hello configure -text "[ifexists ::de1(app_update_button_label)]\n\nTap here to exit."
-	} else {
-		.hello configure -text "Failed.\n------------\n\nError info:\n------------\n$errorInfo\n\nTap here to exit." 
-	}
-}
-
-catch {
+	pack .frame.resetapp -side left -pady 10 -padx 10
+	
+	# john 13-11-19 taking away this button as many users click it and it causes huge downloads.
+	# better to ask them to redownload the entire app from our web site https://decentespresso.com/downloads
+	#pack .frame.redownloadapp -side right -pady 10 -padx 10
+	pack .frame.exitapp -side right -pady 10 -padx 10
+	
+	.hello configure -text "[ifexists ::de1(app_update_button_label)] Update app"
 
 }
 
-##
-
-#pause 2000

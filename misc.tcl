@@ -48,12 +48,13 @@ proc make_de1_dir {} {
         #fonts/NotoSansCJKjp-ThinSansCJKjp-DemiLight.otf *
         #fonts/NotoSansCJKjp-Thin.otf *
         #fonts/NotoSansCJKjp-Medium.otf *
+#        create_de1_icon.tcl *
 
     set files {
         binary.tcl *
         bluetooth.tcl *
         translation.tcl *
-        de1plus.tcl 1
+        de1plus.tcl *
         de1.tcl *
         gui.tcl *
         machine.tcl *
@@ -64,12 +65,12 @@ proc make_de1_dir {} {
         misc.tcl *
         pkgIndex.tcl *
         de1_icon_v2.png *
-        de1plus_icon_v2.png 1
+        de1plus_icon_v2.png *
         cloud_download_icon.png *
-        create_de1_icon.tcl 1
-        create_de1plus_icon.tcl 1
-        create_de1_update_icon.tcl 1
+        create_de1plus_icon.tcl *
+        create_de1_update_icon.tcl *
         appupdate.tcl *
+        cline_appupdate.tcl *
         autopair_with_de1.tcl *
         autopair_with_de1plus.tcl *
         history_export.tcl *
@@ -115,15 +116,17 @@ proc make_de1_dir {} {
         skins/default/1280x800/cleaning.jpg *
         skins/default/1280x800/settings_message.png  *
         skins/default/1280x800/settings_3_choices.png  *
+        skins/default/1280x800/ghc.jpg *
+        skins/default/1280x800/descale_prepare.jpg *
         skins/default/1280x800/descaling.jpg *
         skins/default/1280x800/settings_1.png *
-        skins/default/1280x800/settings_2.png 1
-        skins/default/1280x800/settings_2a.png 1
-        skins/default/1280x800/settings_2a2.png 1
-        skins/default/1280x800/settings_2b.png 1
-        skins/default/1280x800/settings_2b2.png 1
-        skins/default/1280x800/settings_2c.png 1
-        skins/default/1280x800/settings_2c2.png 1
+        skins/default/1280x800/settings_2.png *
+        skins/default/1280x800/settings_2a.png *
+        skins/default/1280x800/settings_2a2.png *
+        skins/default/1280x800/settings_2b.png *
+        skins/default/1280x800/settings_2b2.png *
+        skins/default/1280x800/settings_2c.png *
+        skins/default/1280x800/settings_2c2.png *
         skins/default/1280x800/settings_3.png *
         skins/default/1280x800/settings_4.png *
         skins/default/1280x800/icon.jpg *
@@ -141,15 +144,17 @@ proc make_de1_dir {} {
         skins/default/2560x1600/cleaning.jpg *
         skins/default/2560x1600/settings_message.png  *
         skins/default/2560x1600/settings_3_choices.png  *
+        skins/default/2560x1600/ghc.jpg *
+        skins/default/2560x1600/descale_prepare.jpg *
         skins/default/2560x1600/descaling.jpg *
         skins/default/2560x1600/settings_1.png *
-        skins/default/2560x1600/settings_2.png 1
-        skins/default/2560x1600/settings_2a.png 1
-        skins/default/2560x1600/settings_2a2.png 1
-        skins/default/2560x1600/settings_2b.png 1
-        skins/default/2560x1600/settings_2b2.png 1
-        skins/default/2560x1600/settings_2c.png 1
-        skins/default/2560x1600/settings_2c2.png 1
+        skins/default/2560x1600/settings_2.png *
+        skins/default/2560x1600/settings_2a.png *
+        skins/default/2560x1600/settings_2a2.png *
+        skins/default/2560x1600/settings_2b.png *
+        skins/default/2560x1600/settings_2b2.png *
+        skins/default/2560x1600/settings_2c.png *
+        skins/default/2560x1600/settings_2c2.png *
         skins/default/2560x1600/settings_3.png *
         skins/default/2560x1600/settings_4.png *
         skins/default/2560x1600/icon.jpg *
@@ -169,6 +174,100 @@ proc make_de1_dir {} {
         skins/Antibes/2560x1600/nothing_on.png *
         skins/Antibes/2560x1600/steam_on.png *
         skins/Antibes/2560x1600/tea_on.png *    
+
+        skins/SWDark3/screen_saver/2560x1600/saver-1.jpg *
+        skins/SWDark3/screen_saver/2560x1600/saver-2.jpg *
+        skins/SWDark3/screen_saver/2560x1600/saver-3.jpg *
+        skins/SWDark3/screen_saver/1280x800/saver-1.jpg *
+        skins/SWDark3/screen_saver/1280x800/saver-2.jpg *
+        skins/SWDark3/screen_saver/1280x800/saver-3.jpg *
+        skins/SWDark3/swdark2_functions.tcl *
+        skins/SWDark3/skin.tcl *
+        skins/SWDark3/2560x1600/water_3.png *
+        skins/SWDark3/2560x1600/water_2.png *
+        skins/SWDark3/2560x1600/steam_1.png *
+        skins/SWDark3/2560x1600/steam_3.png *
+        skins/SWDark3/2560x1600/icon.jpg *
+        skins/SWDark3/2560x1600/espresso_1_zoomed.png *
+        skins/SWDark3/2560x1600/water_1.png *
+        skins/SWDark3/2560x1600/steam_2.png *
+        skins/SWDark3/2560x1600/sleep.png *
+        skins/SWDark3/2560x1600/espresso_3_zoomed.png *
+        skins/SWDark3/2560x1600/espresso_2.png *
+        skins/SWDark3/2560x1600/espresso_3.png *
+        skins/SWDark3/2560x1600/espresso_1.png *
+        skins/SWDark3/2560x1600/fill_tank.png *
+        skins/SWDark3/2560x1600/preheat_1.png *
+        skins/SWDark3/2560x1600/saver-1.png *
+        skins/SWDark3/2560x1600/preheat_2.png *
+        skins/SWDark3/2560x1600/saver-2.png *
+        skins/SWDark3/2560x1600/saver-3.png *
+        skins/SWDark3/2560x1600/preheat_3.png *
+        skins/SWDark3/2560x1600/preheat_4.png *
+        skins/SWDark3/2560x1600/espresso_2_zoomed.png *
+        skins/SWDark3/userdata/swdark2_usersettings.tdb *
+        skins/SWDark3/1280x800/water_3.png *
+        skins/SWDark3/1280x800/water_2.png *
+        skins/SWDark3/1280x800/steam_1.png *
+        skins/SWDark3/1280x800/steam_3.png *
+        skins/SWDark3/1280x800/icon.jpg *
+        skins/SWDark3/1280x800/espresso_1_zoomed.png *
+        skins/SWDark3/1280x800/water_1.png *
+        skins/SWDark3/1280x800/steam_2.png *
+        skins/SWDark3/1280x800/sleep.png *
+        skins/SWDark3/1280x800/espresso_3_zoomed.png *
+        skins/SWDark3/1280x800/espresso_2.png *
+        skins/SWDark3/1280x800/espresso_3.png *
+        skins/SWDark3/1280x800/espresso_1.png *
+        skins/SWDark3/1280x800/fill_tank.png *
+        skins/SWDark3/1280x800/preheat_1.png *
+        skins/SWDark3/1280x800/saver-1.png *
+        skins/SWDark3/1280x800/preheat_2.png *
+        skins/SWDark3/1280x800/saver-2.png *
+        skins/SWDark3/1280x800/saver-3.png *
+        skins/SWDark3/1280x800/preheat_3.png *
+        skins/SWDark3/1280x800/preheat_4.png *
+        skins/SWDark3/1280x800/espresso_2_zoomed.png *
+
+
+        skins/SWDark4/screen_saver/2560x1600/saver-1.jpg *
+        skins/SWDark4/screen_saver/2560x1600/saver-2.jpg *
+        skins/SWDark4/screen_saver/2560x1600/saver-3.jpg *
+        skins/SWDark4/screen_saver/1280x800/saver-1.jpg *
+        skins/SWDark4/screen_saver/1280x800/saver-2.jpg *
+        skins/SWDark4/screen_saver/1280x800/saver-3.jpg *
+        skins/SWDark4/swdark_functions.tcl *
+        skins/SWDark4/skin.tcl *
+        skins/SWDark4/img/hearticon.png *
+        skins/SWDark4/helveticabold12.ttf *
+        skins/SWDark4/helveticabold16.ttf *
+        skins/SWDark4/helveticabold18.ttf *
+        skins/SWDark4/helveticabold20.ttf *
+        skins/SWDark4/helveticabold24.ttf *
+        skins/SWDark4/2560x1600/home.png *
+        skins/SWDark4/2560x1600/home_2.png *
+        skins/SWDark4/2560x1600/home_2_single.png *
+        skins/SWDark4/2560x1600/home_2_split.png *
+        skins/SWDark4/2560x1600/swsettings.png *
+        skins/SWDark4/2560x1600/icon.jpg *
+        skins/SWDark4/2560x1600/sleep.png *
+        skins/SWDark4/2560x1600/fill_tank.png *
+        skins/SWDark4/2560x1600/saver-1.png *
+        skins/SWDark4/2560x1600/saver-2.png *
+        skins/SWDark4/2560x1600/saver-3.png *
+        skins/SWDark4/userdata/swdark_usersettings.tdb *
+        skins/SWDark4/1280x800/icon.jpg *
+        skins/SWDark4/1280x800/sleep.png *
+        skins/SWDark4/1280x800/fill_tank.png *
+        skins/SWDark4/1280x800/saver-1.png *
+        skins/SWDark4/1280x800/saver-2.png *
+        skins/SWDark4/1280x800/saver-3.png *
+        skins/SWDark4/1280x800/home.png *
+        skins/SWDark4/1280x800/home_2.png *
+        skins/SWDark4/1280x800/home_2_single.png *
+        skins/SWDark4/1280x800/home_2_split.png *
+        skins/SWDark4/1280x800/swsettings.png *
+
 
         skins/Borg/skin.tcl *
         skins/Borg/diablo.ttf *
@@ -327,70 +426,70 @@ proc make_de1_dir {} {
         skins/Diner/2560x1600/steam_on.png *
         skins/Diner/2560x1600/tea_on.png *    
 
-        skins/Insight/1280x800/icon.jpg 1
-        skins/Insight/skin.tcl 1
-        skins/Insight/scentone.tcl 1
-        skins/Insight/1280x800/espresso_1.png 1
-        skins/Insight/1280x800/espresso_1_zoomed.png 1
-        skins/Insight/1280x800/espresso_2.png 1
-        skins/Insight/1280x800/espresso_2_zoomed.png 1
-        skins/Insight/1280x800/espresso_3.png 1
-        skins/Insight/1280x800/espresso_3_zoomed.png 1
-        skins/Insight/1280x800/steam_1.png 1
-        skins/Insight/1280x800/steam_2.png 1
-        skins/Insight/1280x800/steam_3.png 1
-        skins/Insight/1280x800/water_1.png 1
-        skins/Insight/1280x800/water_2.png 1
-        skins/Insight/1280x800/water_3.png 1
-        skins/Insight/1280x800/preheat_1.png 1
-        skins/Insight/1280x800/preheat_2.png 1
-        skins/Insight/1280x800/preheat_3.png 1
-        skins/Insight/1280x800/preheat_4.png 1
-        skins/Insight/1280x800/scentone_1.jpg 1
-        skins/Insight/1280x800/scentone_tropical.jpg 1
-        skins/Insight/1280x800/scentone_berry.jpg 1
-        skins/Insight/1280x800/scentone_citrus.jpg 1
-        skins/Insight/1280x800/scentone_stone.jpg 1
-        skins/Insight/1280x800/scentone_cereal.jpg 1
-        skins/Insight/1280x800/scentone_chocolate.jpg 1
-        skins/Insight/1280x800/scentone_flower.jpg 1
-        skins/Insight/1280x800/scentone_spice.jpg 1
-        skins/Insight/1280x800/scentone_vegetable.jpg 1
-        skins/Insight/1280x800/scentone_savory.jpg 1
-        skins/Insight/1280x800/describe_espresso0.jpg 1
-        skins/Insight/1280x800/describe_espresso.jpg 1
-        skins/Insight/1280x800/describe_espresso2.jpg 1
-        skins/Insight/2560x1600/icon.jpg 1
-        skins/Insight/2560x1600/espresso_1.png 1
-        skins/Insight/2560x1600/espresso_1_zoomed.png 1
-        skins/Insight/2560x1600/espresso_2.png 1
-        skins/Insight/2560x1600/espresso_2_zoomed.png 1
-        skins/Insight/2560x1600/espresso_3.png 1
-        skins/Insight/2560x1600/espresso_3_zoomed.png 1
-        skins/Insight/2560x1600/steam_1.png 1
-        skins/Insight/2560x1600/steam_2.png 1
-        skins/Insight/2560x1600/steam_3.png 1
-        skins/Insight/2560x1600/water_1.png 1
-        skins/Insight/2560x1600/water_2.png 1
-        skins/Insight/2560x1600/water_3.png 1
-        skins/Insight/2560x1600/preheat_1.png 1
-        skins/Insight/2560x1600/preheat_2.png 1
-        skins/Insight/2560x1600/preheat_3.png 1
-        skins/Insight/2560x1600/preheat_4.png 1
-        skins/Insight/2560x1600/scentone_1.jpg 1
-        skins/Insight/2560x1600/scentone_tropical.jpg 1
-        skins/Insight/2560x1600/scentone_berry.jpg 1
-        skins/Insight/2560x1600/scentone_citrus.jpg 1
-        skins/Insight/2560x1600/scentone_stone.jpg 1
-        skins/Insight/2560x1600/scentone_cereal.jpg 1
-        skins/Insight/2560x1600/scentone_chocolate.jpg 1
-        skins/Insight/2560x1600/scentone_flower.jpg 1
-        skins/Insight/2560x1600/scentone_spice.jpg 1
-        skins/Insight/2560x1600/scentone_vegetable.jpg 1
-        skins/Insight/2560x1600/scentone_savory.jpg 1
-        skins/Insight/2560x1600/describe_espresso0.jpg 1
-        skins/Insight/2560x1600/describe_espresso.jpg 1
-        skins/Insight/2560x1600/describe_espresso2.jpg 1
+        skins/Insight/1280x800/icon.jpg *
+        skins/Insight/skin.tcl *
+        skins/Insight/scentone.tcl *
+        skins/Insight/1280x800/espresso_1.png *
+        skins/Insight/1280x800/espresso_1_zoomed.png *
+        skins/Insight/1280x800/espresso_2.png *
+        skins/Insight/1280x800/espresso_2_zoomed.png *
+        skins/Insight/1280x800/espresso_3.png *
+        skins/Insight/1280x800/espresso_3_zoomed.png *
+        skins/Insight/1280x800/steam_1.png *
+        skins/Insight/1280x800/steam_2.png *
+        skins/Insight/1280x800/steam_3.png *
+        skins/Insight/1280x800/water_1.png *
+        skins/Insight/1280x800/water_2.png *
+        skins/Insight/1280x800/water_3.png *
+        skins/Insight/1280x800/preheat_1.png *
+        skins/Insight/1280x800/preheat_2.png *
+        skins/Insight/1280x800/preheat_3.png *
+        skins/Insight/1280x800/preheat_4.png *
+        skins/Insight/1280x800/scentone_1.jpg *
+        skins/Insight/1280x800/scentone_tropical.jpg *
+        skins/Insight/1280x800/scentone_berry.jpg *
+        skins/Insight/1280x800/scentone_citrus.jpg *
+        skins/Insight/1280x800/scentone_stone.jpg *
+        skins/Insight/1280x800/scentone_cereal.jpg *
+        skins/Insight/1280x800/scentone_chocolate.jpg *
+        skins/Insight/1280x800/scentone_flower.jpg *
+        skins/Insight/1280x800/scentone_spice.jpg *
+        skins/Insight/1280x800/scentone_vegetable.jpg *
+        skins/Insight/1280x800/scentone_savory.jpg *
+        skins/Insight/1280x800/describe_espresso0.jpg *
+        skins/Insight/1280x800/describe_espresso.jpg *
+        skins/Insight/1280x800/describe_espresso2.jpg *
+        skins/Insight/2560x1600/icon.jpg *
+        skins/Insight/2560x1600/espresso_1.png *
+        skins/Insight/2560x1600/espresso_1_zoomed.png *
+        skins/Insight/2560x1600/espresso_2.png *
+        skins/Insight/2560x1600/espresso_2_zoomed.png *
+        skins/Insight/2560x1600/espresso_3.png *
+        skins/Insight/2560x1600/espresso_3_zoomed.png *
+        skins/Insight/2560x1600/steam_1.png *
+        skins/Insight/2560x1600/steam_2.png *
+        skins/Insight/2560x1600/steam_3.png *
+        skins/Insight/2560x1600/water_1.png *
+        skins/Insight/2560x1600/water_2.png *
+        skins/Insight/2560x1600/water_3.png *
+        skins/Insight/2560x1600/preheat_1.png *
+        skins/Insight/2560x1600/preheat_2.png *
+        skins/Insight/2560x1600/preheat_3.png *
+        skins/Insight/2560x1600/preheat_4.png *
+        skins/Insight/2560x1600/scentone_1.jpg *
+        skins/Insight/2560x1600/scentone_tropical.jpg *
+        skins/Insight/2560x1600/scentone_berry.jpg *
+        skins/Insight/2560x1600/scentone_citrus.jpg *
+        skins/Insight/2560x1600/scentone_stone.jpg *
+        skins/Insight/2560x1600/scentone_cereal.jpg *
+        skins/Insight/2560x1600/scentone_chocolate.jpg *
+        skins/Insight/2560x1600/scentone_flower.jpg *
+        skins/Insight/2560x1600/scentone_spice.jpg *
+        skins/Insight/2560x1600/scentone_vegetable.jpg *
+        skins/Insight/2560x1600/scentone_savory.jpg *
+        skins/Insight/2560x1600/describe_espresso0.jpg *
+        skins/Insight/2560x1600/describe_espresso.jpg *
+        skins/Insight/2560x1600/describe_espresso2.jpg *
 
         saver/1280x800/Black\ Steel.jpg *
         saver/1280x800/Cozy-Home.jpg *
@@ -439,22 +538,24 @@ proc make_de1_dir {} {
         saver/2560x1600/three_women.jpg *     
 
         profiles/Gentle\ and\ sweet.tcl *
+        profiles/Londinium-R-by-Damian.tcl *
+        profiles/Advanced\ spring\ lever.tcl *
         profiles/Blooming\ espresso.tcl *
         profiles/Classic\ Italian\ espresso.tcl *
-        profiles/Flow\ profile\ for\ milky\ drinks.tcl 1
-        profiles/Flow\ profile\ for\ straight\ espresso.tcl 1
-        profiles/Gentle\ flat\ 2.5\ ml\ per\ second.tcl 1
-        profiles/Gentle\ preinfusion\ flow\ profile.tcl 1
-        profiles/Pour\ over.tcl 1
+        profiles/Flow\ profile\ for\ milky\ drinks.tcl *
+        profiles/Flow\ profile\ for\ straight\ espresso.tcl *
+        profiles/Gentle\ flat\ 2.5\ ml\ per\ second.tcl *
+        profiles/Gentle\ preinfusion\ flow\ profile.tcl *
+        profiles/Pour\ over.tcl *
         profiles/Gentler\ but\ still\ traditional\ 8.4\ bar.tcl *
-        profiles/Hybrid\ pour\ over\ espresso.tcl 1
+        profiles/Hybrid\ pour\ over\ espresso.tcl *
         profiles/Low\ pressure\ lever\ machine\ at\ 6\ bar.tcl *
-        profiles/Preinfuse\ then\ 45ml\ of\ water.tcl 1
+        profiles/Preinfuse\ then\ 45ml\ of\ water.tcl *
         profiles/Best\ overall\ pressure\ profile.tcl *
         profiles/Traditional\ lever\ machine.tcl *
         profiles/Trendy\ 6\ bar\ low\ pressure\ shot.tcl *
         profiles/Two\ spring\ lever\ machine\ to\ 9\ bar.tcl *
-        profiles/Innovative\ long\ preinfusion.tcl 1
+        profiles/Innovative\ long\ preinfusion.tcl *
         profiles/default.tcl *
         profiles/e61\ classic\ at\ 9\ bar.tcl *
         profiles/e61\ rocketing\ up\ to\ 10\ bar.tcl *
@@ -467,7 +568,8 @@ proc make_de1_dir {} {
 #        profiles/Powerful\ 10\ bar\ shot.tcl *
 
     set srcdir "/d/admin/code/de1beta"
-    set destdirs [list "/d/download/sync/de1" "/d/download/sync/de1plus" "/d/download/sync/de1plusbig"]
+    #set destdirs [list "/d/download/sync/de1" "/d/download/sync/de1plus" "/d/download/sync/de1plusbig"]
+    set destdirs [list "/d/download/sync/de1plus"]
 
     # load the local manifest into memory 
     foreach {filename filesize filemtime filesha} [string trim [read_file "[homedir]/complete_manifest.txt"]] {
@@ -541,16 +643,34 @@ proc make_de1_dir {} {
         }
 
         write_file "$destdir/timestamp.txt" $timestamp
+
         write_file "$destdir/manifest.txt" $manifest 
+
+        # it might be that .txt files are modified, so try another extension name
+        write_file "$destdir/manifest.tdb" $manifest 
+
+        write_binary_file "$destdir/manifest.gz" [zlib gzip $manifest]
+
         incr dircount
     }
 
     write_file "$srcdir/complete_manifest.txt" [join [lsort -unique $complete_manifest] \n]
 }
 
+proc write_binary_file {filename data} {
+    set fn [fast_write_open $filename w]
+    fconfigure $fn -translation binary
+    puts $fn $data 
+    close $fn
+    return 1
+}
+
+
+
 proc calc_sha {source} {
 
     #return [::crc::crc32 -filename $source]
     return [::sha2::sha256 -hex -filename $source]
 }
+
 

@@ -9,9 +9,12 @@ proc clear_espresso_chart {} {
 	espresso_elapsed length 0
 	espresso_pressure length 0
 	espresso_weight length 0
+	espresso_weight_chartable length 0
 	espresso_flow length 0
 	espresso_flow_weight length 0
+	espresso_flow_weight_raw length 0
 	espresso_flow_weight_2x length 0
+	espresso_water_dispensed length 0
 	espresso_flow_2x length 0
 	espresso_pressure_delta length 0
 	espresso_flow_delta length 0
@@ -39,9 +42,12 @@ proc clear_espresso_chart {} {
 	espresso_pressure append 0
 	#god_espresso_pressure append 0
 	espresso_weight append 0
+	espresso_weight_chartable append 0
 	espresso_flow append 0
 	espresso_flow_weight append 0
 	espresso_flow_weight_2x append 0
+	espresso_flow_weight_raw append 0
+	espresso_water_dispensed append 0
 	espresso_flow_2x append 0
 	espresso_pressure_delta append 0
 	espresso_flow_delta append 0
@@ -65,7 +71,7 @@ proc clear_espresso_chart {} {
 }	
 
 proc espresso_chart_structures {} {
-	return [list espresso_elapsed espresso_pressure espresso_weight espresso_flow espresso_flow_weight espresso_flow_weight_2x espresso_flow_2x espresso_pressure_delta espresso_flow_delta espresso_flow_delta_negative espresso_flow_delta_negative_2x espresso_temperature_mix espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_de1_explanation_chart_flow espresso_de1_explanation_chart_elapsed_flow espresso_de1_explanation_chart_flow_2x espresso_de1_explanation_chart_flow_1_2x espresso_de1_explanation_chart_flow_2_2x espresso_de1_explanation_chart_flow_3_2x espresso_de1_explanation_chart_pressure espresso_de1_explanation_chart_pressure_1 espresso_de1_explanation_chart_pressure_2 espresso_de1_explanation_chart_pressure_3 espresso_de1_explanation_chart_elapsed_flow espresso_de1_explanation_chart_elapsed_flow_1 espresso_de1_explanation_chart_elapsed_flow_2 espresso_de1_explanation_chart_elapsed_flow_3 espresso_de1_explanation_chart_elapsed espresso_de1_explanation_chart_elapsed_1 espresso_de1_explanation_chart_elapsed_2 espresso_de1_explanation_chart_elapsed_3]
+	return [list espresso_elapsed espresso_pressure espresso_weight espresso_weight_chartable espresso_flow espresso_flow_weight espresso_flow_weight_raw espresso_water_dispensed espresso_flow_weight_2x espresso_flow_2x espresso_pressure_delta espresso_flow_delta espresso_flow_delta_negative espresso_flow_delta_negative_2x espresso_temperature_mix espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_de1_explanation_chart_flow espresso_de1_explanation_chart_elapsed_flow espresso_de1_explanation_chart_flow_2x espresso_de1_explanation_chart_flow_1_2x espresso_de1_explanation_chart_flow_2_2x espresso_de1_explanation_chart_flow_3_2x espresso_de1_explanation_chart_pressure espresso_de1_explanation_chart_pressure_1 espresso_de1_explanation_chart_pressure_2 espresso_de1_explanation_chart_pressure_3 espresso_de1_explanation_chart_elapsed_flow espresso_de1_explanation_chart_elapsed_flow_1 espresso_de1_explanation_chart_elapsed_flow_2 espresso_de1_explanation_chart_elapsed_flow_3 espresso_de1_explanation_chart_elapsed espresso_de1_explanation_chart_elapsed_1 espresso_de1_explanation_chart_elapsed_2 espresso_de1_explanation_chart_elapsed_3]
 }
 
 proc backup_espresso_chart {} {
@@ -583,7 +589,16 @@ proc waterflow {} {
 
 
 		set ::de1(flow) [expr {(.1 * (rand() - 0.5)) + $::de1(flow)}]		
+
+		if {$::de1_num_state($::de1(state)) == "Espresso"} {
+			if {[espresso_millitimer] < 5000} {	
+				set ::de1(preinfusion_volume) [expr {$::de1(preinfusion_volume) + ($::de1(flow) * .1) }]
+			} else {
+				set ::de1(pour_volume) [expr {$::de1(pour_volume) + ($::de1(flow) * .1) }]
+			}
+		}
 		#set ::de1(flow) [expr {rand() + $::de1(flow) - 0.5}]
+
 	}
 
 	return $::de1(flow)
@@ -738,7 +753,7 @@ proc water_mix_temperature {} {
 			if {$::de1(mix_temperature) == "" || $::de1(mix_temperature) < 85 || $::de1(mix_temperature) > 99} {
 				set ::de1(mix_temperature) 94
 			}
-			set ::de1(mix_temperature) [expr {$::de1(mix_temperature) + ((rand() - 0.5) * .3) }]
+			set ::de1(mix_temperature) [expr {$::de1(head_temperature) + ((rand() - 0.5) * 2) }]
 		}
 			#return [return_flow_weight_measurement [expr {(rand() * 6)}]]
 	}
@@ -850,6 +865,22 @@ proc return_zero_if_blank {in} {
 	return $in
 }
 
+proc return_stop_at_volume_measurement {in} {
+	if {$in == 0} {
+		return [translate "off"]
+	} else {
+		return [return_liquid_measurement [round_to_integer $in]]
+	}
+}
+
+proc return_off_or_temperature {in} {
+	if {$in == 0} {
+		return [translate "off"]
+	} else {
+		return [return_temperature_measurement [round_to_integer $in]]
+	}
+}
+
 proc return_stop_at_weight_measurement {in} {
 	if {$in == 0} {
 		return [translate "off"]
@@ -904,27 +935,38 @@ proc watervolume_text {} {
 proc waterweightflow_text {} {
 	if {$::android == 0} {
 		if {$::de1(substate) == $::de1_substate_types_reversed(pouring) || $::de1(substate) == $::de1_substate_types_reversed(preinfusion)} {	
-			if {$::de1(scale_weight_rate) == ""} {
-				set ::de1(scale_weight_rate) 3
+			if {[espresso_millitimer] > 5000} {	
+				# no weight increase for 5s due to preinfusion
+				if {$::de1(scale_weight_rate) == ""} {
+					set ::de1(scale_weight_rate) 3
+				}
+
+				set ::de1(scale_weight_rate) [expr {$::de1(scale_weight_rate) + ((rand() - 0.5) * .3) }]
+				if {$::de1(scale_weight_rate) < 0} {
+					set ::de1(scale_weight_rate) 1
+				}
+				set ::de1(scale_weight_rate_raw) [expr {$::de1(scale_weight_rate) + ((rand() - 0.5) * 1) }]
 			}
-			set ::de1(scale_weight_rate) [expr {$::de1(scale_weight_rate) + ((rand() - 0.5) * .3) }]
-			if {$::de1(scale_weight_rate) < 0} {
-				set ::de1(scale_weight_rate) 1
-			}
+
 		}
 			#return [return_flow_weight_measurement [expr {(rand() * 6)}]]
 	}
 
-	if {$::de1(scale_weight_rate) == ""} {
+	if {$::de1(scale_weight) == "" || [ifexists ::settings(scale_bluetooth_address)] == ""} {
 		return ""
 	}
 	return [return_flow_weight_measurement $::de1(scale_weight_rate)]
 }
 
 proc finalwaterweight_text {} {
-	if {$::de1(scale_weight) == ""} {
+	if {$::de1(scale_weight) == "" || [ifexists ::settings(scale_bluetooth_address)] == ""} {
 		return ""
 	}
+
+	if {[ifexists ::blink_water_weight] == 1} {
+		return ""
+	}
+
 	return [return_weight_measurement $::de1(final_water_weight)]
 }
 
@@ -936,25 +978,31 @@ proc dump_stack {a b c} {
 #trace add variable de1(final_water_weight) write dump_stack
 
 proc waterweight_text {} {
-	if {$::android == 0} {
+	if {$::de1(scale_weight) == "" || [ifexists ::settings(scale_bluetooth_address)] == ""} {
+		return ""
+	}
 
-		if {$::de1(substate) == $::de1_substate_types_reversed(pouring) || $::de1(substate) == $::de1_substate_types_reversed(preinfusion)} {	
-			if {$::de1(scale_weight) == ""} {
-				set ::de1(scale_weight) 3
-			}
-			set ::de1(scale_weight) [expr {$::de1(scale_weight) + (rand() * .1) }]
-			set ::de1(final_water_weight) $::de1(scale_weight)
-		} else {
+	if {$::android == 0} {
+		if {[espresso_millitimer] < 5000} {	
+			# no weight increase for 5s due to preinfusion
 			set ::de1(scale_weight) 0
+		} else {
+
+			if {$::de1(substate) == $::de1_substate_types_reversed(pouring) || $::de1(substate) == $::de1_substate_types_reversed(preinfusion)} {	
+				if {$::de1(scale_weight) == ""} {
+					set ::de1(scale_weight) 3
+				}
+				set ::de1(scale_weight) [expr {$::de1(scale_weight) + (rand() * .3) }]
+				set ::de1(final_water_weight) $::de1(scale_weight)
+			} else {
+				set ::de1(scale_weight) 0
+			}
 		}
 
 		#return [return_weight_measurement [expr {round((rand() * 20))}]]
 	}
-	if {$::de1(scale_weight) == ""} {
-		return ""
-	}
 
-	if {$::de1(skale_device_handle) == "0" || $::de1(skale_device_handle) == ""} {
+	if {$::de1(scale_device_handle) == "0"} {
 		return [translate "Disconnected"]
 	}
 
@@ -963,8 +1011,7 @@ proc waterweight_text {} {
 }
 
 proc waterweight_label_text {} {
-	if {$::de1(scale_weight) == ""} {
-		# setting this to negative will cause the progress bar to disappear 
+	if {$::de1(scale_weight) == "" || [ifexists ::settings(scale_bluetooth_address)] == ""} {
 		return ""
 	}
 
@@ -972,13 +1019,13 @@ proc waterweight_label_text {} {
 		return [translate "Weight"]
 	}
 
-	if {$::de1(skale_device_handle) == "0" || $::de1(skale_device_handle) == ""} {
+	if {$::de1(scale_device_handle) == "0"} {
 		if {[ifexists ::blink_water_weight] != 1} {
-			if {$::currently_connecting_skale_handle == 0} {
+			if {$::currently_connecting_scale_handle == 0} {
 				set ::blink_water_weight 1
 				return {}
 			} else {
-				return "..."
+				return [translate "Wait"]
 			}
 		} else {
 			set ::blink_water_weight 0
@@ -1167,7 +1214,17 @@ proc round_temperature_number {in} {
 	}
 }
 
+proc return_temperature_setting_or_off {in} {
+	if {$in == 0} {
+		return [translate "off"]
+	} else {
+		return [return_temperature_setting $in]
+	}
+}
+
+
 proc return_temperature_setting {in} {
+	#msg "return_temperature_setting: $in"
 	if {[de1plus]} {
 		if {$::settings(enable_fahrenheit) == 1} {
 			return [subst {[round_to_integer [celsius_to_fahrenheit $in]]\u00BAF}]
@@ -1419,7 +1476,6 @@ proc fill_skin_listbox {} {
 
 	$widget selection set $::current_skin_number
 
-
 	make_current_listbox_item_blue $widget
 	#puts "current_skin_number: $::current_skin_number"
 
@@ -1510,15 +1566,23 @@ proc profile_directories {} {
 }
 
 proc delete_selected_profile {} {
+	set w $::globals(profiles_listbox)
+	#$w selection set $::current_profile_number
+	#puts "cc: '[$w curselection]'"
+	set profile [lindex [profile_directories] [lindex [$w curselection] 0]]
+	set fn "[homedir]/profiles/${profile}.tcl"
+	puts "todelete: '$fn'"
 
 	set todel $::settings(profile)
-	#puts "delete profile: $todel"
-	if {$todel == "default"} {
+	puts "delete profile: $todel"
+	if {$profile == "default"} {
+		msg "cannot delete default profile"
 		return
 	}
+	#return
 
-	puts [subst {file delete "[homedir]/profiles/${todel}.tcl"}]
-	file delete "[homedir]/profiles/${todel}.tcl"
+	#puts [subst {file delete "[homedir]/profiles/${todel}.tcl"}]
+	file delete $fn
 	set ::settings(profile) "default"
 	fill_profiles_listbox 
 	#preview_profile 
@@ -1541,7 +1605,7 @@ proc fill_ble_listbox {} {
 	#lappend ::de1_bluetooth_list $address
 
 	if {$::android == 0} {	
-#		set ::skale_bluetooth_list [list "C1:80:A7:32:CD:A3" "C5:80:EC:A5:F9:72" "F2:C3:43:60:AB:F5"]
+		#set ::scale_bluetooth_list [list "C1:80:A7:32:CD:A3" "C5:80:EC:A5:F9:72" "F2:C3:43:60:AB:F5"]
 		#set ::de1_bluetooth_list ""
 	}
 
@@ -1582,23 +1646,24 @@ proc fill_ble_listbox {} {
 	make_current_listbox_item_blue $widget
 }
 
-proc fill_ble_skale_listbox {} {
+proc fill_ble_scale_listbox {} {
+	
 
-	set widget $::ble_skale_listbox_widget
+	set widget $::ble_scale_listbox_widget
 	$widget delete 0 99999
 	set cnt 0
 	set current_ble_number 0
 
 	set one_selected 0
-	foreach d [lsort -dictionary -increasing $::skale_bluetooth_list] {
-		if {$d == [ifexists ::settings(skale_bluetooth_address)]} {
+	foreach d [lsort -dictionary -increasing $::scale_bluetooth_list] {
+		if {$d == [ifexists ::settings(scale_bluetooth_address)]} {
 			$widget insert $cnt " \[\u2713\] $d"
 			set one_selected 1
 		} else {
 			$widget insert $cnt " \[   \] $d"
 		}
 			#$widget insert $cnt $d
-		if {[ifexists ::settings(skale_bluetooth_address)] == $d} {
+		if {[ifexists ::settings(scale_bluetooth_address)] == $d} {
 			set current_ble_number $cnt
 		}
 		incr cnt
@@ -1606,9 +1671,9 @@ proc fill_ble_skale_listbox {} {
 	
 	$widget selection set $current_ble_number;
 
-	set ::skale_needs_to_be_selected 0
+	set ::scale_needs_to_be_selected 0
 	if {[llength $::de1_bluetooth_list] > 0 && $one_selected == 0} {
-		set ::skale_needs_to_be_selected 1
+		set ::scale_needs_to_be_selected 1
 	}
 	
 	make_current_listbox_item_blue $widget
@@ -1651,21 +1716,40 @@ proc fill_profiles_listbox {} {
 			continue
 		}
 
+		set ptitle $profile(profile_title)
+		set pcnt [ifexists ::profile_shot_count($d)]
+		#puts "ptitle: '$ptitle '$pcnt'"
+
 		if {[language] != "en" && [ifexists profile(profile_language)] == "en" && [ifexists profile(author)] == "Decent"} {
-			$widget insert $cnt [translate $profile(profile_title)]
+			set p [translate $ptitle]
 		} else {
-			$widget insert $cnt $profile(profile_title)
+			set p $ptitle
 		}
 
-		#puts "$widget insert $cnt $d"
-		#puts "$::settings(profile) == [ifexists profile(profile_title)]"
-		if {$::settings(profile) ==[ifexists profile(profile_title)]} {
+		if {$pcnt != ""} {
+			set p "$p \u25C0"
+			#set p "$p$::settings(append_most_used_profiles_with)"
+
+
+		}
+		$widget insert $cnt $p
+
+		#msg "'$::settings(profile)' == '[ifexists profile(profile_title)]'"
+		if {[string tolower $::settings(profile)] == [string tolower [ifexists profile(profile_title)]]} {
 			set ::current_profile_number $cnt
 			#puts "current profile of '$d' is #$cnt"
+		} elseif {[language] != "en"} {
+			if {[string tolower $::settings(profile)] == [string tolower [translate [ifexists profile(profile_title)]]]} {
+				set ::current_profile_number $cnt
+			#	msg "translated current profile of '$d' is #$cnt"
+			}
 		}
 
 		incr cnt
 	}
+
+			
+
 	
 	$widget selection set $::current_profile_number;
 	set ::globals(profiles_listbox) $widget
@@ -1676,6 +1760,7 @@ proc fill_profiles_listbox {} {
 }
 
 proc copy_pressure_profile_to_advanced_profile {} {
+	msg "copy_pressure_profile_to_advanced_profile"
 	set preinfusion [list \
 		name [translate "preinfusion"] \
 		temperature $::settings(espresso_temperature) \
@@ -1732,7 +1817,7 @@ proc copy_pressure_profile_to_advanced_profile {} {
 
 
 proc copy_flow_profile_to_advanced_profile {} {
-	#puts "copy_flow_profile_to_advanced_profile"
+	puts "copy_flow_profile_to_advanced_profile"
 	set preinfusion [list \
 		name [translate "preinfusion"] \
 		temperature $::settings(espresso_temperature) \
@@ -2030,7 +2115,8 @@ proc save_new_tablet_skin_setting {} {
 
 
 proc preview_tablet_skin {} {
-	if {$::de1(current_context) != "settings_3"} {
+	
+	if {$::de1(current_context) != "tabletstyles"} {
 		return 
 	}
 
@@ -2062,9 +2148,11 @@ proc preview_tablet_skin {} {
         set rescale_images_y_ratio [expr {$::screen_size_width / 2560.0}]
 
 		set src "[homedir]/skins/$skindir/2560x1600/icon.jpg"
-		$::table_style_preview_image read $src
-		photoscale $::table_style_preview_image $rescale_images_y_ratio $rescale_images_x_ratio
-		$::table_style_preview_image write $fn  -format {jpeg -quality 90}
+		catch {
+			$::table_style_preview_image read $src
+			photoscale $::table_style_preview_image $rescale_images_y_ratio $rescale_images_x_ratio
+			$::table_style_preview_image write $fn  -format {jpeg -quality 90}
+		}
 
 	} else {
 		set fn "[homedir]/skins/$skindir/${::screen_size_width}x${::screen_size_height}/icon.jpg"
@@ -2101,9 +2189,32 @@ proc preview_history {w args} {
 
 proc save_settings_and_ask_to_restart_app {} {
 	save_settings; 
-	.can itemconfigure $::message_label -text [translate "Please quit and restart this app to apply your changes."]
-	set_next_page off message; page_show message
+	message_page [translate "Please quit and restart this app to apply your changes."] [translate "Quit"];
+}
 
+proc message_page {msg buttonmsg} {
+	.can itemconfigure $::message_label -text $msg
+	.can itemconfigure $::message_button_label -text $buttonmsg
+	set_next_page off message; 
+	page_show message
+}
+
+
+#set ::infopage_label [add_de1_text "infopage" 1280 750 -text "" -font Helv_15_bold -fill "#2d3046" -justify "center" -anchor "center" -width 900]
+#set ::infopage_button_label [add_de1_text "infopage" 1280 1090 -text [translate "Ok"] -font Helv_10_bold -fill "#fAfBff" -anchor "center"]
+#set ::infopage_button [add_de1_button "infopage" {say [translate {Ok}] $::settings(sound_button_in); set_next_page off off} 980 990 1580 1190 ""]
+
+
+proc info_page {msg buttonmsg} {
+
+		#set_next_page off descalewarning;
+		#page_show descalewarning
+
+		#return
+	.can itemconfigure $::infopage_label -text $msg
+	.can itemconfigure $::infopage_button_label -text $buttonmsg
+	set_next_page off infopage; 
+	page_show off
 }
 
 proc change_bluetooth_device {} {
@@ -2164,8 +2275,8 @@ proc change_bluetooth_device {} {
 }
 
 
-proc change_skale_bluetooth_device {} {
-	set w $::ble_skale_listbox_widget
+proc change_scale_bluetooth_device {} {
+	set w $::ble_scale_listbox_widget
 
 
 	if {$w == ""} {
@@ -2175,7 +2286,7 @@ proc change_skale_bluetooth_device {} {
 		# no current selection
 		#return ""
 		msg "re-connecting to scale"
-		ble_connect_to_skale
+		ble_connect_to_scale
 		return
 	}
 
@@ -2185,19 +2296,22 @@ proc change_skale_bluetooth_device {} {
 	set p [string first "\] " $was_selected 0]
 	set p2 [expr {$p + 2}]
 	set profile [string range $was_selected $p2 end]
-	puts "new ble: '$profile'"
+#	puts "new ble: '$profile'"
+#
+	set ::settings(scale_bluetooth_address) $profile
+	set ::settings(scale_type) [ifexists ::scale_types($profile)]
+	msg "set scale type to: '$::settings(scale_type)' $profile"
 
-
-	if {$profile == $::settings(skale_bluetooth_address)} {
-		ble_connect_to_skale
+	if {$profile == $::settings(scale_bluetooth_address)} {
+		ble_connect_to_scale
 		return
 	}
-	set ::settings(skale_bluetooth_address) $profile
+	#msg "scale types: [array get ::scale_types]"
 
 	save_settings
-	ble_connect_to_skale
+	ble_connect_to_scale
 
-	fill_ble_skale_listbox
+	fill_ble_scale_listbox
 }
 
 
@@ -2231,6 +2345,8 @@ proc preview_profile {} {
 	set ::settings(profile) $profile
 	set ::settings(profile_notes) ""
 	set fn "[homedir]/profiles/${profile}.tcl"
+
+	puts "fn: '$fn'"
 
 	# for importing De1 profiles that don't have this feature.
 	set ::settings(preinfusion_flow_rate) 4
@@ -2274,6 +2390,7 @@ proc preview_profile {} {
 	}
 
 	#puts "::settings(settings_profile_type)  $::settings(settings_profile_type)"
+	set ::settings(profile) $::settings(profile_title)
 
 	update_onscreen_variables
 	profile_has_not_changed_set
@@ -2287,26 +2404,61 @@ proc profile_has_changed_set_colors {} {
 	if {$::settings(profile_has_changed) == 1} {
 		update_de1_explanation_chart
 		if {[info exists ::globals(widget_profile_name_to_save)] == 1} {		
-			$::globals(widget_profile_name_to_save) configure -bg #ffe3e3
+			catch {
+				$::globals(widget_profile_name_to_save) configure -bg #ffe3e3
+			}
 		}
 
 		if {[info exists ::globals(widget_current_profile_name)] == 1} {
-			.can itemconfigure $::globals(widget_current_profile_name) -fill #ff6b6b
-			.can itemconfigure $::globals(widget_current_profile_name_espresso) -fill #ff6b6b
+			catch {
+				.can itemconfigure $::globals(widget_current_profile_name) -fill $::de1(widget_current_profile_name_color_normal)
+			}
+			catch {
+				.can itemconfigure $::globals(widget_current_profile_name1) -fill $::de1(widget_current_profile_name_color_normal)
+			}
+			catch {
+				.can itemconfigure $::globals(widget_current_profile_name2) -fill $::de1(widget_current_profile_name_color_normal)
+			}
+			catch {
+				.can itemconfigure $::globals(widget_current_profile_name_espresso) -fill $::de1(widget_current_profile_name_color_normal)
+			}
+			catch {
+				.can itemconfigure $::globals(widget_current_profile_name_espresso1) -fill $::de1(widget_current_profile_name_color_normal)
+			}
+			catch {
+				.can itemconfigure $::globals(widget_current_profile_name_espresso2) -fill $::de1(widget_current_profile_name_color_normal)
+			}
 		}
 	} else {
 		if {[info exists ::globals(widget_profile_name_to_save)] == 1} {		
 			# this indicates to the user that the profile has changed or not
-			$::globals(widget_profile_name_to_save) configure -bg #fbfaff
+			catch {
+				$::globals(widget_profile_name_to_save) configure -bg #fbfaff
+			}
 		}
 
 		if {[info exists ::globals(widget_current_profile_name)] == 1} {
 			# this is displayed on the main Insight skin page
-			.can itemconfigure $::globals(widget_current_profile_name) -fill #969eb1
-			.can itemconfigure $::globals(widget_current_profile_name_espresso) -fill #969eb1
+			catch {
+				.can itemconfigure $::globals(widget_current_profile_name) -fill $::de1(widget_current_profile_name_color_changed)
+			}
+			catch {
+				.can itemconfigure $::globals(widget_current_profile_name1) -fill $::de1(widget_current_profile_name_color_changed)
+			}
+			catch {
+				.can itemconfigure $::globals(widget_current_profile_name2) -fill $::de1(widget_current_profile_name_color_changed)
+			}
+			catch {
+				.can itemconfigure $::globals(widget_current_profile_name_espresso) -fill $::de1(widget_current_profile_name_color_changed)
+			}
+			catch {
+				.can itemconfigure $::globals(widget_current_profile_name_espresso1) -fill $::de1(widget_current_profile_name_color_changed)
+			}
+			catch {
+				.can itemconfigure $::globals(widget_current_profile_name_espresso2) -fill $::de1(widget_current_profile_name_color_changed)
+			}
 		}
 	}
-
 }
 
 proc profile_has_changed_set args {
@@ -2352,8 +2504,14 @@ proc load_settings_vars {fn} {
 		set temp_settings(final_desired_shot_weight_advanced) $temp_settings(final_desired_shot_weight)
 	}
 
-	array set ::settings [array get temp_settings]
+	# pre-set the shot volume, to the shot weight, if importing an old shot definition that doesn't have a an end volume 
+	if {[ifexists temp_settings(final_desired_shot_volume)] == ""} {
+		msg "pre-set the shot volume, to the shot weight, if importing an old shot definition that doesn't have a an end volume "
+		set temp_settings(final_desired_shot_volume) [ifexists temp_settings(final_desired_shot_weight)]
+	}
 
+
+	array set ::settings [array get temp_settings]
 
 	update_de1_explanation_chart
 
@@ -2390,7 +2548,7 @@ proc save_profile {} {
 		set ::settings(profile_title) $::settings(preset_counter)  
 	}
 
-	set profile_vars { advanced_shot author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_weight final_desired_shot_weight_advanced preinfusion_guarantee profile_title profile_language preinfusion_stop_pressure}
+	set profile_vars { advanced_shot author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced preinfusion_guarantee profile_title profile_language preinfusion_stop_pressure}
 	#set profile_name_to_save $::settings(profile_to_save) 
 
 	if {[ifexists ::settings(original_profile_title)] == $::settings(profile_title)} {
@@ -2446,7 +2604,7 @@ after idle {after 0 {register_state_change_handler Espresso Idle save_this_espre
 
 proc save_this_espresso_to_history {unused_old_state unused_new_state} {
 	# only save shots that have at least 5 data points
-	if {!$::settings(history_saved) && [espresso_elapsed length] > 5 && $::settings(should_save_history) == 1} {
+	if {!$::settings(history_saved) && [espresso_elapsed length] > 5 && [espresso_pressure length] > 5 && $::settings(should_save_history) == 1} {
 
 		set name [clock format [clock seconds]]
 		set clock [clock seconds]
@@ -2462,8 +2620,10 @@ proc save_this_espresso_to_history {unused_old_state unused_new_state} {
 		append espresso_data "espresso_weight {[espresso_weight range 0 end]}\n"
 		append espresso_data "espresso_flow {[espresso_flow range 0 end]}\n"
 		append espresso_data "espresso_flow_weight {[espresso_flow_weight range 0 end]}\n"
+		append espresso_data "espresso_flow_weight_raw {[espresso_flow_weight_raw range 0 end]}\n"
 		append espresso_data "espresso_temperature_basket {[espresso_temperature_basket range 0 end]}\n"
 		append espresso_data "espresso_temperature_mix {[espresso_temperature_mix range 0 end]}\n"
+		append espresso_data "espresso_water_dispensed {[espresso_water_dispensed range 0 end]}\n"
 
 		append espresso_data "espresso_pressure_goal {[espresso_pressure_goal range 0 end]}\n"
 		append espresso_data "espresso_flow_goal {[espresso_flow_goal range 0 end]}\n"
@@ -2499,6 +2659,11 @@ proc start_text_if_espresso_ready {} {
 	set num $::de1(substate)
 	set substate_txt $::de1_substate_types($num)
 	if {$substate_txt == "ready" && $::de1(device_handle) != 0} {
+		
+		if {$::settings(ghc_is_installed) == 3} {
+			# display READY instead of START, because they have to tap the group head to start, they cannot tap the tablet, due to UL compliance limits
+			return [translate "READY"]
+		}
 		return [translate "START"]
 	}
 	return [translate "WAIT"]
@@ -2508,6 +2673,10 @@ proc restart_text_if_espresso_ready {} {
 	set num $::de1(substate)
 	set substate_txt $::de1_substate_types($num)
 	if {$substate_txt == "ready" && $::de1(device_handle) != 0} {
+		if {$::settings(ghc_is_installed) == 3} {
+			# display READY instead of START, because they have to tap the group head to start, they cannot tap the tablet, due to UL compliance limits
+			return [translate "READY"]
+		}
 		return [translate "RESTART"]
 	}
 	return [translate "WAIT"]
@@ -2536,7 +2705,13 @@ proc espresso_history_save_from_gui {} {
 	#		set state [translate "SAVING"] 
 		#} else {
 		#}; 
-		set state [translate "RESTART"]
+		if {$::settings(ghc_is_installed) == 3} {
+			# display READY instead of START, because they have to tap the group head to start, they cannot tap the tablet, due to UL compliance limits
+			set state [translate "READY"]
+		} else {
+			set state [translate "RESTART"]
+		}
+
 	}
 	#set state [translate "WAIT"]
 	#save_this_espresso_to_history; 
@@ -2695,7 +2870,7 @@ proc check_firmware_update_is_available {} {
 	}
 
 	if {$::de1(firmware_crc) != [ifexists ::settings(firmware_crc)] && $::de1(currently_updating_firmware) == ""} {
-		set ::de1(firmware_update_button_label) [translate "Firmware update available"]
+		set ::de1(firmware_update_button_label) "Firmware update available"
 	}
 	return ""
 }
@@ -2714,7 +2889,7 @@ proc firmware_uploaded_label {} {
 	set percentage [expr {(100.0 * $::de1(firmware_bytes_uploaded)) / $::de1(firmware_update_size)}]
 	#puts "percentage $percentage"
 	if {$percentage >= 100 && $::de1(currently_updating_firmware) == 0} {
-		return "[translate {Reboot your espresso machine now}]"
+		return "[translate {Turn your machine off and on again}]"
 	} else {
 		return "[round_to_one_digits $percentage]%"
 	}
@@ -2825,3 +3000,101 @@ proc refill_kit_retry_button {} {
 		return ""
 	}
 }
+
+proc return_fan_threshold_calibration {temperature} {
+
+	if {$temperature == 0} {
+		return [translate "always on"]		
+	}
+	return [return_temperature_setting $temperature]
+}
+
+proc return_steam_heater_calibration {steam_temperature} {
+
+	if {$steam_temperature < 130} {
+		return [translate "off"]		
+	}
+	return [return_temperature_setting $steam_temperature]
+}
+
+proc Restart_app {} {
+   #foreach w [winfo children .] {
+    ##   destroy $w
+   #}
+   #source [info script]
+
+	setup_images_for_first_page
+	setup_images_for_other_pages
+	.can itemconfigure splash -state hidden
+
+	#after $::settings(timer_interval) 
+	update_onscreen_variables
+	delay_screen_saver
+	change_screen_saver_img
+
+
+#de1_ui_startup
+
+}
+
+foreach p [info procs] { set kpv(p,$p) 1 }
+ foreach p [info vars]  { set kpv(v,$p) 1 }
+ set kpv(p,bgerror) 1
+
+ #######################################################################
+ #
+ # Restart
+ #
+ # Deletes all non-root widgets and all bindings This allows us to
+ # reload the source file without getting any errors.
+ #
+ proc Restart_app {{f ""}} {
+
+
+
+#    global kpv tk_version
+ 
+    ;#catch {auto_reset}                        ;# Undo all autoload stuff
+    if [info exists tk_version] {               ;# In wish not tclsh
+        . config -cursor {}
+        eval destroy [winfo children .]         ;# Kill all children windows
+  
+        foreach v [bind .] {                    ;# Remove all bindings also
+            bind . $v {}
+        }
+        if {$tk_version >= 4.0} {               ;# Kill after events
+            catch {foreach v [after info] {after cancel $v}}
+        }
+        if {$tk_version >= 8} {                 ;# Font stuff
+            catch { eval font delete [font names] }
+            eval image delete [image names]     ;# Image stuff
+        }
+        wm geom . {}                            ;# Reset main window geometry
+        . config -width 200 -height 200
+        raise .
+    }
+    foreach v [info procs] {                    ;# Remove unwanted procs
+        if {[info exists kpv(p,$v)] == 0} {
+            catch {rename $v {}}
+        }
+    }
+ #     foreach v [namespace children] {
+ #       if {[info exists kpv(n,$v)] == 0} {
+ #           catch {namespace delete $v}
+ #       }
+ #     }
+    
+    uplevel {                                   ;# Get at global variables 
+        foreach _v [info vars] {                ;# Remove unwanted variables
+            if {[info exists kpv(v,$_v)] == 0} {;# Part of the core?
+                catch {unset $_v}
+            }
+        }
+        catch { unset _v }
+    }
+    if [file exists $f] {
+       # uplevel source $f
+    }
+
+    source "de1plus.tcl"
+ }

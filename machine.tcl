@@ -155,6 +155,10 @@ array set ::settings {
 	current_frame_description {asdfasdfsa}
 	default_font_calibration 0.5
 	language en
+	steam_over_temp_threshold 175
+	steam_over_pressure_threshold 3
+	steam_over_pressure_count_trigger 10
+	steam_over_temp_count_trigger 10
 	active_settings_tab settings_2a
 	color_stage_1 "#c8e7d5"
 	color_stage_2 "#efdec2"
@@ -182,6 +186,11 @@ array set ::settings {
 	water_count 0
 	advanced_shot {}
 	water_time_max 60
+	battery_low_trigger 60
+	battery_low_brightness 50
+	battery_very_low_trigger 30
+	battery_very_low_brightness 10
+	orientation "landscape"
 	refill_check_at_sleep 0
 	grinder_dose_weight 0
 	scentone {}
@@ -189,10 +198,10 @@ array set ::settings {
 	one_tap_mode 0
 	allow_unheated_water 1
 	minimum_water_temperature 80
-	seconds_to_display_done_espresso 120
-	seconds_to_display_done_steam 120
-	seconds_to_display_done_flush 120
-	seconds_to_display_done_hotwater 120
+	seconds_to_display_done_espresso 300
+	seconds_to_display_done_steam 300
+	seconds_to_display_done_flush 300
+	seconds_to_display_done_hotwater 300
 	waterlevel_blink_start_offset 5
 	waterlevel_indicator_blink_rate 1000
 	waterlevel_indicator_on 1
@@ -658,6 +667,9 @@ proc start_sleep {} {
 
 	change_screen_saver_img
 	stop_screen_saver_timer
+
+	#de1_cause_refill_now_if_level_low
+
 	msg "Tell DE1 to start to go to SLEEP (only send when idle)"
 	de1_send_state "go to sleep" $::de1_state(Sleep)
 	
@@ -668,6 +680,37 @@ proc start_sleep {} {
 	}
 }
 
+proc check_if_steam_clogged {} {
+
+	set bad_pressure 0
+	set bad_temp 0
+	if {$::settings(steam_over_pressure_count_trigger) != 0} {
+		set over_pressure [steam_pressure search $::settings(steam_over_pressure_threshold) 999]
+		if {[llength $over_pressure] > $::settings(steam_over_pressure_count_trigger)} {
+			set bad_pressure 1
+		}
+
+		msg "over_pressure: [llength $over_pressure] vs $::settings(steam_over_pressure_count_trigger) - over_pressure: $over_pressure - bad_pressure: $bad_pressure ($::settings(steam_over_pressure_threshold) bar)"
+
+	}
+
+	if {$::settings(steam_over_temp_count_trigger) != 0} {
+		# steam_temperature is mapped to the charts at 1/100th scale, so we need to multiple the threshold here by 100
+		set over_temp [steam_temperature search [expr {$::settings(steam_over_temp_threshold) / 100.0}] 999]
+		if {[llength $over_temp] > $::settings(steam_over_temp_count_trigger)} {
+			set bad_temp 1
+		}
+
+		msg "over_temp: $over_temp -  $bad_temp (> $::settings(steam_over_temp_threshold) ºC)"
+
+	}
+
+	if {$bad_pressure == 1 || $bad_temp == 1} {
+		set_next_page off descalewarning;
+		page_show descalewarning
+
+	}
+}
 
 proc has_flowmeter {} {
 	return $::de1(has_flowmeter)

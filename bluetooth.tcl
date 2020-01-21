@@ -398,6 +398,23 @@ proc firmware_upload_next {} {
 }
 
 
+proc de1_cause_refill_now_if_level_low {} {
+
+	# john 05-08-19 commented out, will obsolete soon.  Turns out not to work, because SLEEP mode does not check low water setting.
+	return
+
+	# set the water level refill point to 10mm more water
+	set backup_waterlevel_setting $::settings(water_refill_point)
+	set ::settings(water_refill_point) [expr {$::settings(water_refill_point) + 20}]
+	de1_send_waterlevel_settings
+
+	# then set the water level refill point back to the user setting
+	set ::settings(water_refill_point) $backup_waterlevel_setting
+
+	# and in 30 seconds, tell the machine to set it back to normal
+	after 30000 de1_send_waterlevel_settings
+}
+
 proc de1_send_waterlevel_settings {} {
 	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
 		msg "DE1 not connected, cannot send BLE command 12"
@@ -1731,6 +1748,11 @@ proc scanning_state_text {} {
 		return [translate "Connected"]
 	}
 
+	#return [translate "Tap to select"]
+	if {[ifexists ::de1_needs_to_be_selected] == 1 || [ifexists ::skale_needs_to_be_selected] == 1} {
+		return [translate "Tap to select"]
+	}
+
 	return [translate "Search"]
 }
 
@@ -1739,8 +1761,16 @@ proc scanning_restart {} {
 		return
 	}
 	if {$::android != 1} {
+
+		set ::skale_bluetooth_list [list "12:32:56:78:90" "32:56:78:90:12" "56:78:90:12:32"]
+		set ::de1_bluetooth_list [list "12:32:56:78:90" "32:56:78:90:12" "56:78:90:12:32"]
+
+		after 200 fill_ble_skale_listbox
+		after 400 fill_ble_listbox
+
 		set ::scanning 1
 		after 3000 { set scanning 0 }
+		return
 	} else {
 		# only scan for a few seconds
 		after 10000 { stop_scanner }

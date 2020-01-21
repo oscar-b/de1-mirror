@@ -136,7 +136,6 @@ proc decent_http_get {url {timeout 30000}} {
 
         set cnt 0
         while {[string length $body] == 0} {
-            puts "Amazon RequestThrottled #[incr cnt] reissuing GET query"
             sleep 5000
             ::http::cleanup $token
             set token [::http::geturl $url -binary 1 -timeout $timeout]
@@ -150,7 +149,7 @@ proc decent_http_get {url {timeout 30000}} {
         if {$token != ""} {
             ::http::cleanup $token
         }
-    #}
+    #}z
     
     return $body
 }
@@ -237,13 +236,16 @@ proc pause {time} {
 
 proc log_to_debug_file {text} {
     if {[ifexists ::settings(logfile)] != ""} {
-        if {[ifexists ::logfile_handle] == ""} {
+        if {[ifexists ::logfile_handle] == "0"} {
+            # do nothing, no logging is possible (such as OSX readonly file system)
+        } elseif {[ifexists ::logfile_handle] == ""} {
 
-            #set errcode [catch {
+            set ::logfile_handle "0"
+            catch {
                 set ::logfile_handle [open "[homedir]/$::settings(logfile)" w]
                 fconfigure $::logfile_handle -blocking 0
                 fconfigure $::logfile_handle -buffersize 10240
-            #}]
+            }
 
 
         } else {
@@ -282,6 +284,68 @@ proc close_log_file {} {
             close $::logfile_handle
         }
     }
+}
+
+# every day, check to see if an app update is available
+proc scheduled_app_update_check {} {
+    check_timestamp_for_app_update_available
+    after 8640000 scheduled_app_update_check 
+}
+
+proc check_timestamp_for_app_update_available { {check_only 0} } {
+
+    set host "http://decentespresso.com"
+    set progname "de1plus"
+    set url_timestamp "$host/download/sync/$progname/timestamp.txt"    
+
+    set remote_timestamp {}
+
+    set ::app_update_available 0
+    
+
+    catch {
+        msg "Fetching remote update timestamp: '$url_timestamp'"
+        set remote_timestamp [string trim [decent_http_get $url_timestamp]]
+    }
+    #puts "timestamp: '$remote_timestamp'"
+
+    set local_timestamp [string trim [read_file "[homedir]/timestamp.txt"]]
+    if {$remote_timestamp == ""} {
+        puts "unable to fetch remote timestamp"
+        log_to_debug_file "unable to fetch remote timestamp"
+
+        if {$check_only != 1} {
+            set ::de1(app_update_button_label) [translate "Update"];             
+        }
+
+        return -1
+    } elseif {$local_timestamp == $remote_timestamp} {
+
+        if {$check_only != 1} {
+            set ::de1(app_update_button_label) [translate "Up to date"];             
+        }
+
+        puts "Local timestamp is the same as remote timestamp, so no need to update"
+        log_to_debug_file "Local timestamp is the same as remote timestamp, so no need to update"
+        return 0
+        
+        # we can return at this point, if we're very confident that the sync is correct
+        # john 4/18/18 we want to check all files anyway, to fill in any missing local files, so we are going to ignore the time stamps being equal
+        #set ::de1(app_update_button_label) [translate "Up to date"]; 
+        #set ::app_updating 0
+        #return
+    }
+
+    msg "app update available"
+    set ::app_update_available 1
+
+    if {$check_only != 1} {
+        set ::de1(app_update_button_label) [translate "Update available"];     
+    }
+    # time stamps don't match, so update is useful
+    return $remote_timestamp
+
+
 }
 
 proc start_app_update {} {
@@ -333,30 +397,8 @@ proc start_app_update {} {
         set progname "de1plus"
     }
 
-    set url_timestamp "$host/download/sync/$progname/timestamp.txt"
-    set remote_timestamp {}
-    catch {
-        set remote_timestamp [string trim [decent_http_get $url_timestamp]]
-    }
-    #puts "timestamp: '$remote_timestamp'"
-    set local_timestamp [string trim [read_file "[homedir]/timestamp.txt"]]
-    if {$remote_timestamp == ""} {
-        puts "unable to fetch remote timestamp"
-        log_to_debug_file "unable to fetch remote timestamp"
-
-        set ::de1(app_update_button_label) [translate "Update error"]; 
-        set ::app_updating 0
-        return
-    } elseif {$local_timestamp == $remote_timestamp} {
-        puts "Local timestamp is the same as remote timestamp, so no need to update"
-        log_to_debug_file "Local timestamp is the same as remote timestamp, so no need to update"
-        
-        # we can return at this point, if we're very confident that the sync is correct
-        # john 4/18/18 we want to check all files anyway, to fill in any missing local files, so we are going to ignore the time stamps being equal
-        #set ::de1(app_update_button_label) [translate "Up to date"]; 
-        #set ::app_updating 0
-        #return
-    }
+    
+    set remote_timestamp [check_timestamp_for_app_update_available 1]
 
 
     set url_manifest "$host/download/sync/$progname/manifest.txt"
@@ -402,8 +444,12 @@ proc start_app_update {} {
     }
 
     set tmpdir "[homedir]/tmp"
-    file delete -force $tmpdir
-    file mkdir $tmpdir
+    catch {
+        file delete -force $tmpdir
+    }
+    catch {
+        file mkdir $tmpdir
+    }
 
 
     set cnt 0
@@ -448,7 +494,7 @@ proc start_app_update {} {
         #break
     }
 
-    set ::de1(app_update_button_label) [translate WAIT]
+    #set ::de1(app_update_button_label) [translate WAIT]
     catch { update_onscreen_variables }
     update
 
@@ -494,9 +540,9 @@ proc start_app_update {} {
     }
 
     foreach file_to_delete $files_to_delete {
-        #catch {
+        catch {
             file delete $file_to_delete
-        #}
+        }
     }
 
     if {$success == 1} {
@@ -521,8 +567,12 @@ proc start_app_update {} {
                 log_to_debug_file "deleting $saver_directory"
                 log_to_debug_file "deleting $splash_directory"
 
-                file delete -force $saver_directory
-                file delete -force $splash_directory
+                catch {
+                    file delete -force $saver_directory
+                }
+                catch {
+                    file delete -force $splash_directory
+                }
 
                 set skindirs [lsort -dictionary [glob -nocomplain -tails -directory "[homedir]/skins/" *]]
                 foreach d $skindirs {
@@ -531,7 +581,9 @@ proc start_app_update {} {
                     log_to_debug_file "testing '$d' - '$thisskindir'"
                     if {[file exists $thisskindir] == 1} {
                         # skins are converted to this apps resolution only as needed, so only delete the existing dirs
-                        file delete -force $thisskindir
+                        catch {
+                            file delete -force $thisskindir
+                        }
                         puts "deleting $thisskindir"
                         log_to_debug_file "deleting $thisskindir"
                     }
@@ -550,6 +602,7 @@ proc start_app_update {} {
 
         if {$files_moved > 0} {
             set ::de1(app_update_button_label) "[translate "Updated"] $files_moved"; 
+            set ::app_has_updated 1
         } else {
             set ::de1(app_update_button_label) [translate "Up to date"]; 
         }

@@ -24,8 +24,21 @@ proc Double2Fraction { dbl {eps 0.000001}} {
     list $num $den
 }
 
-
 proc photoscale {img sx {sy ""} } {
+
+	if {($::android == 1 && $::undroid != 1)} {
+		#photoscale_not_android $img $sx $sy
+		photoscale_android $img $sx $sy
+	} elseif {$::undroid == 1} {
+		# no undroid support for this yet
+		photoscale_android $img $sx $sy
+		#photoscale_not_android $img $sx $sy
+	} else {
+		photoscale_not_android $img $sx $sy
+	}
+}
+
+proc photoscale_not_android {img sx {sy ""} } {
 	msg "photoscale $img $sx $sy"
     if { $sx == 1 && ($sy eq "" || $sy == 1) } {
         return;   # Nothing to do!
@@ -41,6 +54,29 @@ proc photoscale {img sx {sy ""} } {
     $tmp copy $img -zoom $sx_m $sy_m -compositingrule set
     $img blank
     $img copy $tmp -shrink -subsample $sx_f $sy_f -compositingrule set
+    image delete $tmp
+}
+
+
+proc photoscale_android {img sx {sy ""} } {
+	msg "photoscale $img $sx $sy"
+    if { $sx == 1 && ($sy eq "" || $sy == 1) } {
+        return;   # Nothing to do!
+    }
+    
+
+    # create a new tmp image
+    set tmp [image create photo]
+
+    # resize to the tmp image
+    $tmp copy $img -scale $sx $sy
+
+    # recreate the original image and copy the tmp over it
+	image delete $img
+	image create photo $img
+    $img copy $tmp
+
+    # clean up
     image delete $tmp
 }
 
@@ -1074,7 +1110,8 @@ proc page_show {page_to_show} {
 }
 
 proc display_brightness {percentage} {
-	#puts "brightness: $percentage %"
+	set percentage [check_battery_low $percentage]
+	puts "brightness: $percentage %"
 	borg brightness $percentage
 }
 
@@ -1537,9 +1574,6 @@ proc ui_startup {} {
 	bluetooth_connect_to_devices
 	#ble_find_de1s
 	
-	#if {$::android == 1} {
-		#ble_connect_to_de1
-	#}
 	setup_images_for_first_page
 	setup_images_for_other_pages
 	.can itemconfigure splash -state hidden
@@ -1549,17 +1583,10 @@ proc ui_startup {} {
 	delay_screen_saver
 	change_screen_saver_img
 
-	#check_if_should_start_screen_saver
-	if {$::android == 1} {
-		#ble_find_de1s
-		#ble_connect_to_de1
-		#puts "ran ble_connect_to_de1"
-		#after 1 run_de1_app
-		
-	} else {
-		#after 1 run_de1_app
-	}
-	#after 1 run_de1_app
+	# check for app updates, a half day after startup, and then every 24h thereafter
+	#after 43200000 scheduled_app_update_check
+	after 3000 scheduled_app_update_check
+
 	run_de1_app
 	vwait forever
 }

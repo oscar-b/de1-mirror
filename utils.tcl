@@ -29,7 +29,7 @@ proc setup_environment {} {
         # force the screen into landscape if it isn't yet
         msg "orientation: [borg screenorientation]"
         if {[borg screenorientation] != "landscape" && [borg screenorientation] != "reverselandscape"} {
-            borg screenorientation landscape
+            borg screenorientation $::settings(orientation)
         }
 
         sdltk screensaver off
@@ -81,7 +81,7 @@ proc setup_environment {} {
 
             } elseif {$width == 1280} {
                 set screen_size_width 1280
-                if {$width > 720} {
+                if {$width >= 720} {
                     set screen_size_height 800
                 } else {
                     set screen_size_height 720
@@ -285,6 +285,9 @@ proc setup_environment {} {
     . configure -bg black 
     canvas .can -width $screen_size_width -height $screen_size_height -borderwidth 0 -highlightthickness 0
 
+    after 60000 schedule_minute_task
+    #after 1000 schedule_minute_task
+
     ############################################
     # future feature: flight mode
     #if {$::settings(flight_mode_enable) == 1} {
@@ -297,6 +300,54 @@ proc setup_environment {} {
     ############################################
 }
 
+
+# dim the screen automaticaly if the battery is low
+proc check_battery_low {brightness_to_use} {
+    array set powerinfo [sdltk powerinfo]
+    set current_brightness [borg brightness]
+    if {$current_brightness == ""} {
+        set current_brightness 100
+    } else {
+        set current_brightness [expr {abs($current_brightness)}]
+    }
+
+    set percent [ifexists powerinfo(percent)]
+    if {$percent == ""} {
+        set percent 100
+    }
+
+    #return 100
+
+    #puts "check_battery_low: $brightness_to_use / borg brightness = [borg brightness] / powerinfo(percent) = [ifexists powerinfo(percent)]"
+    if {$percent < $::settings(battery_very_low_trigger)} {
+        if {$current_brightness > $::settings(battery_very_low_brightness)} {
+            borg brightness $::settings(battery_very_low_brightness)
+            msg "Battery is very low ($percent < $::settings(battery_very_low_trigger)) so lowering screen to $::settings(battery_very_low_brightness)"
+        }
+        if {$brightness_to_use > $::settings(battery_very_low_brightness)} {
+            return $::settings(battery_very_low_brightness)
+        }
+    } elseif {$percent < $::settings(battery_low_trigger)} {
+        if {$current_brightness > $::settings(battery_low_brightness)} {
+            borg brightness $::settings(battery_low_brightness)
+            msg "Battery is low ($percent < $::settings(battery_low_trigger)) so lowering screen to $::settings(battery_low_brightness)"
+        }
+        if {$brightness_to_use > $::settings(battery_low_brightness)} {
+            return $::settings(battery_low_brightness)
+        }
+        #return $brightness_to_use
+    }
+
+    return $brightness_to_use
+}
+
+proc schedule_minute_task {} {
+    
+    check_battery_low 100
+    after 60000 schedule_minute_task
+    #after 1000 schedule_minute_task
+
+}
 
 
 proc reverse_array {arrname} {
@@ -409,6 +460,7 @@ proc random_splash_file {} {
                 borg spinner off
                 saver write $resized_filename   -format {jpeg -quality 50}
             }
+            
         }
 
         set ::splash_files_cache [glob -nocomplain "[splash_directory]/${::screen_size_width}x${::screen_size_height}/*.jpg"]
@@ -603,13 +655,31 @@ proc skin_directory {} {
 proc android_specific_stubs {} {
 
     proc ble {args} { puts "    ble $args"; return 1 }
+    
+    if {$::android != 1 && $::undroid != 1} {
+        proc sdltk {args} {
+            if {[lindex $args 0] == "powerinfo"} {
+                #msg "sdltk powerinfo"
+                return [list "percent" 75]
+            } else {
+                msg "unknown sdktk comment: '$args'"
+            }
+        }
+    }
     proc borg {args} { 
         if {[lindex $args 0] == "locale"} {
             return [list "language" "en"]
         } elseif {[lindex $args 0] == "log"} {
             # do nothing
+        } elseif {[lindex $args 0] == "brightness"} {
+            if {[lindex $args 1] == ""} {
+                return 70
+            } else {
+                msg "borg $args"
+            }
+
         } else {
-            #puts "borg $args"
+            puts "unknown 'borg $args'"
         }
     }
 
@@ -906,6 +976,13 @@ proc load_settings {} {
 
     set ::settings(stress_test) 0
 
+    # rao request to increase these defaults to 300 (from 120) to aid in pour-overs. Will remove this settings.tdb override in the future, once 
+    # everyone's settings.tdb has had time to save this new default
+    set ::settings(seconds_to_display_done_espresso) 300
+    set ::settings(seconds_to_display_done_steam) 300
+    set ::settings(seconds_to_display_done_flush) 300
+    set ::settings(seconds_to_display_done_hotwater) 300
+
     set skintcl [read_file "[skin_directory]/skin.tcl"]
     if {![de1plus] && [string first "package require de1plus" $skintcl] != -1} {
         puts "Error: incompatible DE1PLUS skin loaded on a DE1"
@@ -1176,7 +1253,7 @@ proc shot_history_export {} {
         }
         #puts "keys: [array names arr]"
     }
-    puts "done"
+    #puts "done"
     return [lsort -dictionary -increasing $dd]
 
 }

@@ -179,6 +179,7 @@ array set ::settings {
 	active_settings_tab settings_2a
 	chart_total_shot_weight 1
 	fan_threshold 45
+	steam_flow 700
 	color_stage_1 "#c8e7d5"
 	color_stage_2 "#efdec2"
 	color_stage_3 "#edceca"
@@ -221,6 +222,7 @@ array set ::settings {
 	battery_very_low_trigger 30
 	battery_very_low_brightness 10
 	orientation "landscape"
+	enable_rise 0
 	grinder_dose_weight 0
 	scentone {}
 	seconds_after_espresso_stop_to_continue_weighing 8

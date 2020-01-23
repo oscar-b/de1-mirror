@@ -28,11 +28,14 @@ else
   echo "Removing temporary filelist..."
   rm files.txt
 
-  echo "Committing to git..."
+  TS=$(cat timestamp.txt | tr -d '[:space:]')
+
+  echo "Pushing v$TS to git..."
   git config --local user.email "mirror@decentespresso.com"
   git config --local user.name "Decent Espresso"
   git add --all
-  git commit --all --message="$(printf '%(%F %T %Z)T\n' $(cat timestamp.txt))"
+  git commit --all --message="$(printf '%(%F %T %Z)T\n' $TS)"
+  git tag v$TS
   git status
-  git push
+  git push --tags
 fi

@@ -5,6 +5,7 @@ echo "Fetch manifest..."
 wget --no-verbose -O manifest.txt https://decentespresso.com/download/sync/de1plus/manifest.txt
 
 if [ $? -ne 0 ]
+then
   exit 1
 fi
 

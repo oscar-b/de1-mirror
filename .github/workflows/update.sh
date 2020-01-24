@@ -15,7 +15,7 @@ else
   echo "Updates available!"
 
   echo "Removing all source files..."
-  rm -rv !(README.md|manifest.txt|.git*)
+  rm -rv !(README.md|manifest.txt|.git*|.|..)
 
   echo "Creating list of files to download..."
   grep -Eo '"(.*)"' manifest.txt | cut -d '"' -f2 | sed 's/^/https:\/\/decentespresso.com\/download\/sync\/de1plus\//' > files.txt

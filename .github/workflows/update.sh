@@ -4,6 +4,10 @@ shopt -s extglob
 echo "Fetch manifest..."
 wget --no-verbose -O manifest.txt https://decentespresso.com/download/sync/de1plus/manifest.txt
 
+if [ $? -ne 0 ]
+  exit 1
+fi
+
 echo "Checking if there are differences..."
 git diff --exit-code manifest.txt
 

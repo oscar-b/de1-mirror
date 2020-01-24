@@ -29,14 +29,14 @@ else
   rm files.txt
 
   TS=$(cat timestamp.txt | tr -d '[:space:]')
+  MESSAGE=$(printf '%(%F %T %Z)T\n' $TS)
 
   echo "Pushing v$TS to git..."
   git config --local user.email "mirror@decentespresso.com"
   git config --local user.name "Decent Espresso"
   git add --all
-  git commit --all --message="$(printf '%(%F %T %Z)T\n' $TS)"
-  git tag v$TS
+  git commit --all --message="$MESSAGE"
+  git tag --annotate v$TS --message="$MESSAGE"
   git status
-  git push
-  git push --tags
+  git push --follow-tags
 fi

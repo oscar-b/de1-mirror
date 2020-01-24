@@ -4,26 +4,13 @@ package provide de1_bluetooth
 set ::failed_attempt_count_connecting_to_de1 0
 set ::successful_de1_connection_count 0
 
-#set suuid "0000A000-0000-1000-8000-00805F9B34FB"
-#set sinstance 0
-#set cuuid "0000a001-0000-1000-8000-00805f9b34fb"
-#set cinstance 0
-
-# a00b = hot water/steam settings
-# a00c = espresso frame settings
-
-
 proc userdata_append {comment cmd} {
 	#set cmds [ble userdata $::de1(device_handle)]
 	#lappend cmds $cmd
 	#ble userdata $::de1(device_handle) $cmds
 	lappend ::de1(cmdstack) [list $comment $cmd]
 	run_next_userdata_cmd
-	#set ::de1(wrote) 1
 }
-
-
-
 
 proc read_de1_version {} {
 	catch {
@@ -36,11 +23,7 @@ proc read_de1_version {} {
 proc poll_de1_state {} {
 
 	msg "poll_de1_state"
-
-	#de1_enable_bluetooth_notifications
 	read_de1_state
-	#userdata_append "read de1 temp" [list ble read $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_0D) $::cinstance($::de1(cuuid_0D))]
-	#userdata_append "read de1 state" [list ble read $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_0E) $::cinstance($::de1(cuuid_0E))]
 	after 1000 poll_de1_state
 }
 
@@ -535,7 +518,17 @@ proc de1_enable_maprequest_notifications {} {
 }
 
 proc fwfile {} {
-	return "[homedir]/fw/bootfwupdate.dat"
+	
+	if {$::settings(ghc_is_installed) == 1 || $::settings(ghc_is_installed) == 2 || $::settings(ghc_is_installed) == 3} {
+		# new firmware for v1.3 machines and newer, that have a GHC.
+		# this dual firmware aspect is temporary, only until we have improved the firmware to be able to correctly migrate v1.0 v1.1 hardware machines to the new calibration settings.
+		# please do not bypass this test and load the new firmware on your v1.0 v1.1 machines yet.  Once we have new firmware is known to work on those older machines, we'll get rid of the 2nd firmware image.
+
+		# note that ghc_is_installed=1 ghc hw is there but unused, whereas ghc_is_installed=3 ghc hw is required.
+		return "[homedir]/fw/bootfwupdate2.dat"
+	} else {
+		return "[homedir]/fw/bootfwupdate.dat"
+	}
 }
 
 
@@ -724,7 +717,7 @@ proc set_steam_flow {desired_flow} {
 }
 
 proc get_steam_flow {} {
-	msg "Setting steam flow rate"
+	msg "Getting steam flow rate"
 	mmr_read "803828" "00"
 }
 

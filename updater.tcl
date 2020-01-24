@@ -35,7 +35,34 @@ proc determine_if_android {} {
 determine_if_android
 
 proc calc_sha {source} {
-    return [::sha2::sha256 -hex -filename $source]
+    set sha 0
+    set tries 0
+
+    while {$sha == 0 && $tries < 10} {
+        catch {
+            set sha [::sha2::sha256 -hex -filename $source]
+        }
+        
+        # use this to test SHA failure once
+        #if {$tries == 0} { set sha 0 }
+
+        if {$sha == 0} {
+            # we are trying to solve an occasional "file busy", maybe the OS is doing something in the background
+            catch {
+                msg "Pausing and then retrying to calculate SHA for $source"
+            }
+            after 1000
+        }
+        incr tries
+    }
+
+    if {$sha == 0} {
+        catch {
+            msg "Unable to calculate SHA for $source"
+        }
+    }
+
+    return $sha
 }
 
 
@@ -483,6 +510,10 @@ proc start_app_update {} {
 
     set local_manifest [string trim [read_file "[homedir]/manifest.txt"]]
 
+    catch {
+        msg "Local manifest has [string length $local_manifest] bytes"
+    }
+
     # load the local manifest into memory
     foreach {filename filesize filemtime filesha} $local_manifest {
         set filesize 0
@@ -492,7 +523,10 @@ proc start_app_update {} {
 
         if {[file exists "[homedir]/$filename"] != 1} {
             # force retrieval of any locally missing file by setting its SHA to zero
-            puts "Missing: $filename"
+            catch {
+                msg "Missing: $filename"
+            }
+
             log_to_debug_file "Missing: $filename"
             set filesha 0
         }
@@ -506,7 +540,9 @@ proc start_app_update {} {
         #if {[ifexists data(filesha)] != $filesha || [ifexists data(filesize)] != $filesize} 
         if {[info exists data(filesha)] != 1} {
             set tofetch($filename) [list filesize $filesize filemtime $filemtime filesha $filesha]
-            puts "Local file is missing in local manifest: $filename"
+            catch {
+                msg "Local file is missing in local manifest: $filename"
+            }
             log_to_debug_file "Local file is missing in local manifest: $filename"
         } elseif {$data(filesha) != $filesha} {
             # if the SHA doesn't match then we'll want to fetch this file
@@ -533,7 +569,6 @@ proc start_app_update {} {
         set perc [expr {100.0 * ($cnt / [array size tofetch])}]
         incr cnt
 
-        #set ::de1(app_update_button_label) "[round_to_integer $perc]%"; 
         set ::de1(app_update_button_label) "$cnt/[array size tofetch]"; 
         catch {
             .hello configure -text "$cnt/[array size tofetch]"

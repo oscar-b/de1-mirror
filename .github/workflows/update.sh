@@ -37,5 +37,6 @@ else
   git commit --all --message="$(printf '%(%F %T %Z)T\n' $TS)"
   git tag v$TS
   git status
+  git push
   git push --tags
 fi

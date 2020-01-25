@@ -6,7 +6,7 @@ echo "Fetch manifest..."
 wget --no-verbose -O manifest.txt https://decentespresso.com/download/sync/de1plus/manifest.txt
 
 echo "Checking if there are differences..."
-git diff --exit-code manifest.txt || HAS_CHANGES=$?
+git diff --exit-code manifest.txt && HAS_CHANGES=$? || HAS_CHANGES=$?
 
 if [ $HAS_CHANGES -eq 0 ]
 then

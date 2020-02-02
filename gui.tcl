@@ -36,10 +36,10 @@ proc Double2Fraction { dbl {eps 0.000001}} {
 
 proc photoscale {img sx {sy ""} } {
 
-	if {($::android == 1 && $::undroid != 1)} {
+	if {($::runtime == "android" && $::undroid != 1)} {
 		#photoscale_not_android $img $sx $sy
 		photoscale_android $img $sx $sy
-	} elseif {$::undroid == 1} {
+	} elseif {$::runtime == "undroid"} {
 		# no undroid support for this yet
 		photoscale_android $img $sx $sy
 		#photoscale_not_android $img $sx $sy
@@ -495,7 +495,7 @@ proc install_this_app_icon_beta {} {
 
 proc platform_button_press {} {
 	global android 
-	if {$android == 1} {
+	if {$runtime == "android"} {
 		#return {<<FingerUp>>}
 		return {<ButtonPress-1>}
 	}
@@ -504,7 +504,7 @@ proc platform_button_press {} {
 
 proc platform_finger_down {} {
 	global android 
-	if {$android == 1} {
+	if {$runtime == "android"} {
 		return {<Motion>}
 	}
 	return {<Motion>}
@@ -512,7 +512,7 @@ proc platform_finger_down {} {
 
 proc platform_button_unpress {} {
 	global android 
-	if {$android == 1} {
+	if {$runtime == "android"} {
 		return {<<FingerUp>>}
 	}
 	return {<ButtonRelease-1>}
@@ -695,7 +695,7 @@ proc add_de1_widget {args} {
 	}
 
 	# BLT on android has non standard defaults, so we overrride them here, sending them back to documented defaults
-	if {$widgettype == "graph" && ($::android == 1 || $::undroid == 1)} {
+	if {$widgettype == "graph" && ($::runtime == "android" || $::runtime == "undroid")} {
 		$widget grid configure -dashes "" -color #DDDDDD -hide 0 -minor 1 
 		$widget configure -borderwidth 0
 		#$widget grid configure -hide 0
@@ -868,7 +868,7 @@ proc de1_connected_state { {hide_delay 0} } {
 	set since_last_ping [expr {[clock seconds] - $::de1(last_ping)}]
 	set elapsed [expr {[clock seconds] - $::de1(connect_time)}]
 
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 
 		if {$elapsed > $hide_delay && $hide_delay != 0} {
 			if {$::de1(substate) != 0} {
@@ -979,7 +979,7 @@ proc update_onscreen_variables { {state {}} } {
 	#set since_last_ping [expr {[clock seconds] - $::de1(last_ping)}]
 	#if {$since_last_ping > 3} {
 		#set ::de1(last_ping) [clock seconds]
-		#if {$::android == 1} {
+		#if {$::runtime == "android"} {
 			#set ::de1(found) 0
 			#ble_find_de1s
 			#ble_connect_to_de1
@@ -987,7 +987,7 @@ proc update_onscreen_variables { {state {}} } {
 
 	#}
 
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 
 		if {[expr {int(rand() * 100)}] > 96} {
 			set ::state_change_chart_value [expr {$::state_change_chart_value * -1}]
@@ -1932,7 +1932,7 @@ proc calibration_gui_init {} {
 	# the *right* way to work around this is to build a spool and unspool each calibration read command as the previous
 	# one concludes. However, that's a lot of work, for this rarely used calibration feature, so we're being lazy
 	# for now and just issuing each command after a suitable delay, so they don't clobber each other
-	if {$::android != 1} {
+	if {$::runtime != "android"} {
 
 		# do fake calibration reads
 		calibration_ble_received "\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\xFF\xFD\xB3\x34"

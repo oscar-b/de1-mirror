@@ -533,13 +533,12 @@ proc fwfile {} {
 
 
 proc start_firmware_update {} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		if {$::android == 1} {
+	if {$::connectivity == "BLE"} {
+		if {[ifexists ::sinstance($::de1(suuid))] == ""} {
 			msg "DE1 not connected, cannot send BLE command 10"
 			return
 		}
 	}
-
 
 	if {$::de1(currently_erasing_firmware) == 1} {
 		msg "Already erasing firmware"
@@ -556,7 +555,7 @@ proc start_firmware_update {} {
 	set ::de1(firmware_bytes_uploaded) 0
 	set ::de1(firmware_update_size) [file size [fwfile]]
 
-	if {$::android != 1} {
+	if {$::connectivity != "BLE"} {
 		after 100 write_firmware_now
 		set ::sinstance($::de1(suuid)) 0
 		set ::de1(cuuid_09) 0
@@ -593,13 +592,15 @@ proc write_firmware_now {} {
 
 proc firmware_upload_next {} {
 	
-	if {$::android == 1} {
+	if {$::connectivity != "mock"} {
 		msg "firmware_upload_next $::de1(firmware_bytes_uploaded)"
 	}
 
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		msg "DE1 not connected, cannot send BLE command 11"
-		return
+	if {$::connectivity == "BLE"} {
+		if {[ifexists ::sinstance($::de1(suuid))] == ""} {
+			msg "DE1 not connected, cannot send BLE command 11"
+			return
+		}
 	}
 
 	#delay_screen_saver
@@ -608,7 +609,7 @@ proc firmware_upload_next {} {
 		set ::settings(firmware_crc) [crc::crc32 -filename [fwfile]]
 		save_settings
 
-		if {$::android != 1} {
+		if {$::connectivity == "mock"} {
 			set ::de1(firmware_update_button_label) "Updated"
 			
 		} else {
@@ -636,7 +637,7 @@ proc firmware_upload_next {} {
 		set data "\x10[make_U24P0 $::de1(firmware_bytes_uploaded)][string range $::de1(firmware_update_binary) $::de1(firmware_bytes_uploaded) [expr {15 + $::de1(firmware_bytes_uploaded)}]]"
 		userdata_append "Write [string length $data] bytes of firmware data ([convert_string_to_hex $data])" [list ble write $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_06) $::cinstance($::de1(cuuid_06)) $data]
 		set ::de1(firmware_bytes_uploaded) [expr {$::de1(firmware_bytes_uploaded) + 16}]
-		if {$::android != 1} {
+		if {$::connectivity != "mock"} {
 			after 1 firmware_upload_next
 		}
 	}
@@ -649,13 +650,16 @@ proc mmr_read {address length} {
 	set mmrloc [binary decode hex $address]
 	set data "$mmrlen${mmrloc}[binary decode hex 00000000000000000000000000000000]"
 	
-	if {$::android != 1} {
+	if {$::connectivity == "mock"} {
 		msg "MMR requesting read [convert_string_to_hex $mmrlen] bytes of firmware data from [convert_string_to_hex $mmrloc]: with comment [convert_string_to_hex $data]"
+		return
 	}
 
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		msg "DE1 not connected, cannot send BLE command 11"
-		return
+	if {$::connectivity == "BLE"} {
+		if {[ifexists ::sinstance($::de1(suuid))] == ""} {
+			msg "DE1 not connected, cannot send BLE command 11"
+			return
+		}
 	}
 
 	userdata_append "MMR requesting read [convert_string_to_hex $mmrlen] bytes of firmware data from [convert_string_to_hex $mmrloc] with '[convert_string_to_hex $data]'" [list ble write $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_05) $::cinstance($::de1(cuuid_05)) $data]
@@ -668,13 +672,16 @@ proc mmr_write { address length value} {
  	set mmrval [binary decode hex $value]	
 	set data "$mmrlen${mmrloc}${mmrval}[binary decode hex 000000000000000000000000000000]"
 	
-	if {$::android != 1} {
+	if {$::connectivity ==  "mock"} {
 		msg "MMR writing [convert_string_to_hex $mmrlen] bytes of firmware data to [convert_string_to_hex $mmrloc] with value [convert_string_to_hex $mmrval] : with comment [convert_string_to_hex $data]"
+		return
 	}
 
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		msg "DE1 not connected, cannot send BLE command 11"
-		return
+	if {$::connectivity == "BLE"} {
+		if {[ifexists ::sinstance($::de1(suuid))] == ""} {
+			msg "DE1 not connected, cannot send BLE command 11"
+			return
+		}
 	}
 	userdata_append "MMR writing [convert_string_to_hex $mmrlen] bytes of firmware data to [convert_string_to_hex $mmrloc] with value [convert_string_to_hex $mmrval] : with comment [convert_string_to_hex $data]" [list ble write $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_06) $::cinstance($::de1(cuuid_06)) $data]
 }
@@ -795,8 +802,8 @@ proc de1_send_waterlevel_settings {} {
 
 
 proc run_next_userdata_cmd {} {
-	if {$::android == 1} {
-		# if running on android, only write one BLE command at a time
+	if {$::connectivity == "BLE"} {
+		# if communicating over BLE, only write one command at a time
 		if {$::de1(wrote) == 1} {
 			#msg "Do no write, already writing to DE1"
 			return
@@ -884,7 +891,7 @@ proc close_all_ble_and_exit {} {
 proc app_exit {} {
 	close_log_file
 
-	if {$::android != 1} {
+	if {$::connectivity == "mock"} {
 		close_all_ble_and_exit
 	}
 
@@ -1133,7 +1140,7 @@ proc remove_null_terminator {instr} {
 
 proc android_8_or_newer {} {
 
-	if {$::android != 1} {
+	if {$::runtime != "android"} {
 		msg "android_8_or_newer reports: not android (0)"		
 		return 0
 	}
@@ -1200,7 +1207,7 @@ proc check_if_initial_connect_didnt_happen_quickly {} {
 proc ble_find_de1s {} {
 
 	return
-	if {$::android != 1} {
+	if {$::runtime != "android"} {
 		ble_connect_to_de1
 	}
 	
@@ -1265,7 +1272,7 @@ proc ble_connect_to_de1 {} {
 	msg "ble_connect_to_de1"
 	#return
 
-	if {$::android != 1} {
+	if {$::runtime != "android"} {
 		msg "simulated DE1 connection"
 	    set ::de1(connect_time) [clock seconds]
 	    set ::de1(last_ping) [clock seconds]
@@ -2337,7 +2344,7 @@ proc scanning_restart {} {
 	if {$::scanning == 1} {
 		return
 	}
-	if {$::android != 1} {
+	if {$::runtime != "android"} {
 
 		set ::scale_bluetooth_list [list "12:32:56:78:90" "32:56:78:90:12" "56:78:90:12:32"]
 		set ::de1_bluetooth_list [list "12:32:56:18:90" "32:56:78:90:13" "56:78:90:13:32"]

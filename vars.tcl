@@ -576,7 +576,7 @@ proc waterflow {} {
 		return 0
 	}
 
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 		if {[ifexists ::de1(flow)] == ""} {
 			set ::de1(flow) 3
 		}
@@ -613,7 +613,7 @@ proc watervolume {} {
 	}
 
 
-	if {$::android == 1} {
+	if {$::runtime == "android"} {
 		return $::de1(volume)
 	}
 	global start_timer
@@ -621,7 +621,7 @@ proc watervolume {} {
 }
 
 proc steamtemp {} {
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 
 		set ::de1(steam_heater_temperature) [expr {(160+(rand() * 5))}]
 	}
@@ -629,7 +629,7 @@ proc steamtemp {} {
 }
 
 proc watertemp {} {
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 		#set ::de1(head_temperature) [expr {$::settings(espresso_temperature) - 2.0 + (rand() * 4)}]
 		set ::de1(goal_temperature) $::settings(espresso_temperature)
 
@@ -658,7 +658,7 @@ proc pressure {} {
 		return 0
 	}
 
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 		if {$::de1(state) == 4} {
 			#espresso
 			if {[ifexists ::de1(pressure)] == ""} {
@@ -692,13 +692,13 @@ proc pressure {} {
 	}
 
 	return $::de1(pressure)
-	#if {$::android == 1} {
+	#if {$::runtime == "android"} {
 	#}
 	#return [expr {(rand() * 3.5)}]
 }
 
 proc accelerometer_angle {} {
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 		set ::settings(accelerometer_angle) [expr {(rand() + $::settings(accelerometer_angle)) - 0.5}]
 	}
 	#msg "::settings(accelerometer_angle) : $::settings(accelerometer_angle)"
@@ -728,7 +728,7 @@ proc accelerometer_angle_text {} {
 proc group_head_heater_temperature {} {
 
 	
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 		# slowly have the water level drift
 		set ::de1(water_level) [expr {$::de1(water_level) + (.1*(rand() - 0.5))}]
 		#puts -nonewline .
@@ -740,7 +740,7 @@ proc group_head_heater_temperature {} {
 }
 
 proc steam_heater_temperature {} {
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 		set ::de1(mix_temperature) [expr {140 + (rand() * 20.0)}]
 	}
 
@@ -748,7 +748,7 @@ proc steam_heater_temperature {} {
 
 }
 proc water_mix_temperature {} {
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 		if {$::de1(substate) == $::de1_substate_types_reversed(pouring) || $::de1(substate) == $::de1_substate_types_reversed(preinfusion)} {	
 			if {$::de1(mix_temperature) == "" || $::de1(mix_temperature) < 85 || $::de1(mix_temperature) > 99} {
 				set ::de1(mix_temperature) 94
@@ -919,7 +919,7 @@ proc waterflow_text {} {
 }
 
 proc watervolume_text {} {
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 		if {$::de1(substate) == $::de1_substate_types_reversed(pouring) || $::de1(substate) == $::de1_substate_types_reversed(preinfusion)} {	
 			if {$::de1(volume) == ""} {
 				set ::de1(volume) 0
@@ -933,7 +933,7 @@ proc watervolume_text {} {
 }
 
 proc waterweightflow_text {} {
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 		if {$::de1(substate) == $::de1_substate_types_reversed(pouring) || $::de1(substate) == $::de1_substate_types_reversed(preinfusion)} {	
 			if {[espresso_millitimer] > 5000} {	
 				# no weight increase for 5s due to preinfusion
@@ -982,7 +982,7 @@ proc waterweight_text {} {
 		return ""
 	}
 
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 		if {[espresso_millitimer] < 5000} {	
 			# no weight increase for 5s due to preinfusion
 			set ::de1(scale_weight) 0
@@ -1015,7 +1015,7 @@ proc waterweight_label_text {} {
 		return ""
 	}
 
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 		return [translate "Weight"]
 	}
 
@@ -1074,7 +1074,7 @@ proc diff_group_temp_from_goal_text {} {
 }
 
 proc diff_pressure {} {
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 		return [expr {3 - (rand() * 6)}]
 	}
 
@@ -1082,7 +1082,7 @@ proc diff_pressure {} {
 }
 
 proc diff_flow_rate {} {
-	if {$::android == 0} {
+	if {$::runtime != "android"} {
 		return [expr {3 - (rand() * 6)}]
 	}
 
@@ -1615,7 +1615,7 @@ proc fill_ble_listbox {} {
 #	set ble_ids [list "C1:80:A7:32:CD:A3" "C5:80:EC:A5:F9:72" "F2:C3:43:60:AB:F5"]
 	#lappend ::de1_bluetooth_list $address
 
-	if {$::android == 0} {	
+	if {$::runtime != "android"} {	
 		#set ::scale_bluetooth_list [list "C1:80:A7:32:CD:A3" "C5:80:EC:A5:F9:72" "F2:C3:43:60:AB:F5"]
 		#set ::de1_bluetooth_list ""
 	}

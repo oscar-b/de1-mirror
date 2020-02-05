@@ -361,7 +361,7 @@ if {[de1plus]} {
 	set ::settings(skin) "Insight"
 }
 
-if {$::runtime != "android"} {
+if {$::connectivity == "mock"} {
 	set ::settings(ghc_is_installed) 0
 }
 
@@ -467,7 +467,7 @@ proc start_refill_kit {} {
 	set ::de1(timer) 0
 	set ::de1(volume) 0
 
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 		#after [expr {1000 * $::settings(steam_max_time)}] {page_display_change "steam" "off"}
 		#after 200 "update_de1_state $::de1_state(Descale)"
 		after 200 [list update_de1_state "$::de1_state(Refill)\x5"]
@@ -489,7 +489,7 @@ proc start_decaling {} {
 	set ::de1(volume) 0
 	de1_send_state "descale" $::de1_state(Descale)
 
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 		#after [expr {1000 * $::settings(steam_max_time)}] {page_display_change "steam" "off"}
 		#after 200 "update_de1_state $::de1_state(Descale)"
 		after 200 [list update_de1_state "$::de1_state(Descale)\x5"]
@@ -504,7 +504,7 @@ proc start_air_purge {} {
 	set ::de1(volume) 0
 	de1_send_state "air purge" $::de1_state(AirPurge)
 
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 		#after [expr {1000 * $::settings(steam_max_time)}] {page_display_change "steam" "off"}
 		#after 200 "update_de1_state $::de1_state(Descale)"
 		after 200 [list update_de1_state "$::de1_state(AirPurge)\x5"]
@@ -520,7 +520,7 @@ proc start_cleaning {} {
 	set ::de1(volume) 0
 	de1_send_state "descale" $::de1_state(Clean)
 
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 		#after [expr {1000 * $::settings(steam_max_time)}] {page_display_change "steam" "off"}
 		#after 200 "update_de1_state $::de1_state(Descale)"
 		after 200 [list update_de1_state "$::de1_state(Clean)\x5"]
@@ -545,7 +545,7 @@ proc start_hot_water_rinse {} {
 	}
 
 
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 		#after [expr {1000 * $::settings(steam_max_time)}] {page_display_change "steam" "off"}
 		after 200 [list update_de1_state "$::de1_state(HotWaterRinse)\x5"]
 		after 10000 [list update_de1_state "$::de1_state(Idle)\x5"]
@@ -558,7 +558,7 @@ proc start_steam_rinse {} {
 	set ::de1(volume) 0
 	de1_send_state "steam rinse" $::de1_state(SteamRinse)
 
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 		#after [expr {1000 * $::settings(steam_max_time)}] {page_display_change "steam" "off"}
 		after 200 [list update_de1_state "$::de1_state(SteamRinse)\x5"]
 	}
@@ -594,7 +594,7 @@ proc start_steam {} {
 		set ::idle_next_step start_steam
 	}
 
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 		#after [expr {1000 * $::settings(steam_max_time)}] {page_display_change "steam" "off"}
 		after 200 [list update_de1_state "$::de1_state(Steam)\x5"]
 		after 10000 [list update_de1_state "$::de1_state(Idle)\x5"]
@@ -682,7 +682,7 @@ proc start_espresso {} {
 		return
 	}
 
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 		#after [expr {1000 * $::settings(espresso_max_time)}] {page_display_change "espresso" "off"}
 		after 200 [list update_de1_state "$::de1_state(Espresso)\x1"]
 		after 30000 [list update_de1_state "$::de1_state(Idle)\x5"]
@@ -710,7 +710,7 @@ proc start_water {} {
 	}
 
 
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 		#after [expr {1000 * $::settings(water_max_time)}] {page_display_change "water" "off"}
 		after 200 [list update_de1_state "$::de1_state(HotWater)\x5"]
 		after 10000 [list update_de1_state "$::de1_state(Idle)\x5"]
@@ -758,7 +758,7 @@ proc start_idle {} {
 		#scale_enable_lcd
 	}
 
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 		#after [expr {1000 * $::settings(water_max_time)}] {page_display_change "water" "off"}
 		after 200 [list update_de1_state "$::de1_state(Idle)\x0"]
 	}
@@ -806,7 +806,7 @@ proc start_sleep {} {
 	}
 
 	
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 		#after [expr {1000 * $::settings(water_max_time)}] {page_display_change "water" "off"}
 		after 200 [list update_de1_state "$::de1_state(GoingToSleep)\x0"]
 		after 800 [list update_de1_state "$::de1_state(Sleep)\x0"]

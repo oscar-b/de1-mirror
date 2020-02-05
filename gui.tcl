@@ -494,7 +494,7 @@ proc install_this_app_icon_beta {} {
 
 
 proc platform_button_press {} {
-	global android 
+	global runtime 
 	if {$runtime == "android"} {
 		#return {<<FingerUp>>}
 		return {<ButtonPress-1>}
@@ -503,7 +503,7 @@ proc platform_button_press {} {
 }
 
 proc platform_finger_down {} {
-	global android 
+	global runtime 
 	if {$runtime == "android"} {
 		return {<Motion>}
 	}
@@ -511,7 +511,7 @@ proc platform_finger_down {} {
 }
 
 proc platform_button_unpress {} {
-	global android 
+	global runtime 
 	if {$runtime == "android"} {
 		return {<<FingerUp>>}
 	}
@@ -868,7 +868,7 @@ proc de1_connected_state { {hide_delay 0} } {
 	set since_last_ping [expr {[clock seconds] - $::de1(last_ping)}]
 	set elapsed [expr {[clock seconds] - $::de1(connect_time)}]
 
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 
 		if {$elapsed > $hide_delay && $hide_delay != 0} {
 			if {$::de1(substate) != 0} {
@@ -987,7 +987,7 @@ proc update_onscreen_variables { {state {}} } {
 
 	#}
 
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 
 		if {[expr {int(rand() * 100)}] > 96} {
 			set ::state_change_chart_value [expr {$::state_change_chart_value * -1}]
@@ -1932,7 +1932,7 @@ proc calibration_gui_init {} {
 	# the *right* way to work around this is to build a spool and unspool each calibration read command as the previous
 	# one concludes. However, that's a lot of work, for this rarely used calibration feature, so we're being lazy
 	# for now and just issuing each command after a suitable delay, so they don't clobber each other
-	if {$::runtime != "android"} {
+	if {$::connectivity == "mock"} {
 
 		# do fake calibration reads
 		calibration_ble_received "\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\xFF\xFD\xB3\x34"

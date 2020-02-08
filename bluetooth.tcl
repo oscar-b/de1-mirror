@@ -36,15 +36,6 @@ proc read_de1_state {} {
 }
 
 proc skale_timer_start {} {
-	if {$::settings(scale_type) == "atomaxskale"} {
-	 	skale_timer_start
- 	} elseif {$::settings(scale_type) == "decentscale"} {
-	 	decentscale_timer_start
- 	}
-}
-
-
-proc skale_timer_start {} {
 	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "atomaxskale"} {
 		return 
 	}
@@ -64,11 +55,28 @@ proc skale_timer_start {} {
 # cmdtype is either 0x0A for LED (cmddata 00=off, 01=on), or 0x0F for tare (cmdata = incremented char counter for each TARE use)
 proc decent_scale_calc_xor {cmdtype cmdddata} {
 	set xor [format %02X [expr {0x03 ^ $cmdtype ^ $cmdddata ^ 0x00 ^ 0x00 ^ 0x00}]]
+	msg "decent_scale_calc_xor for '$cmdtype' '$cmdddata' is '$xor'"
+	return $xor
+}
+
+proc decent_scale_calc_xor4 {cmdtype cmdddata1 cmdddata2} {
+	set xor [format %02X [expr {0x03 ^ $cmdtype ^ $cmdddata1 ^ $cmdddata2 ^ 0x00 ^ 0x00}]]
+	msg "decent_scale_calc_xor4 for '$cmdtype' '$cmdddata1' '$cmdddata2' is '$xor'"
 	return $xor
 }
 
 proc decent_scale_make_command {cmdtype cmdddata} {
-	set hex [subst {03${cmdtype}${cmdddata}000000[decent_scale_calc_xor "0x$cmdtype" "0x$cmdddata"]}]
+	if {[string length $cmdddata] == 2} {
+		set hex [subst {03${cmdtype}${cmdddata}000000[decent_scale_calc_xor "0x$cmdtype" "0x$cmdddata"]}]
+		set hex2 [subst {03${cmdtype}${cmdddata}000000[decent_scale_calc_xor4 "0x$cmdtype" "0x$cmdddata" "0x00"]}]
+		msg "compare hex '$hex' to '$hex2'"
+	} elseif {[string length $cmdddata] == 4} {
+		set hex [subst {03${cmdtype}${cmdddata}0000[decent_scale_calc_xor4 "0x$cmdtype" "0x[string range $cmdddata 0 1]" "0x[string range $cmdddata 2 3]"]}]
+	} else {
+		msg "Unknown decent_scale_make_command $cmdtype cmdddata"
+		return ""
+	}
+	msg "hex is '$hex' for '$cmdtype' '$cmdddata'"
 	return [binary decode hex $hex]
 }
 
@@ -107,16 +115,16 @@ proc decentscale_enable_lcd {} {
 	if {$::de1(scale_device_handle) == 0} {
 		return 
 	}
-	set screenon [decent_scale_make_command 0A 01]
-
+	set screenon [decent_scale_make_command 0A 0101]
 	msg "decent scale screen on: '$screenon'"
-
-	#if {[ifexists ::sinstance($::de1(suuid_decentscale))] == ""} {
-	#	msg "decentscale not connected, cannot enable LCD"
-	#	return
-	#}
-
 	userdata_append "decentscale : enable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $screenon]
+
+	set timeron [decent_scale_make_command 0B 01]
+	msg "decent scale timer on: '$timeron'"
+	userdata_append "decentscale : timer on" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeron]
+
+
+
 }
 
 proc scale_disable_lcd {} {
@@ -160,9 +168,13 @@ proc decentscale_timer_start {} {
 		return
 	}
 
-	# cmd not yet implemented
-	#set timeron [binary decode hex "DD"]
-	#userdata_append "decentscale : timer start" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $timeron]
+	#set timerreset [decent_scale_make_command 0B 02]
+	#msg "decent scale timer reset: '$timerreset'"
+	#userdata_append "decentscale : timer reset" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timerreset]
+
+	set timeron [decent_scale_make_command 0B 01]
+	msg "decent scale timer on: '$timeron'"
+	userdata_append "decentscale : timer on" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeron]
 
 }
 
@@ -188,6 +200,10 @@ proc decentscale_timer_stop {} {
 		msg "decentscale not connected, cannot stop timer"
 		return
 	}
+
+	set timeron [decent_scale_make_command 0B 00]
+	msg "decent scale timer on: '$timeron'"
+	userdata_append "decentscale : timer on" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeron]
 
 	# cmd not yet implemented
 	#userdata_append "decentscale: timer stop" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $tare]
@@ -478,7 +494,26 @@ proc de1_disable_state_notifications {} {
 	userdata_append "disable state notifications" [list ble disable $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_0E) $::cinstance($::de1(cuuid_0E))]
 }
 
+proc mmr_available {} {
+
+	if {$::de1(mmr_enabled) == 0} {
+		if {[de1_version_bleapi] > 3} {
+			# mmr feature became available at this version number
+			set ::de1(mmr_enabled) 1
+		} else {
+			msg "MMR is not enabled on this DE1 BLE API <4 #: [de1_version_bleapi]"
+		}
+	}
+	return $::de1(mmr_enabled)
+}
+
 proc de1_enable_mmr_notifications {} {
+
+	if {[mmr_available] == 0} {
+		msg "Unable to de1_enable_mmr_notifications because MMR not available"
+		return
+	}
+
 	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
 		msg "DE1 not connected, cannot send BLE command 7"
 		return
@@ -644,6 +679,11 @@ proc firmware_upload_next {} {
 
 
 proc mmr_read {address length} {
+	if {[mmr_available] == 0} {
+		msg "Unable to mmr_read because MMR not available"
+		return
+	}
+
 
  	set mmrlen [binary decode hex $length]	
 	set mmrloc [binary decode hex $address]
@@ -663,6 +703,11 @@ proc mmr_read {address length} {
 }
 
 proc mmr_write { address length value} {
+	if {[mmr_available] == 0} {
+		msg "Unable to mmr_read because MMR not available"
+		return
+	}
+
  	set mmrlen [binary decode hex $length]	
 	set mmrloc [binary decode hex $address]
  	set mmrval [binary decode hex $value]	
@@ -872,8 +917,8 @@ proc close_all_ble_and_exit {} {
 
 	catch {
 		if {$::settings(ble_unpair_at_exit) == 1} {
-			ble unpair $::de1(de1_address)
-			ble unpair $::settings(bluetooth_address)
+			#ble unpair $::de1(de1_address)
+			#ble unpair $::settings(bluetooth_address)
 		}
 	}
 
@@ -1226,10 +1271,17 @@ proc stop_scanner {} {
 }
 
 proc bluetooth_connect_to_devices {} {
+
 	#@return
 
 	msg "bluetooth_connect_to_devices"
+
+	if {$::android != 1} {
+		ble_connect_to_de1
+	}
+
 	if {$::settings(bluetooth_address) != ""} {
+
 		if {[android_8_or_newer] == 1} {
 			# on bootpup, android 8 won't connect directly to a BLE device unless it's found by a scan
 			# this step below waits 4 seconds to see if a direct connection worked, and if not, activates a scan
@@ -1241,6 +1293,7 @@ proc bluetooth_connect_to_devices {} {
 		} else {
 			# earlier android revisions can connect directly, and it's fast
 			ble_connect_to_de1
+
 		}
 	}
 
@@ -1417,6 +1470,16 @@ proc append_to_scale_bluetooth_list {address name} {
 	catch {
 		fill_ble_scale_listbox 
 	}
+}
+
+proc later_new_de1_connection_setup {} {
+	# less important stuff, also some of it is dependent on BLE version
+	de1_enable_mmr_notifications
+	de1_send_shot_frames
+	set_fan_temperature_threshold $::settings(fan_threshold)
+	de1_send_steam_hotwater_settings
+	get_ghc_is_installed
+
 }
 
 proc de1_ble_handler { event data } {
@@ -1610,26 +1673,19 @@ proc de1_ble_handler { event data } {
 
 							set ::globals(if_in_sleep_move_to_idle) 0
 
-							
-							proc later_new_de1_connection_setup {} {
-								# less important stuff
-
-							}
-
 							# vital stuff, do first
 							#read_de1_state
+							de1_enable_temp_notifications
+							de1_enable_water_level_notifications
+							start_idle
+							read_de1_version
+							de1_send_waterlevel_settings
 							de1_enable_state_notifications
-								de1_enable_mmr_notifications
-								read_de1_version
-								de1_send_waterlevel_settings
-								de1_send_steam_hotwater_settings
-								set_fan_temperature_threshold $::settings(fan_threshold)
-								de1_enable_water_level_notifications
-								get_ghc_is_installed
-								de1_send_shot_frames
-								start_idle
-								de1_enable_temp_notifications
-							#after 3000 later_new_de1_connection_setup
+							read_de1_state
+
+
+
+							#after 5000 later_new_de1_connection_setup
 
 							# john 02-16-19 need to make this pair in android bluetooth settings -- not working yet
 							#catch {
@@ -1787,6 +1843,9 @@ proc de1_ble_handler { event data } {
 							msg "version data received [string length $value] bytes: '$value' \"[convert_string_to_hex $value]\"  : '[array get arr2]'/ $event $data"
 							set ::de1(version) [array get arr2]
 
+							# run stuff that depends on the BLE API version
+							later_new_de1_connection_setup
+
 							set ::de1(wrote) 0
 							run_next_userdata_cmd
 
@@ -1897,11 +1956,11 @@ proc de1_ble_handler { event data } {
 
 									return
 								} elseif {[ifexists weightarray(command)] == 0xAA} {									
-									msg "Decentscale BUTTON $recv(data3) pressed"
-									if {[ifexists $recv(data3)] == 1} {
+									msg "Decentscale BUTTON $weightarray(data3) pressed"
+									if {[ifexists $weightarray(data3)] == 1} {
 										# button 1 "O" pressed
 										decentscale_tare
-									} elseif {[ifexists $recv(data3)] == 2} {
+									} elseif {[ifexists $weightarray(data3)] == 2} {
 										# button 2 "[]" pressed
 									}
 								} elseif {[ifexists weightarray(command)] != ""} {
@@ -1911,7 +1970,8 @@ proc de1_ble_handler { event data } {
 
 								if {[info exists weightarray(weight)] == 1} {
 									set sensorweight [expr {$weightarray(weight) / 10.0}]
-									#msg "sensorweight: $sensorweight"
+									msg "scale: ${sensorweight}g [array get weightarray] '[convert_string_to_hex $value]'"
+									#msg "decentscale recv read: '[convert_string_to_hex $value]'"
 								} else {
 									msg "decent scale recv: [array get weightarray]"
 								}
@@ -1981,7 +2041,7 @@ proc de1_ble_handler { event data } {
 							if {$::settings(scale_type) == "atomaxskale"} {
 								set scale_refresh_rate 10
 						 	} elseif {$::settings(scale_type) == "decentscale"} {
-								set scale_refresh_rate 3.5
+								set scale_refresh_rate 10
 						 	}
 
 							# 10hz refresh rate on weight means should 10x the weight change to get a change-per-second

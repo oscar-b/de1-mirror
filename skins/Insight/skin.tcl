@@ -1,7 +1,6 @@
 set ::skindebug 0
 set ::debugging 0
 
-
 #puts "debugging: $::debugging"
 
 package require de1plus 1.0

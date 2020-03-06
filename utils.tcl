@@ -118,21 +118,23 @@ proc setup_environment {} {
 
         global helvetica_bold_font
         global helvetica_font
-
         #puts "setting up fonts for language [language]"
         if {[language] == "th"} {
             set helvetica_font [sdltk addfont "fonts/sarabun.ttf"]
             set helvetica_bold_font [sdltk addfont "fonts/sarabunbold.ttf"]
             set fontm [expr {($fontm * 1.2)}]
             set global_font_name [lindex [sdltk addfont "fonts/NotoSansCJKjp-Regular.otf"] 0]
-        } elseif {[language] == "ar"} {
-            set helvetica_font [sdltk addfont "fonts/notosansuiregular.ttf"]
-            set helvetica_bold_font [sdltk addfont "fonts/notosansuibold.ttf"]
-            set global_font_name [lindex [sdltk addfont "fonts/NotoSansCJKjp-Regular.otf"] 0]
-            #set fontm [expr {($fontm * 1.08)}]
-            #set fontm 1.2
-            #set global_font_name [lindex [sdltk addfont "fonts/NotoNaskhArabic-Regular.ttf"] 0]
+        } elseif {[language] == "ar" || [language] == "arb"} {
+            #set helvetica_font [sdltk addfont "fonts/notosansuiregular.ttf"]
+            #set helvetica_bold_font [sdltk addfont "fonts/notosansuibold.ttf"]
+            #set global_font_name [lindex [sdltk addfont "fonts/NotoSansCJKjp-Regular.otf"] 0]
+
+            set helvetica_font [sdltk addfont "fonts/Rakkas-Regular.ttf"]
+            set helvetica_bold_font $helvetica_font
             set global_font_name $helvetica_font
+            set fontm [expr {($fontm * 1.2)}]
+
+            #set global_font_name $helvetica_font
         } elseif {[language] == "zh-hant" || [language] == "zh-hans" || [language] == "kr"} {
             set helvetica_font [lindex [sdltk addfont "fonts/NotoSansCJKjp-Regular.otf"] 0]
             set helvetica_bold_font [lindex [sdltk addfont "fonts/NotoSansCJKjp-Bold.otf"] 0]
@@ -566,6 +568,7 @@ proc translation_langs_array {} {
         de-ch Schwiizerd\u00FCtsch \
         it italiano \
         ar "Arabic" \
+        arb "Arabic for Android" \
         da "dansk" \
         sv "svenska" \
         no "Nynorsk" \
@@ -585,7 +588,8 @@ proc translation_langs_array {} {
         tr "\u0054\u00FC\u0072\u006B\u00E7\u0065" \
         ro "\u006C\u0069\u006D\u0062\u0061\u0020\u0072\u006F\u006D\u00E2\u006E\u103" \
         hi "\u939\u93F\u928\u94D\u926\u940" \
-        nl "Nederlands" 
+        nl "Nederlands" \
+        ru "русский" 
     ]
 }
 
@@ -614,9 +618,11 @@ proc translate {english} {
             #puts "translate: '[encoding convertfrom $available([language])]'"
             if {$available([language]) != ""} {
                 # if the translated version of the English is NOT blank, return it
+                #log_to_debug_file [encoding names]
+                #log_to_debug_file "English: '$available([language])'"
                 if {[language] == "ar" && ($::runtime == "android" || $::runtime == "undroid")} {
-                    #return [string reverse $available([language])]
-                    return [render_arabic  $available([language])]
+                    # use the "arb" column on Android/Undroid because they do not correctly right-to-left text like OSX does
+                    #return $available(arb)
                 }
 
                 return $available([language])
@@ -1051,17 +1057,6 @@ proc append_file {filename data} {
     return $success
 }
 
-
-proc save_array_to_file {arrname fn} {
-    upvar $arrname item
-    set toexport2 {}
-    foreach k [lsort -dictionary [array names item]] {
-        set v $item($k)
-        append toexport2 [subst {[list $k] [list $v]\n}]
-    }
-    write_file $fn $toexport2
-}
-
 proc god_shot_save {} {
     set ::settings(god_espresso_pressure) [espresso_pressure range 0 end]
     set ::settings(god_espresso_temperature_basket) [espresso_temperature_basket range 0 end]
@@ -1177,12 +1172,6 @@ proc load_settings {} {
     #espresso_elapsed append 0    
     clear_espresso_chart
 
-}
-
-proc settings_filename {} {
-    set fn "[homedir]/settings.tdb"
-    #puts "sc: '$fn'"
-    return $fn
 }
 
 proc skin_xscale_factor {} {
@@ -2046,6 +2035,12 @@ proc zero_pad {number len} {
 }
 
 proc wrapped_string_part {input threshold partnumber} {
+    if {[string length $input] == [expr {1 + $threshold}] } {
+        # wrap algorithm seems to chop off last character if there is just 1 character too many, so 
+        # work around that by adding a space when needed.
+        append input " "
+    }
+    #msg "wrapped_string_part $input ([string length $input]) $threshold"
     set l [wrap_string $input $threshold 1]
     return [lindex $l $partnumber]
 }

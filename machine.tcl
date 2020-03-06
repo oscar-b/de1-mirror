@@ -16,6 +16,7 @@ package provide de1_machine 1.0
 
 
 array set ::de1 {
+	firmware_crc ""
 	current_frame_number 0
 	calibration_pressure {}
 	calibration_temperature {}
@@ -26,6 +27,7 @@ array set ::de1 {
 	advanced_shot_moveone_enabled 1
     found    0
     scanning 1
+    mmr_enabled 0
     device_handle 0
     scale_device_handle 0
     decentscale_device_handle 0
@@ -161,6 +163,7 @@ if {$runtime != "android" || $runtime == "undroid"} {
 #}
 
 array set ::settings {
+	force_fw_update 0
 	preset_counter 1
 	screen_size_width {}
 	tank_desired_water_temperature 0

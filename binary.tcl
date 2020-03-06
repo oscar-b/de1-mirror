@@ -293,9 +293,28 @@ proc decent_scale_weight_read_spec {} {
 		model {char {} {} {unsigned} {}}
 		wtype {char {} {} {unsigned} {}}
 		weight {Short {} {} {signed} {}}
-		data4 {char {} {} {unsigned} {}}
-		data5 {char {} {} {unsigned} {}}
+		rate {Short {} {} {unsigned} {}}
 		xor {char {} {} {unsigned} {}}
+	}
+	return $spec
+}
+
+proc decent_scale_weight_read_spec2 {} {
+	set spec {
+		model {char {} {} {unsigned} {}}
+		wtype {char {} {} {unsigned} {}}
+		weight {Short {} {} {unsigned} {}}
+		rate {Short {} {} {unsigned} {}}
+		xor {char {} {} {unsigned} {}}
+	}
+	return $spec
+}
+
+
+proc decent_scale_timing_read_spec {} {
+	set spec {
+		minute {char {} {} {unsigned} {}}
+		seconds {char {} {} {unsigned} {}}
 	}
 	return $spec
 }
@@ -798,7 +817,10 @@ proc de1_packed_shot_flow {} {
 	set frame1(FrameToWrite) 0
 	set frame1(Flag) [make_shot_flag "CtrlF DoCompare DC_GT IgnoreLimit $mixtempflag"] 
 	set frame1(SetVal) [convert_float_to_U8P4 $::settings(preinfusion_flow_rate)]
+	#set frame1(Temp) [convert_float_to_U8P1 $::settings(espresso_temperature)]
 	set frame1(Temp) [convert_float_to_U8P1 $::settings(espresso_temperature)]
+
+
 	set frame1(FrameLen) [convert_float_to_F8_1_7 $::settings(preinfusion_time)]
 
 	# MaxVol feature has been disabled 5/11/18
@@ -896,7 +918,9 @@ proc de1_packed_shot {} {
 	} else {
 		set frame1(SetVal) [convert_float_to_U8P4 4]
 	}
+
 	set frame1(Temp) [convert_float_to_U8P1 $::settings(espresso_temperature)]
+
 	set frame1(FrameLen) [convert_float_to_F8_1_7 $::settings(preinfusion_time)]
 	
 	# MaxVol feature has been disabled 5/11/18
@@ -1638,11 +1662,22 @@ proc parse_decent_scale_recv {packed destarrname} {
 
    	if {$recv(command) == 0xCE || $recv(command) == 0xCA} {
    		# weight comes as a short, so use a different parsing format in this case, otherwise just return bytes
+	   	#msg "Raw scale data: [array get recv]"
+
+   		#unset -nocomplain recv
+	   	#::fields::unpack $packed [decent_scale_weight_read_spec] recv bigeendian
+	   	#msg "Parse1: [array get recv]"
+
+
    		unset -nocomplain recv
-	   	::fields::unpack $packed [decent_scale_weight_read_spec] recv bigeendian
+	   	::fields::unpack $packed [decent_scale_weight_read_spec2] recv bigeendian
 	   	#::fields::unpack $packed [decent_scale_generic_read_spec] recv bigeendian
    	} elseif {$recv(command) == 0xAA} {
-   		#msg "Decentscale BUTTON $recv(data3) pressed"
+   		msg "Decentscale BUTTON pressed: [array get recv]"
+   	} elseif {$recv(command) == 0x0C} {
+   		unset -nocomplain recv
+	   	::fields::unpack $packed [decent_scale_timing_read_spec] recv bigeendian
+   		msg "Decentscale time received: [array get recv]"
    	}
 
 }

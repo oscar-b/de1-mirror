@@ -269,20 +269,25 @@ proc log_to_debug_file {text} {
     if {[ifexists ::settings(logfile)] != ""} {
         if {[ifexists ::logfile_handle] == "0"} {
             # do nothing, no logging is possible (such as OSX readonly file system)
-        } elseif {[ifexists ::logfile_handle] == ""} {
+            return
+        }
+
+        if {[ifexists ::logfile_handle] == ""} {
 
             set ::logfile_handle "0"
             catch {
                 set ::logfile_handle [open "[homedir]/$::settings(logfile)" w]
-                fconfigure $::logfile_handle -blocking 0
-                fconfigure $::logfile_handle -buffersize 10240
+                fconfigure $::logfile_handle -blocking 0 -buffering line
+                #fconfigure $::logfile_handle 
+                #fconfigure $::logfile_handle -buffersize 10240
+                #fconfigure $::logfile_handle -buffersize 0
             }
-
-
-        } else {
-            puts $::logfile_handle "$::debugcnt. ([clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S" ]) $text"
-
         } 
+
+        puts $::logfile_handle "$::debugcnt. ([clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S" ]) $text"
+
+        # temporarily do 
+        #close_log_file
     }
 }
 
@@ -310,9 +315,10 @@ proc verify_decent_tls_certificate {} {
 }
 
 proc close_log_file {} {
-    if {[ifexists ::logfile_handle] == ""} {
+    if {[ifexists ::logfile_handle] != ""} {
         catch {
             close $::logfile_handle
+            undef -nocomplain ::logfile_handle
         }
     }
 }
@@ -745,3 +751,52 @@ proc start_app_update {} {
     }
 }
 
+
+proc read_binary_file {filename} {
+    set fn ""
+    set err {}
+    set error [catch {set fn [open $filename]} err]
+    if {$fn == ""} {
+        #puts "error opening binary file: $filename / '$err' / '$error' / $fn"
+        return ""
+    }
+    if {$fn == ""} {
+        return ""
+    }
+    
+    fconfigure $fn -translation binary
+    set data [read $fn]
+    close $fn
+    return $data
+}
+
+
+
+proc save_array_to_file {arrname fn} {
+    upvar $arrname item
+    set toexport2 {}
+    foreach k [lsort -dictionary [array names item]] {
+        set v $item($k)
+        append toexport2 [subst {[list $k] [list $v]\n}]
+    }
+    write_file $fn $toexport2
+}
+
+proc settings_filename {} {
+    set fn "[homedir]/settings.tdb"
+    #puts "sc: '$fn'"
+    return $fn
+}
+
+
+
+proc reset_skin {} {
+    set s "settings.tdb"
+        set s [settings_filename]
+    catch {
+    }
+
+    array set ::settings [encoding convertfrom utf-8 [read_binary_file $s]]
+    set ::settings(skin) "Insight"
+    save_array_to_file ::settings $s
+}

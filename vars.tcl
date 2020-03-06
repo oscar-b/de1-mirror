@@ -2204,10 +2204,15 @@ proc save_settings_and_ask_to_restart_app {} {
 }
 
 proc message_page {msg buttonmsg} {
-	.can itemconfigure $::message_label -text $msg
-	.can itemconfigure $::message_button_label -text $buttonmsg
-	set_next_page off message; 
-	page_show message
+	if {[catch {
+		.can itemconfigure $::message_label -text $msg
+		.can itemconfigure $::message_button_label -text $buttonmsg
+		set_next_page off message; 
+		page_show message
+	} err] != 0} {
+		msg "message_page failed because: '$err'"
+	}
+
 }
 
 
@@ -2217,15 +2222,14 @@ proc message_page {msg buttonmsg} {
 
 
 proc info_page {msg buttonmsg} {
-
-		#set_next_page off descalewarning;
-		#page_show descalewarning
-
-		#return
-	.can itemconfigure $::infopage_label -text $msg
-	.can itemconfigure $::infopage_button_label -text $buttonmsg
-	set_next_page off infopage; 
-	page_show off
+	if {[catch {
+		.can itemconfigure $::infopage_label -text $msg
+		.can itemconfigure $::infopage_button_label -text $buttonmsg
+		set_next_page off infopage; 
+		page_show off
+	} err] != 0} {
+		msg "info_page failed because: '$err'"
+	}
 }
 
 proc change_bluetooth_device {} {
@@ -2416,7 +2420,7 @@ proc preview_profile {} {
 }
 
 proc profile_has_changed_set_colors {} {
-	#puts "profile_has_changed_set_colors : $::settings(profile_has_changed)"
+	#msg "profile_has_changed_set_colors : $::settings(profile_has_changed) [stacktrace]"
 
 	if {$::settings(profile_has_changed) == 1} {
 		update_de1_explanation_chart
@@ -2426,25 +2430,23 @@ proc profile_has_changed_set_colors {} {
 			}
 		}
 
-		if {[info exists ::globals(widget_current_profile_name)] == 1} {
-			catch {
-				.can itemconfigure $::globals(widget_current_profile_name) -fill $::de1(widget_current_profile_name_color_normal)
-			}
-			catch {
-				.can itemconfigure $::globals(widget_current_profile_name1) -fill $::de1(widget_current_profile_name_color_normal)
-			}
-			catch {
-				.can itemconfigure $::globals(widget_current_profile_name2) -fill $::de1(widget_current_profile_name_color_normal)
-			}
-			catch {
-				.can itemconfigure $::globals(widget_current_profile_name_espresso) -fill $::de1(widget_current_profile_name_color_normal)
-			}
-			catch {
-				.can itemconfigure $::globals(widget_current_profile_name_espresso1) -fill $::de1(widget_current_profile_name_color_normal)
-			}
-			catch {
-				.can itemconfigure $::globals(widget_current_profile_name_espresso2) -fill $::de1(widget_current_profile_name_color_normal)
-			}
+		catch {
+			.can itemconfigure $::globals(widget_current_profile_name) -fill $::de1(widget_current_profile_name_color_normal)
+		}
+		catch {
+			.can itemconfigure $::globals(widget_current_profile_name1) -fill $::de1(widget_current_profile_name_color_normal)
+		}
+		catch {
+			.can itemconfigure $::globals(widget_current_profile_name2) -fill $::de1(widget_current_profile_name_color_normal)
+		}
+		catch {
+			.can itemconfigure $::globals(widget_current_profile_name_espresso) -fill $::de1(widget_current_profile_name_color_normal)
+		}
+		catch {
+			.can itemconfigure $::globals(widget_current_profile_name_espresso1) -fill $::de1(widget_current_profile_name_color_normal)
+		}
+		catch {
+			.can itemconfigure $::globals(widget_current_profile_name_espresso2) -fill $::de1(widget_current_profile_name_color_normal)
 		}
 	} else {
 		if {[info exists ::globals(widget_profile_name_to_save)] == 1} {		
@@ -2454,26 +2456,24 @@ proc profile_has_changed_set_colors {} {
 			}
 		}
 
-		if {[info exists ::globals(widget_current_profile_name)] == 1} {
-			# this is displayed on the main Insight skin page
-			catch {
-				.can itemconfigure $::globals(widget_current_profile_name) -fill $::de1(widget_current_profile_name_color_changed)
-			}
-			catch {
-				.can itemconfigure $::globals(widget_current_profile_name1) -fill $::de1(widget_current_profile_name_color_changed)
-			}
-			catch {
-				.can itemconfigure $::globals(widget_current_profile_name2) -fill $::de1(widget_current_profile_name_color_changed)
-			}
-			catch {
-				.can itemconfigure $::globals(widget_current_profile_name_espresso) -fill $::de1(widget_current_profile_name_color_changed)
-			}
-			catch {
-				.can itemconfigure $::globals(widget_current_profile_name_espresso1) -fill $::de1(widget_current_profile_name_color_changed)
-			}
-			catch {
-				.can itemconfigure $::globals(widget_current_profile_name_espresso2) -fill $::de1(widget_current_profile_name_color_changed)
-			}
+		# this is displayed on the main Insight skin page
+		catch {
+			.can itemconfigure $::globals(widget_current_profile_name) -fill $::de1(widget_current_profile_name_color_changed)
+		}
+		catch {
+			.can itemconfigure $::globals(widget_current_profile_name1) -fill $::de1(widget_current_profile_name_color_changed)
+		}
+		catch {
+			.can itemconfigure $::globals(widget_current_profile_name2) -fill $::de1(widget_current_profile_name_color_changed)
+		}
+		catch {
+			.can itemconfigure $::globals(widget_current_profile_name_espresso) -fill $::de1(widget_current_profile_name_color_changed)
+		}
+		catch {
+			.can itemconfigure $::globals(widget_current_profile_name_espresso1) -fill $::de1(widget_current_profile_name_color_changed)
+		}
+		catch {
+			.can itemconfigure $::globals(widget_current_profile_name_espresso2) -fill $::de1(widget_current_profile_name_color_changed)
 		}
 	}
 }
@@ -2593,6 +2593,8 @@ proc save_profile {} {
 	} else {
 		set ::settings(profile_title) [translate "Invalid name"]
 	}
+
+	profile_has_changed_set_colors
 }
 
 
@@ -2882,6 +2884,12 @@ proc round_to_half_integer {in} {
 
 proc check_firmware_update_is_available {} {
 
+	if {$::settings(force_fw_update) != 1} {
+		set ::de1(firmware_update_button_label) "Up to date"
+		return ""
+	}
+
+
 	if {[info exists ::de1(firmware_crc)] != 1} {
 		set ::de1(firmware_crc) [crc::crc32 -filename [fwfile]]
 	}
@@ -2911,6 +2919,16 @@ proc firmware_uploaded_label {} {
 		return "[round_to_one_digits $percentage]%"
 	}
 }
+
+proc de1_version_bleapi {} {
+	array set ver $::de1(version)
+	set c [ifexists ver(BLE_APIVersion)]
+	if {$c == ""} {
+		set c 0
+	}
+	return $c
+}
+
 
 proc de1_version_string {} {
 	array set v $::de1(version)

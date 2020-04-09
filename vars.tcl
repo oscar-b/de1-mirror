@@ -228,9 +228,9 @@ proc next_alarm_time { in } {
 
 proc time_format {seconds} {
 	if {$::settings(enable_ampm) == 1} {
-		return [subst {[clock format $seconds -format {%A}] [string trim [clock format $seconds -format {%l:%M %p}]]}]
+		return [subst {[translate [clock format $seconds -format {%A}]] [string trim [clock format $seconds -format {%l:%M %p}]]}]
 	} else {
-		return [subst {[clock format $seconds -format {%A}] [string trim [clock format $seconds -format {%H:%M}]]}]
+		return [subst {[translate [clock format $seconds -format {%A}]] [string trim [clock format $seconds -format {%H:%M}]]}]
 	}
 }
 
@@ -2953,10 +2953,10 @@ proc round_to_half_integer {in} {
 
 proc check_firmware_update_is_available {} {
 
-	if {$::settings(force_fw_update) != 1} {
-		set ::de1(firmware_update_button_label) "Up to date"
-		return ""
-	}
+	#if {$::settings(force_fw_update) != 1} {
+	#	set ::de1(firmware_update_button_label) "Up to date"
+	#	return ""
+	#}
 
 
 	if {[info exists ::de1(firmware_crc)] != 1} {

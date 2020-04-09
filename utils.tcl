@@ -125,20 +125,9 @@ proc setup_environment {} {
             set fontm [expr {($fontm * 1.2)}]
             set global_font_name [lindex [sdltk addfont "fonts/NotoSansCJKjp-Regular.otf"] 0]
         } elseif {[language] == "ar" || [language] == "arb"} {
-            #set helvetica_font [sdltk addfont "fonts/notosansuiregular.ttf"]
-            #set helvetica_bold_font [sdltk addfont "fonts/notosansuibold.ttf"]
-            #set global_font_name [lindex [sdltk addfont "fonts/NotoSansCJKjp-Regular.otf"] 0]
-
-            set helvetica_font [sdltk addfont "fonts/agamashq.ttf"]
-            #log_to_debug_file "helvetica_font: $helvetica_font"
-            set helvetica_bold_font [sdltk addfont "fonts/agamashq_bold.ttf"]
-            set global_font_name $helvetica_font
-
-            #set global_font_name [lindex [sdltk addfont "fonts/NotoSansCJKjp-Regular.otf"] 0]
-            #set global_font_name $helvetica_font
-            set fontm [expr {($fontm * 1.3)}]
-
-            #set global_font_name $helvetica_font
+            set helvetica_font [sdltk addfont "fonts/Dubai-Regular.otf"]
+            set helvetica_bold_font [sdltk addfont "fonts/Dubai-Bold.otf"]
+            set global_font_name [lindex [sdltk addfont "fonts/NotoSansCJKjp-Regular.otf"] 0]
         } elseif {[language] == "zh-hant" || [language] == "zh-hans" || [language] == "kr"} {
             set helvetica_font [lindex [sdltk addfont "fonts/NotoSansCJKjp-Regular.otf"] 0]
             set helvetica_bold_font [lindex [sdltk addfont "fonts/NotoSansCJKjp-Bold.otf"] 0]
@@ -182,6 +171,7 @@ proc setup_environment {} {
         font create Helv_19_bold -family $helvetica_bold_font -size [expr {int($fontm * 35)}] 
         font create Helv_20_bold -family $helvetica_bold_font -size [expr {int($fontm * 37)}]
         font create Helv_30_bold -family $helvetica_bold_font -size [expr {int($fontm * 54)}]
+        font create Helv_30 -family $helvetica_font -size [expr {int($fontm * 56)}]
 
         # enable swipe gesture translating, to scroll through listboxes
         # sdltk touchtranslate 1
@@ -286,6 +276,7 @@ proc setup_environment {} {
         font create Helv_19_bold -family $boldfont -size [expr {int($fontm * 45)}]
         font create Helv_20_bold -family $boldfont -size [expr {int($fontm * 48)}]
         font create Helv_30_bold -family $boldfont -size [expr {int($fontm * 69)}]
+        font create Helv_30 -family $regularfont -size [expr {int($fontm * 72)}]
 
         font create global_font -family "Noto Sans CJK JP" -size [expr {int($fontm * 23)}] 
         android_specific_stubs
@@ -571,8 +562,7 @@ proc translation_langs_array {} {
         de Deutsch \
         de-ch Schwiizerd\u00FCtsch \
         it italiano \
-        ar "Arabic" \
-        arb "Arabic for Android" \
+        ar "Arabic (with Dubai font)" \
         da "dansk" \
         sv "svenska" \
         no "Nynorsk" \
@@ -626,7 +616,7 @@ proc translate {english} {
                 #log_to_debug_file "English: '$available([language])'"
                 if {[language] == "ar" && ($::android == 1 || $::undroid == 1)} {
                     # use the "arb" column on Android/Undroid because they do not correctly right-to-left text like OSX does
-                    #return $available(arb)
+                    return $available(arb)
                 }
 
                 return $available([language])

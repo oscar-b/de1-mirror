@@ -141,6 +141,7 @@ if {$android == 0 || $undroid == 1} {
 
 
 
+
 #namespace import blt::*
 #namespace import -force blt::tile::*
 
@@ -172,7 +173,7 @@ array set ::settings {
 	default_font_calibration 0.5
 	linear_resistance_adjustment 1
 	language en
-	display_time_in_screen_saver 1
+	display_time_in_screen_saver 0
 	steam_over_temp_threshold 180
 	steam_over_pressure_threshold 5
 	automatically_ble_reconnect_forever_to_scale 0

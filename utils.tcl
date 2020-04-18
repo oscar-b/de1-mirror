@@ -125,16 +125,9 @@ proc setup_environment {} {
             set fontm [expr {($fontm * 1.2)}]
             set global_font_name [lindex [sdltk addfont "fonts/NotoSansCJKjp-Regular.otf"] 0]
         } elseif {[language] == "ar" || [language] == "arb"} {
-            #set helvetica_font [sdltk addfont "fonts/notosansuiregular.ttf"]
-            #set helvetica_bold_font [sdltk addfont "fonts/notosansuibold.ttf"]
-            #set global_font_name [lindex [sdltk addfont "fonts/NotoSansCJKjp-Regular.otf"] 0]
-
-            set helvetica_font [sdltk addfont "fonts/Rakkas-Regular.ttf"]
-            set helvetica_bold_font $helvetica_font
-            set global_font_name $helvetica_font
-            set fontm [expr {($fontm * 1.2)}]
-
-            #set global_font_name $helvetica_font
+            set helvetica_font [sdltk addfont "fonts/Dubai-Regular.otf"]
+            set helvetica_bold_font [sdltk addfont "fonts/Dubai-Bold.otf"]
+            set global_font_name [lindex [sdltk addfont "fonts/NotoSansCJKjp-Regular.otf"] 0]
         } elseif {[language] == "zh-hant" || [language] == "zh-hans" || [language] == "kr"} {
             set helvetica_font [lindex [sdltk addfont "fonts/NotoSansCJKjp-Regular.otf"] 0]
             set helvetica_bold_font [lindex [sdltk addfont "fonts/NotoSansCJKjp-Bold.otf"] 0]
@@ -178,11 +171,16 @@ proc setup_environment {} {
         font create Helv_19_bold -family $helvetica_bold_font -size [expr {int($fontm * 35)}] 
         font create Helv_20_bold -family $helvetica_bold_font -size [expr {int($fontm * 37)}]
         font create Helv_30_bold -family $helvetica_bold_font -size [expr {int($fontm * 54)}]
+        font create Helv_30 -family $helvetica_font -size [expr {int($fontm * 56)}]
 
         # enable swipe gesture translating, to scroll through listboxes
         # sdltk touchtranslate 1
         # disable touch translating as it does not feel native on tablets and is thus confusing
-        sdltk touchtranslate 0
+        if {$::settings(disable_long_press) != 1 } {        
+            sdltk touchtranslate 1
+        } else {
+            sdltk touchtranslate 0
+        }
 
         wm maxsize . $screen_size_width $screen_size_height
         wm minsize . $screen_size_width $screen_size_height
@@ -282,6 +280,7 @@ proc setup_environment {} {
         font create Helv_19_bold -family $boldfont -size [expr {int($fontm * 45)}]
         font create Helv_20_bold -family $boldfont -size [expr {int($fontm * 48)}]
         font create Helv_30_bold -family $boldfont -size [expr {int($fontm * 69)}]
+        font create Helv_30 -family $regularfont -size [expr {int($fontm * 72)}]
 
         font create global_font -family "Noto Sans CJK JP" -size [expr {int($fontm * 23)}] 
         android_specific_stubs
@@ -567,8 +566,7 @@ proc translation_langs_array {} {
         de Deutsch \
         de-ch Schwiizerd\u00FCtsch \
         it italiano \
-        ar "Arabic" \
-        arb "Arabic for Android" \
+        ar "Arabic (with Dubai font)" \
         da "dansk" \
         sv "svenska" \
         no "Nynorsk" \
@@ -622,7 +620,7 @@ proc translate {english} {
                 #log_to_debug_file "English: '$available([language])'"
                 if {[language] == "ar" && ($::runtime == "android" || $::runtime == "undroid")} {
                     # use the "arb" column on Android/Undroid because they do not correctly right-to-left text like OSX does
-                    #return $available(arb)
+                    return $available(arb)
                 }
 
                 return $available([language])
@@ -1156,7 +1154,7 @@ proc load_settings {} {
     }
 
 
-    blt::vector create espresso_elapsed god_espresso_elapsed god_espresso_pressure steam_pressure steam_temperature steam_flow steam_elapsed espresso_pressure espresso_flow god_espresso_flow espresso_flow_weight god_espresso_flow_weight espresso_flow_weight_2x god_espresso_flow_weight_2x espresso_flow_2x god_espresso_flow_2x espresso_flow_delta espresso_pressure_delta espresso_temperature_mix espresso_temperature_basket god_espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_weight espresso_weight_chartable
+    blt::vector create espresso_elapsed god_espresso_elapsed god_espresso_pressure steam_pressure steam_temperature steam_flow steam_elapsed espresso_pressure espresso_flow god_espresso_flow espresso_flow_weight god_espresso_flow_weight espresso_flow_weight_2x god_espresso_flow_weight_2x espresso_flow_2x god_espresso_flow_2x espresso_flow_delta espresso_pressure_delta espresso_temperature_mix espresso_temperature_basket god_espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_weight espresso_weight_chartable espresso_resistance_weight espresso_resistance
     blt::vector create espresso_de1_explanation_chart_pressure espresso_de1_explanation_chart_flow espresso_de1_explanation_chart_elapsed espresso_de1_explanation_chart_elapsed_flow espresso_water_dispensed espresso_flow_weight_raw
     blt::vector create espresso_de1_explanation_chart_flow_1 espresso_de1_explanation_chart_elapsed_flow_1 espresso_de1_explanation_chart_flow_2 espresso_de1_explanation_chart_elapsed_flow_2 espresso_de1_explanation_chart_flow_3 espresso_de1_explanation_chart_elapsed_flow_3
     blt::vector create espresso_de1_explanation_chart_elapsed_1 espresso_de1_explanation_chart_elapsed_2 espresso_de1_explanation_chart_elapsed_3 espresso_de1_explanation_chart_pressure_1 espresso_de1_explanation_chart_pressure_2 espresso_de1_explanation_chart_pressure_3

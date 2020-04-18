@@ -180,7 +180,48 @@ proc set_de1_screen_saver_directory {{dirname {}}} {
 	foreach name $names {
 		.can create image {0 0} -anchor nw -image $names  -tag [list saver $name] -state hidden
 	}
+
+	setup_display_time_in_screen_saver
 }	
+
+proc setup_display_time_in_screen_saver {} {
+
+	if {$::settings(display_time_in_screen_saver) != 1} {
+		return
+	}
+
+	set ::clocktime [clock seconds]
+	set ::previous_clocktime 0
+	
+	set ::saver_clock2 [add_de1_variable "saver" 1278 898 -justify center -anchor "center" -text "" -font Helv_30_bold -fill "#CCCCCC" -width 2000 -textvariable {[time_format $::clocktime 1]}]
+	set ::saver_clock3 [add_de1_variable "saver" 1282 902 -justify center -anchor "center" -text "" -font Helv_30_bold -fill "#666666" -width 2000 -textvariable {[time_format $::clocktime 1]}]
+	set ::saver_clock [add_de1_variable "saver" 1280 900 -justify center -anchor "center" -text "" -font Helv_30_bold -fill "#F8F8F8" -width 2000 -textvariable {[time_format $::clocktime 1]}]
+
+	after 1000 saver_clock_move
+	proc saver_clock_move {} {
+		set ::clocktime [clock seconds]
+		set force 0
+		if {[time_format $::clocktime] != [time_format $::previous_clocktime] || $force == 1} {
+
+
+			set newx [expr {[rescale_x_skin 600] + (rand() * [rescale_x_skin 1400])}]
+			set newy [expr {[rescale_y_skin 200] + (rand() * [rescale_y_skin 1200])}]
+			set newx2 [expr {$newx - [rescale_x_skin 2]}]
+			set newy2 [expr {$newy - [rescale_y_skin 2]}]
+
+			set newx3 [expr {$newx + [rescale_x_skin 2]}]
+			set newy3 [expr {$newy + [rescale_y_skin 2]}]
+
+			.can coords $::saver_clock2 "$newx2 $newy2"
+			.can coords $::saver_clock3 "$newx3 $newy3"
+			.can coords $::saver_clock "$newx $newy"
+			set ::previous_clocktime $::clocktime 
+		}
+		after 1000 saver_clock_move
+		
+	}
+
+}
 
 proc vertical_slider {varname minval maxval x y x0 y0 x1 y1} {
 	set yrange [expr {$y1 - $y0}]
@@ -206,7 +247,10 @@ proc vertical_slider {varname minval maxval x y x0 y0 x1 y1} {
 }
 
 
-proc vertical_clicker {bigincrement smallincrement varname minval maxval x y x0 y0 x1 y1} {
+proc vertical_clicker {bigincrement smallincrement varname minval maxval x y x0 y0 x1 y1 {b 0} } {
+	# b = which button was tapped
+	msg "Button $b"
+
 	set yrange [expr {$y1 - $y0}]
 	set yoffset [expr {$y - $y0}]
 
@@ -221,14 +265,18 @@ proc vertical_clicker {bigincrement smallincrement varname minval maxval x y x0 
 	set currentval [subst \$$varname]
 	set newval $currentval
 
-	if {$y < $onequarterpoint} {
-		set newval [expr "1.0 * \$$varname + $bigincrement"]
-	} elseif {$y < $midpoint} {
-		set newval [expr "1.0 * \$$varname + $smallincrement"]
-	} elseif {$y < $threequarterpoint} {
-		set newval [expr "1.0 * \$$varname - $smallincrement"]
+	if {$y < $midpoint} {
+		if {$b == 3} {
+			set newval [expr "1.0 * \$$varname + $bigincrement"]
+		} else {
+			set newval [expr "1.0 * \$$varname + $smallincrement"]
+		}
 	} else {
-		set newval [expr "1.0 * \$$varname - $bigincrement"]
+		if {$b == 3} {
+			set newval [expr "1.0 * \$$varname - $bigincrement"]
+		} else {
+			set newval [expr "1.0 * \$$varname - $smallincrement"]
+		}
 	}
 
 	set newval [round_to_two_digits $newval]
@@ -502,6 +550,15 @@ proc platform_button_press {} {
 	return {<ButtonPress-1>}
 }
 
+proc platform_button_long_press {} {
+	global android 
+	if {$android == 1} {
+		#return {<<FingerUp>>}
+		return {<ButtonPress-3>}
+	}
+	return {<ButtonPress-3>}
+}
+
 proc platform_finger_down {} {
 	global runtime 
 	if {$runtime == "android"} {
@@ -614,6 +671,10 @@ proc add_de1_button {displaycontexts tclcode x0 y0 x1 y1 {options {}}} {
 	regsub {%y1} $tclcode $ry1 tclcode
 
 	.can bind $btn_name [platform_button_press] $tclcode
+	
+	if {$::settings(disable_long_press) != 1 } {
+		.can bind $btn_name [platform_button_long_press] $tclcode
+	}
 
 	if {[string first mousemove $options] != -1} {
 		#puts "mousemove detected"
@@ -1260,7 +1321,7 @@ proc page_display_change {page_to_hide page_to_show} {
 		set ::all_labels [lsort -unique $::all_labels]
 	}
 
-	msg "Hiding [llength $::all_labels] labels"
+	#msg "Hiding [llength $::all_labels] labels"
 	foreach label $::all_labels {
 		if {[.can itemcget $label -state] != "hidden"} {
 			.can itemconfigure $label -state hidden
@@ -1268,7 +1329,7 @@ proc page_display_change {page_to_hide page_to_show} {
 		}
 	}
 
-	msg "Showing [llength $these_labels] labels"
+	#msg "Showing [llength $these_labels] labels"
 	foreach label $these_labels {
 		.can itemconfigure $label -state normal
 		#msg "showing: '$label'"
@@ -1827,7 +1888,10 @@ proc water_level_color_check {widget} {
 		set ::water_level_color_check_count 0
 	}
 
-	set refill_point_corrected [expr {$::settings(water_refill_point) + $::de1(water_level_mm_correction)}]
+	# john 28-3-20 not adjusting the blinking to be higher, when refilling earlier, as they will not actually run out of water during drink making, so no need to warn
+	#set refill_point_corrected [expr {$::settings(water_refill_point) + $::de1(water_level_mm_correction)}]
+	set refill_point_corrected $::de1(water_level_mm_correction)
+
 	set start_blinking_level [expr {$::settings(waterlevel_blink_start_offset) + $refill_point_corrected}]
 	set remaining_water [expr {$::de1(water_level)  - $refill_point_corrected}]
 	# if using refill kit don't blink
@@ -2333,7 +2397,7 @@ proc profile_title {} {
 # w = water
 
 proc handle_keypress {keycode} {
-	msg "Keypress detected: $keycode"
+	#msg "Keypress detected: $keycode"
 	if {$keycode == 101} {
 		# e = espresso 
 		start_espresso

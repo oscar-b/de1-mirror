@@ -15,7 +15,7 @@ flow_profile_decline 3.5
 flow_profile_decline_time 17
 flow_profile_minimum_pressure 4
 preinfusion_flow_rate 4.5
-profile_notes {An amazing Americano for very light roasts.  With a 21g dose of coffee, aim for 135g in cup, in 40 seconds. Coarse grind.  If close to the right pressure, make 0.5g dose changes to get into a 8-9 peak pressure range.  The very high flow rate means small grind size adjustments cause big pressure changes. A very advanced technique.}
+profile_notes {An amazing long espresso for light roasts, this is the biggest fruit bomb of any brewing method we know.  5:1 ratio, 35-40 seconds, coarse espresso grind. If close to the right pressure, make 0.5g dose adjustments to get to an 8-9 bar peak. The very high flow rate means small grind adjustments cause big pressure changes. An advanced technique, allongé averages 24% extraction.}
 water_temperature 80
 final_desired_shot_volume 100
 final_desired_shot_weight 32
@@ -26,4 +26,5 @@ preinfusion_guarantee 0
 profile_title {Rao Allongé}
 profile_language en
 preinfusion_stop_pressure 4
+profile_hide 0
 

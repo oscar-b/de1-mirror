@@ -141,6 +141,7 @@ if {$runtime != "android" || $runtime == "undroid"} {
 
 
 
+
 #namespace import blt::*
 #namespace import -force blt::tile::*
 
@@ -170,8 +171,11 @@ array set ::settings {
 	screen_size_height {}
 	current_frame_description {}
 	default_font_calibration 0.5
+	linear_resistance_adjustment 1
 	language en
+	display_time_in_screen_saver 0
 	steam_over_temp_threshold 180
+	disable_long_press 0
 	steam_over_pressure_threshold 5
 	automatically_ble_reconnect_forever_to_scale 0
 	chart_total_shot_flow 1

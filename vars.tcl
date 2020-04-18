@@ -16,6 +16,8 @@ proc clear_espresso_chart {} {
 	espresso_flow_weight_2x length 0
 	espresso_water_dispensed length 0
 	espresso_flow_2x length 0
+	espresso_resistance length 0
+	espresso_resistance_weight length 0
 	espresso_pressure_delta length 0
 	espresso_flow_delta length 0
 	espresso_flow_delta_negative length 0
@@ -49,6 +51,8 @@ proc clear_espresso_chart {} {
 	espresso_flow_weight_raw append 0
 	espresso_water_dispensed append 0
 	espresso_flow_2x append 0
+	espresso_resistance append 0
+	espresso_resistance_weight append 0
 	espresso_pressure_delta append 0
 	espresso_flow_delta append 0
 	espresso_flow_delta_negative append 0
@@ -71,7 +75,7 @@ proc clear_espresso_chart {} {
 }	
 
 proc espresso_chart_structures {} {
-	return [list espresso_elapsed espresso_pressure espresso_weight espresso_weight_chartable espresso_flow espresso_flow_weight espresso_flow_weight_raw espresso_water_dispensed espresso_flow_weight_2x espresso_flow_2x espresso_pressure_delta espresso_flow_delta espresso_flow_delta_negative espresso_flow_delta_negative_2x espresso_temperature_mix espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_de1_explanation_chart_flow espresso_de1_explanation_chart_elapsed_flow espresso_de1_explanation_chart_flow_2x espresso_de1_explanation_chart_flow_1_2x espresso_de1_explanation_chart_flow_2_2x espresso_de1_explanation_chart_flow_3_2x espresso_de1_explanation_chart_pressure espresso_de1_explanation_chart_pressure_1 espresso_de1_explanation_chart_pressure_2 espresso_de1_explanation_chart_pressure_3 espresso_de1_explanation_chart_elapsed_flow espresso_de1_explanation_chart_elapsed_flow_1 espresso_de1_explanation_chart_elapsed_flow_2 espresso_de1_explanation_chart_elapsed_flow_3 espresso_de1_explanation_chart_elapsed espresso_de1_explanation_chart_elapsed_1 espresso_de1_explanation_chart_elapsed_2 espresso_de1_explanation_chart_elapsed_3]
+	return [list espresso_elapsed espresso_pressure espresso_weight espresso_weight_chartable espresso_flow espresso_flow_weight espresso_flow_weight_raw espresso_water_dispensed espresso_flow_weight_2x espresso_flow_2x espresso_resistance espresso_resistance_weight espresso_pressure_delta espresso_flow_delta espresso_flow_delta_negative espresso_flow_delta_negative_2x espresso_temperature_mix espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_de1_explanation_chart_flow espresso_de1_explanation_chart_elapsed_flow espresso_de1_explanation_chart_flow_2x espresso_de1_explanation_chart_flow_1_2x espresso_de1_explanation_chart_flow_2_2x espresso_de1_explanation_chart_flow_3_2x espresso_de1_explanation_chart_pressure espresso_de1_explanation_chart_pressure_1 espresso_de1_explanation_chart_pressure_2 espresso_de1_explanation_chart_pressure_3 espresso_de1_explanation_chart_elapsed_flow espresso_de1_explanation_chart_elapsed_flow_1 espresso_de1_explanation_chart_elapsed_flow_2 espresso_de1_explanation_chart_elapsed_flow_3 espresso_de1_explanation_chart_elapsed espresso_de1_explanation_chart_elapsed_1 espresso_de1_explanation_chart_elapsed_2 espresso_de1_explanation_chart_elapsed_3]
 }
 
 proc backup_espresso_chart {} {
@@ -222,11 +226,16 @@ proc next_alarm_time { in } {
 	return $alarm
 }
 
-proc time_format {seconds} {
+proc time_format {seconds {crlf 0}} {
+	set crlftxt ""
+	if {$crlf == 1} {
+		set crlftxt \n
+	}
+
 	if {$::settings(enable_ampm) == 1} {
-		return [subst {[clock format $seconds -format {%A}] [string trim [clock format $seconds -format {%l:%M %p}]]}]
+		return [subst {[translate [clock format $seconds -format {%A}]]$crlftxt[string trim [clock format $seconds -format {%l:%M %p}]]}]
 	} else {
-		return [subst {[clock format $seconds -format {%A}] [string trim [clock format $seconds -format {%H:%M}]]}]
+		return [subst {[translate [clock format $seconds -format {%A}]]$crlftxt[string trim [clock format $seconds -format {%H:%M}]]}]
 	}
 }
 
@@ -1537,6 +1546,12 @@ proc history_directories {} {
 
 
 proc profile_directories {} {
+
+	set show_hidden 0
+	if {[ifexists ::profiles_hide_mode] == 1} {
+		set show_hidden 1
+	}
+
 	set dirs [lsort -dictionary [glob -nocomplain -tails -directory "[homedir]/profiles/" *.tcl]]
 	set dd {}
 	set de1plus [de1plus]
@@ -1562,6 +1577,13 @@ proc profile_directories {} {
 		if {[info exists profile(profile_title)] != 1} {
 			msg "Corrupt profile file: '$d'"
 			continue
+		}
+
+		if {[ifexists profile(profile_hide)] == 1} {
+			#msg "Hide profile: '$d'"
+			if {$show_hidden != 1} {
+				continue
+			}
 		}
 
 		set rootname [file rootname $d]
@@ -1705,6 +1727,10 @@ proc profile_type_text {} {
 
 
 proc fill_profiles_listbox {} {
+
+	# use this variable to prevent triggering preview_profile for each profile as it gets added to the listbox.  Tk would otherwise do this for each profile as its added to the listbox
+	set ::filling_profiles 1
+
 	set widget  $::globals(profiles_listbox)
 	set ::settings(profile_to_save) $::settings(profile)
 
@@ -1737,12 +1763,24 @@ proc fill_profiles_listbox {} {
 			set p $ptitle
 		}
 
-		if {$pcnt != ""} {
-			set p "$p \u25C0"
-			#set p "$p$::settings(append_most_used_profiles_with)"
-
-
+		if {[ifexists ::profiles_hide_mode] != 1} {
+			if {[ifexists profile(profile_hide)] == 1} {
+				# hide this profile if it's marked to be hidden, unless we're un the profile_hide edit mode, in which case we show all profiles
+				continue
+			}
+			if {$pcnt != ""} {
+				# mark the most frequently used profiles with a special symbol, to attract the eye to them
+				set p "$p \u25C0"
+			}
+		} else {
+			# if editing what profiles to show, then use a check or empty box, to indicate which profiles will be shown
+			if {[ifexists profile(profile_hide)] == 1} {
+				set p "\u2610 $p"
+			} else {
+				set p "\u2612 $p"
+			}
 		}
+
 		$widget insert $cnt $p
 
 		#msg "'$::settings(profile)' == '[ifexists profile(profile_title)]'"
@@ -1758,16 +1796,13 @@ proc fill_profiles_listbox {} {
 
 		incr cnt
 	}
-
-			
-
 	
 	$widget selection set $::current_profile_number;
 	set ::globals(profiles_listbox) $widget
 	make_current_listbox_item_blue $widget 
 	preview_profile 
-
 	$widget yview $::current_profile_number
+	unset -nocomplain ::filling_profiles 
 }
 
 proc copy_pressure_profile_to_advanced_profile {} {
@@ -2336,9 +2371,11 @@ proc preview_profile {} {
 		return 
 	}
 
-	#if {[check_for_multiple_listbox_events_bug] == 1} {
-	#	return
-	#}
+	if {[ifexists ::filling_profiles] == 1} {
+		# use this variable to prevent triggering preview_profile for each profile as it gets added to the listbox.  Tk would otherwise do this for each profile as its added to the listbox
+		return
+	}
+
 
 	incr ::preview_profile_counter
 	set w $::globals(profiles_listbox)
@@ -2355,18 +2392,51 @@ proc preview_profile {} {
 	}
 
 	#set profile [$w get [$w curselection]]
+
 	set profile [lindex [profile_directories] [$w curselection]]
 	#set profile [$w get active]
-	set ::settings(profile) $profile
-	set ::settings(profile_notes) ""
 	set fn "[homedir]/profiles/${profile}.tcl"
 
-	puts "fn: '$fn'"
+	if {[ifexists ::profiles_hide_mode] == 1} {
+
+		array set thisprofile [encoding convertfrom utf-8 [read_binary_file $fn]]
+
+
+		if {[ifexists thisprofile(profile_hide)] == 1} {
+			#msg "unhiding profile: '$profile'"
+			set thisprofile(profile_hide) 0
+		} else {
+			#msg "hiding profile: '$profile'"
+			set thisprofile(profile_hide) 1
+		}
+		save_array_to_file thisprofile $fn 
+		set ::filling_profiles 1
+
+		# need to save and restore the scrollbar value, because we're refilling the listbox to show hide/show state change
+		set oldscrollbarbalue [$::profiles_scrollbar get]
+		#puts "oldscrollbarbalue: $oldscrollbarbalue"
+		fill_profiles_listbox
+		unset -nocomplain ::filling_profiles 
+
+		$::profiles_scrollbar set $oldscrollbarbalue
+		listbox_moveto $::globals(profiles_listbox) $::profiles_slider $oldscrollbarbalue
+		return
+
+	}
+
+	set ::settings(profile) $profile
+	set ::settings(profile_notes) ""
+
+
+	#if {[check_for_multiple_listbox_events_bug] == 1} {
+	#	return
+	#}
 
 	# for importing De1 profiles that don't have this feature.
 	set ::settings(preinfusion_flow_rate) 4
 
 	load_settings_vars $fn
+
 	set ::settings(profile_filename) $profile
 	#msg "profile: $profile - $::settings(profile_notes)"
 
@@ -2393,8 +2463,8 @@ proc preview_profile {} {
 		}
 
 
-		if {$::settings(settings_profile_type) == "settings_2c"} {
-		}
+		#if {$::settings(settings_profile_type) == "settings_2c"} {
+		#}
 
 	} else {
 		set ::settings(settings_profile_type) "settings_2"
@@ -2530,6 +2600,9 @@ proc load_settings_vars {fn} {
 
 	array set ::settings [array get temp_settings]
 
+	# john disabling LONG PRESS support as it appears to be buggy on tablets https://3.basecamp.com/3671212/buckets/7351439/messages/2566269076#__recording_2595312790
+	set ::setting(disable_long_press) 1
+
 	update_de1_explanation_chart
 
 }
@@ -2552,6 +2625,10 @@ proc save_settings_vars {fn varlist} {
 	return $success
 }
 
+proc profile_vars {} {
+ 	return { advanced_shot author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced preinfusion_guarantee profile_title profile_language preinfusion_stop_pressure profile_hide}
+}
+
 proc save_profile {} {
 	if {$::settings(profile_title) == [translate "Saved"]} {
 		return
@@ -2565,7 +2642,7 @@ proc save_profile {} {
 		set ::settings(profile_title) $::settings(preset_counter)  
 	}
 
-	set profile_vars { advanced_shot author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced preinfusion_guarantee profile_title profile_language preinfusion_stop_pressure}
+	#set profile_vars { advanced_shot author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced preinfusion_guarantee profile_title profile_language preinfusion_stop_pressure}
 	#set profile_name_to_save $::settings(profile_to_save) 
 
 	if {[ifexists ::settings(original_profile_title)] == $::settings(profile_title)} {
@@ -2581,7 +2658,7 @@ proc save_profile {} {
 	# moves the cursor to the end of the seletion after showing the "saved" message.
 	after 1000 "set ::settings(profile_title) \{$::settings(profile_title)\}; $::globals(widget_profile_name_to_save) icursor 999"
 
-	if {[save_settings_vars $fn $profile_vars] == 1} {
+	if {[save_settings_vars $fn [profile_vars]] == 1} {
 		#set ::settings(profile) $profile_name_to_save
 		set ::settings(profile) $::settings(profile_title)
 
@@ -2888,7 +2965,6 @@ proc check_firmware_update_is_available {} {
 		set ::de1(firmware_update_button_label) "Up to date"
 		return ""
 	}
-
 
 	if {[info exists ::de1(firmware_crc)] != 1} {
 		set ::de1(firmware_crc) [crc::crc32 -filename [fwfile]]

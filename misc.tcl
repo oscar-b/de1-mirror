@@ -91,7 +91,8 @@ proc make_de1_dir {} {
         fonts/notosansuiregular.ttf *
         fonts/sarabun.ttf *
         fonts/sarabunbold.ttf *
-        fonts/Rakkas-Regular.ttf *
+        fonts/Dubai-Bold.otf *
+        fonts/Dubai-Regular.otf *
 
         godshots/none.shot *
         godshots/import/readme.txt *
@@ -243,6 +244,7 @@ proc make_de1_dir {} {
         skins/SWDark4/img/hearticon.png *
         skins/SWDark4/helveticabold12.ttf *
         skins/SWDark4/helveticabold16.ttf *
+        skins/SWDark4/helveticabold17.ttf *
         skins/SWDark4/helveticabold18.ttf *
         skins/SWDark4/helveticabold20.ttf *
         skins/SWDark4/helveticabold24.ttf *
@@ -515,6 +517,7 @@ proc make_de1_dir {} {
         saver/1280x800/steampunk_espresso.jpg *
         saver/1280x800/steampunk_latte.jpg *
         saver/1280x800/three_women.jpg *     
+        saver/1280x800/rainbow_dj.jpg *     
         saver/2560x1600/Black\ Steel.jpg *
         saver/2560x1600/Cozy-Home.jpg *
         saver/2560x1600/Floral.jpg *
@@ -538,11 +541,13 @@ proc make_de1_dir {} {
         saver/2560x1600/steampunk_espresso.jpg *
         saver/2560x1600/steampunk_latte.jpg *
         saver/2560x1600/three_women.jpg *     
+        saver/2560x1600/rainbow_dj.jpg *     
 
         profiles/Gentle\ and\ sweet.tcl *
         profiles/Londinium-R-by-Damian.tcl *
         profiles/Advanced\ spring\ lever.tcl *
         profiles/Blooming\ espresso.tcl *
+        profiles/Blooming\ allonge.tcl *
         profiles/Classic\ Italian\ espresso.tcl *
         profiles/Flow\ profile\ for\ milky\ drinks.tcl *
         profiles/Flow\ profile\ for\ straight\ espresso.tcl *
@@ -564,8 +569,9 @@ proc make_de1_dir {} {
         profiles/e61\ rocketing\ up\ to\ 10\ bar.tcl *
         profiles/e61\ with\ fast\ preinfusion\ to\ 9\ bar.tcl *      
         profiles/Italian\ Australian\ espresso.tcl *
-        profiles/EspressoForge_Light.tcl *
-        profiles/EspressoForge_Dark.tcl *
+        profiles/v60-15g.tcl *
+        profiles/v60-20g.tcl *
+        profiles/v60-22g.tcl *
     }
 #        profiles/Traditional\ lever\ machine\ at\ 9\ bar.tcl *
 #        profiles/Powerful\ 10\ bar\ shot.tcl *

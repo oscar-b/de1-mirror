@@ -781,7 +781,7 @@ proc android_specific_stubs {} {
 
      }
     
-    if {$::runtime != "android" && $::undroid != 1} {
+    if {$::runtime != "android" && $::runtime != "undroid"} {
         proc sdltk {args} {
             if {[lindex $args 0] == "powerinfo"} {
                 #msg "sdltk powerinfo"

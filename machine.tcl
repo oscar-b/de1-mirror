@@ -130,7 +130,7 @@ if {[de1plus]} {
 }
 
 
-if {$runtime != "android" && $runtime != "undroid"} {
+if {$zx != "android" && $runtime != "undroid"} {
 	package require tkblt
 }
 
@@ -140,6 +140,51 @@ if {$runtime != "android" || $runtime == "undroid"} {
 }
 
 
+array set ::de1_serial_commands_to_command_names {
+	A Versions
+	B RequestedState
+	C SetTime
+ 	D ShotDirectory
+	E ReadFromMMR
+	F WriteToMMR
+	G ShotMapRequest
+	H DeleteShotRange
+	I FWMapRequest
+	J Temperatures
+	K ShotSettings
+	L DeprecatedShotDesc
+	M ShotSample
+	N StateInfo
+	O HeaderWrite
+	P FrameWrite
+	Q WaterLevels
+	R Calibration
+}
+
+array set ::de1_command_names_to_serial_commands [reverse_array ::de1_serial_commands]
+
+array set ::de1_cuuids_to_serial_command_names {
+	"0000A001-0000-1000-8000-00805F9B34FB" Versions
+	"0000A002-0000-1000-8000-00805F9B34FB" RequestedState
+	"0000A003-0000-1000-8000-00805F9B34FB" SetTime
+	"0000A004-0000-1000-8000-00805F9B34FB" ShotDirectory
+	"0000A005-0000-1000-8000-00805F9B34FB" ReadFromMMR
+	"0000A006-0000-1000-8000-00805F9B34FB" WriteToMMR
+	"0000A007-0000-1000-8000-00805F9B34FB" ShotMapRequest
+	"0000A008-0000-1000-8000-00805F9B34FB" DeleteShotRange
+	"0000A009-0000-1000-8000-00805F9B34FB" FWMapRequest
+	"0000A00A-0000-1000-8000-00805F9B34FB" Temperatures
+	"0000A00B-0000-1000-8000-00805F9B34FB" ShotSettings
+	"0000A00C-0000-1000-8000-00805F9B34FB" DeprecatedShotDesc
+	"0000A00D-0000-1000-8000-00805F9B34FB" ShotSample
+	"0000A00E-0000-1000-8000-00805F9B34FB" StateInfo
+	"0000A00F-0000-1000-8000-00805F9B34FB" HeaderWrite
+	"0000A010-0000-1000-8000-00805F9B34FB" FrameWrite
+	"0000A011-0000-1000-8000-00805F9B34FB" WaterLevels
+	"0000A012-0000-1000-8000-00805F9B34FB" Calibration
+}
+
+array set ::de1_command_names_to_cuuids [reverse_array ::de1_serial_commands]
 
 
 #namespace import blt::*

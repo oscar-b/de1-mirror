@@ -15,6 +15,7 @@ proc setup_environment {} {
     global screen_size_width
     global screen_size_height
     global fontm
+# TODO(REED) decide whether we are doing global x vs ::x and clean up (probably ::)
     global runtime 
     global connectivity
 
@@ -674,110 +675,11 @@ proc skin_directory {} {
 proc android_specific_stubs {} {  
 
     proc ble {args} { 
-    	msg "ble $args"; 
-
-        # added this stuff because this was not getting initialized due to no BLE enumeration
-        if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-            msg "setting up a fake suuid"
-            set ::sinstance($::de1(suuid)) ::de1(suuid)
-            set ::cinstance($::de1(cuuid)) ::de1(cuuid)
-            set ::cinstance($::de1(cuuid_01)) ::de1(cuuid_01)
-            set ::cinstance($::de1(cuuid_02)) ::de1(cuuid_02)
-            set ::cinstance($::de1(cuuid_0A)) ::de1(cuuid_0A)
-            set ::cinstance($::de1(cuuid_0B)) ::de1(cuuid_0B)
-            set ::cinstance($::de1(cuuid_0C)) ::de1(cuuid_0C)
-            set ::cinstance($::de1(cuuid_0D)) ::de1(cuuid_0D)
-            set ::cinstance($::de1(cuuid_0E)) ::de1(cuuid_0E)
-            set ::cinstance($::de1(cuuid_0F)) ::de1(cuuid_0F)
-            set ::cinstance($::de1(cuuid_06)) ::de1(cuuid_06)
-            set ::cinstance($::de1(cuuid_09)) ::de1(cuuid_09)
-            set ::cinstance($::de1(cuuid_10)) ::de1(cuuid_10)
-            set ::cinstance($::de1(cuuid_11)) ::de1(cuuid_11)
-            set ::cinstance($::de1(cuuid_12)) ::de1(cuuid_12)
-	    }
-	    
-#	    msg "DAYBREAK: ble $args"  
-	    if {[string equal [lindex $args 0] write]} {
-		
-		set cuuid [lindex $args 4]
-		
-		set data [lindex $args 6]
-		set data_str [binary encode hex $data]
-		
-		set command ""
-		
-        # identify the letter-command that corresponds to the characteristic
-        # note this is a "write" operation so the read-only characteristics
-        # are not implemented here
-#		msg "translating BLE Characteristic $cuuid to serial"
-		if {[string equal $cuuid  $::de1(cuuid_02)]} {
-		    # A002 B RW   RequestedState See T_RequestedState    
-		    set command B
-		} elseif {[string equal $cuuid $::de1(cuuid_03)]} { 
-		    # A003 C RW   SetTime Set current time
-		    set command C
-		} elseif {[string equal $cuuid $::de1(cuuid_05)]} { 
-		    # A005 E RW   ReadFromMMR Read bytes from data mapped into the memory mapped region.
-		    set command E
-		} elseif {[string equal $cuuid $::de1(cuuid_06)]} { 
-		    # A006 F W    WriteToMMR Write bytes to memory mapped region
-		    set command F
-		} elseif {[string equal $cuuid $::de1(cuuid_07)]} { 
-		    # A007 G W    ShotMapRequest Map a shot so that it may be read/written
-		    set command G
-		}  elseif {[string equal $cuuid $::de1(cuuid_08)]} { 
-		    # A008 H W    DeleteShotRange Delete all shots in the range given
-		    set command H
-		}  elseif {[string equal $cuuid $::de1(cuuid_09)]} { 
-		    # A009 I W    FWMapRequest Map a firmware image into MMR. Cannot be done with the boot image
-		    set command I
-		}  elseif {[string equal $cuuid $::de1(cuuid_0B)]} { 
-		    # A00B K RW   ShotSettings See T_ShotSettings
-		    set command K
-		}  elseif {[string equal $cuuid $::de1(cuuid_0C)]} { 
-		    # A00C L RW   Deprecated Was T_ShotDesc. Now deprecated.
-		    set command L
-		}  elseif {[string equal $cuuid $::de1(cuuid_0F)]} { 
-		    # A00F O RW   HeaderWrite Use this to change a header in the current shot description
-		    set command O
-		}  elseif {[string equal $cuuid $::de1(cuuid_10)]} { 
-		    # A010 P RW   FrameWrite Use this to change a single frame in the current shot description
-		    set command P
-		}  elseif {[string equal $cuuid $::de1(cuuid_11)]} { 
-		    # A011 Q RW   WaterLevels Use this to adjust and read water level settings
-		    set command Q
-		}  elseif {[string equal $cuuid $::de1(cuuid_12)]} { 
-		    # A012 R RW   Calibration Use this to adjust and read calibration
-		    set command R
-		} 
-
-        # Do the actual send operation on the configured connection.
-        # These should all be wrapped in catch statements etc. for proper
-        # error handling & recovery
-		if {$::connectivity == "TCP"} {
-            if {[info exists ::TCPSocket]} {
-                # Presumably this should be wrapped in a catch statement
-                # for cases of lost connection, full buffers, etc.
-    		    puts -nonewline $::de1(desireSock) "<$command>$data_str\n"
-    		    flush $::de1(desireSock)
-                return 1;
-            }
-		} elseif {$::connectivity == "USB"} {
-            if {$::runtime == "android"} {
-                ## OTG code goes here
-            } else {
-                ## USBserial code goes here
-            }
-		} else {
-            msg "Connectivity configuration error"
-        }
-	#}
-	### END DESIRE ###
-	
+    	msg "UNCAUGHT >>>>>> ble $args"; 
+    	return 1 
 	return 1 
+    	return 1 
     }
-
-     }
     
     if {$::runtime != "android" && $::runtime != "undroid"} {
         proc sdltk {args} {
@@ -789,6 +691,7 @@ proc android_specific_stubs {} {
             }
         }
     }
+
     proc borg {args} { 
         if {[lindex $args 0] == "locale"} {
             return [list "language" "en"]

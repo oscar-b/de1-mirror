@@ -49,6 +49,7 @@ proc Double2Fraction { dbl {eps 0.000001}} {
 
 proc photoscale {img sx {sy ""} } {
 
+# TODO(REED) undroids in this file
 	if {($::runtime == "android" && $::undroid != 1)} {
 		#photoscale_not_android $img $sx $sy
 		photoscale_android $img $sx $sy

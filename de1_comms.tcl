@@ -1,27 +1,75 @@
 
-package provide de1_bluetooth
+package provide de1_comms
 
 set ::failed_attempt_count_connecting_to_de1 0
 set ::successful_de1_connection_count 0
 
+proc de1_real_machine {} {
+	if {$::connectivity == "BLE"} {
+		return true
+	} 
+	if {$::connectivity == "TCP"} {
+		return true
+	} 
+	if {$::connectivity == "USB"} {
+		return true
+	} 
+
+	# "mock" machine or any other (unexpected) fallthrough value
+	return false
+}
+
+proc de1_real_machine_connected {} {
+	if {![de1_real_machine]} {
+		return false
+	}
+
+	# for each form of connectivity, determine whether the machine is 
+	# currently connected
+	if {$::connectivity == "BLE"} {
+		if {[ifexists ::sinstance($::de1(suuid))] != ""} {
+			return true
+		}
+	}
+
+# TODO(REED) - implement connected checks for the other forms of connectivity
+# note these should probably move into e.g. bluetooth.tcl for organizational reasons
+
+	return false
+}
+
+# Can use these "de1_safe_for" functions to implement safety checks as needed, in a way that works across
+# different means of connectivity.  E.g. these could be written to say 'let's not allow any 
+# calibrarion operations except via BLE' if that was the desired policy to be enforced
+# (As it stands the policy is "stuff is safe on any "real" machine that is currently thought 
+# to be connected.)
+proc de1_safe_for_firmware {} {
+	return [de1_real_machine_connected]
+}
+
+proc de1_safe_for_mmr {} {
+	return [de1_safe_for_firmware]
+}
+
+proc de1_safe_for_calibration {} {
+	return [de1_safe_for_firmware]
+}
+
 proc userdata_append {comment cmd} {
-	#set cmds [ble userdata $::de1(device_handle)]
-	#lappend cmds $cmd
-	#ble userdata $::de1(device_handle) $cmds
 	lappend ::de1(cmdstack) [list $comment $cmd]
 	run_next_userdata_cmd
 }
 
+proc de1_interface {subcommand {}}
+
 proc read_de1_version {} {
 	catch {
-		userdata_append "read_de1_version" [list ble read $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_01) $::cinstance($::de1(cuuid_01))]
+		userdata_append "read_de1_version" [list de1_comm read "Versions"]
 	}
-
 }
 
 # repeatedly request de1 state
 proc poll_de1_state {} {
-
 	msg "poll_de1_state"
 	read_de1_state
 	after 1000 poll_de1_state
@@ -29,481 +77,81 @@ proc poll_de1_state {} {
 
 proc read_de1_state {} {
 	if {[catch {
-		userdata_append "read de1 state" [list ble read $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_0E) $::cinstance($::de1(cuuid_0E))]
+		userdata_append "read de1 state" [list de1_comm read "StateInfo"]
 	} err] != 0} {
-		msg "Failed to 'read de1 state' in DE1 BLE because: '$err'"
+		msg "Failed to 'read de1 state' in DE1 because: '$err'"
 	}
-}
-
-proc skale_timer_start {} {
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "atomaxskale"} {
-		return 
-	}
-
-
-	if {[ifexists ::sinstance($::de1(suuid_skale))] == ""} {
-		msg "Skale not connected, cannot start timer"
-		return
-	}
-
-	set timeron [binary decode hex "DD"]
-	userdata_append "Skale : timer start" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $timeron]
-
-}
-
-
-# cmdtype is either 0x0A for LED (cmddata 00=off, 01=on), or 0x0F for tare (cmdata = incremented char counter for each TARE use)
-proc decent_scale_calc_xor {cmdtype cmdddata} {
-	set xor [format %02X [expr {0x03 ^ $cmdtype ^ $cmdddata ^ 0x00 ^ 0x00 ^ 0x00}]]
-	msg "decent_scale_calc_xor for '$cmdtype' '$cmdddata' is '$xor'"
-	return $xor
-}
-
-proc decent_scale_calc_xor4 {cmdtype cmdddata1 cmdddata2} {
-	set xor [format %02X [expr {0x03 ^ $cmdtype ^ $cmdddata1 ^ $cmdddata2 ^ 0x00 ^ 0x00}]]
-	msg "decent_scale_calc_xor4 for '$cmdtype' '$cmdddata1' '$cmdddata2' is '$xor'"
-	return $xor
-}
-
-proc decent_scale_make_command {cmdtype cmdddata {cmddata2 {}} } {
-	if {$cmddata2 == ""} {
-		set hex [subst {03${cmdtype}${cmdddata}000000[decent_scale_calc_xor "0x$cmdtype" "0x$cmdddata"]}]
-		#set hex2 [subst {03${cmdtype}${cmdddata}000000[decent_scale_calc_xor4 "0x$cmdtype" "0x$cmdddata" "0x00"]}]
-		#msg "compare hex '$hex' to '$hex2'"
-	} else {
-		set hex [subst {03${cmdtype}${cmdddata}${cmddata2}0000[decent_scale_calc_xor4 "0x$cmdtype" "0x$cmdddata" "0x$cmddata2"]}]
-	}
-	msg "hex is '$hex' for '$cmdtype' '$cmdddata' '$cmddata2'"
-	return [binary decode hex $hex]
-}
-
-proc tare_counter_incr {} {
-	if {[info exists ::decent_scale_tare_counter] != 1} {
-		set ::decent_scale_tare_counter 253
-	} elseif {$::decent_scale_tare_counter >= 255} {
-		set ::decent_scale_tare_counter 0
-	} else {
-		incr ::decent_scale_tare_counter
-	}
-	
-
 }
 
 proc int_to_hex {in} {
 	return [format %02X $in]
 }
 
-proc decent_scale_tare_cmd {} {
-	tare_counter_incr
-	set cmd [decent_scale_make_command "0F" [format %02X $::decent_scale_tare_counter]]
-	return $cmd
-}
-
-proc scale_enable_lcd {} {
-	if {$::settings(scale_type) == "atomaxskale"} {
-	 	skale_enable_lcd
- 	} elseif {$::settings(scale_type) == "decentscale"} {
-	 	decentscale_enable_lcd
- 	}
- }
-
-
-proc decentscale_enable_lcd {} {
-	if {$::de1(scale_device_handle) == 0} {
-		return 
-	}
-	set screenon [decent_scale_make_command 0A 01 00]
-	msg "decent scale screen on: '[convert_string_to_hex $screenon]' '$screenon'"
-	userdata_append "decentscale : enable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $screenon]
-
-	#set timeron [decent_scale_make_command 0A 00 01]
-	#msg "decent scale timer on: '$timeron'"
-	#userdata_append "decentscale : timer on" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeron]
-
-
-
-	#set timeron [decent_scale_make_command 0B 02]
-	#msg "decent scale timer on: '$timeron'"
-	#userdata_append "decentscale : timer on" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeron]
-
-	decentscale_timer_start
-	#set timeron [decent_scale_make_command 0B 01]
-	#msg "decent scale timer on: '$timeron'"
-	#userdata_append "decentscale : timer on" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeron]
-
-
-
-}
-
-
-proc scale_disable_lcd {} {
-	if {$::settings(scale_type) == "atomaxskale"} {
-	 	skale_disable_lcd
- 	} elseif {$::settings(scale_type) == "decentscale"} {
-	 	decentscale_disable_lcd
- 	}
- }
-proc decentscale_disable_lcd {} {
-	if {$::de1(scale_device_handle) == 0} {
-		return 
-	}
-	set screenoff [decent_scale_make_command 0A 00]
-
-	if {[ifexists ::sinstance($::de1(suuid_decentscale))] == ""} {
-		msg "decentscale not connected, cannot disable LCD"
-		return
-	}
-
-	userdata_append "decentscale : disable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $screenoff]
-}
-
-proc scale_timer_start {} {
-
-	if {$::settings(scale_type) == "atomaxskale"} {
-	 	skale_timer_start
- 	} elseif {$::settings(scale_type) == "decentscale"} {
-	 	decentscale_timer_start
- 	}
-}
-
-
-proc decentscale_timer_start {} {
-	if {$::de1(scale_device_handle) == 0} {
-		return 
-	}
-
-	if {[ifexists ::sinstance($::de1(suuid_decentscale))] == ""} {
-		msg "decentscale not connected, cannot start timer"
-		return
-	}
-
-	#set timerreset [decent_scale_make_command 0B 02]
-	#msg "decent scale timer reset: '$timerreset'"
-	#userdata_append "decentscale : timer reset" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timerreset]
-
-	set timeron [decent_scale_make_command 0B 01]
-	msg "decent scale timer on: [convert_string_to_hex $timeron] '$timeron'"
-	userdata_append "decentscale : timer on" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeron]
-
-}
-
-
-proc scale_timer_stop {} {
-
-	if {$::settings(scale_type) == "atomaxskale"} {
-	 	skale_timer_stop
- 	} elseif {$::settings(scale_type) == "decentscale"} {
-	 	decentscale_timer_stop
- 	}
-}
-
-
-proc decentscale_timer_stop {} {
-
-	if {$::de1(scale_device_handle) == 0} {
-		return 
-	}
-	set tare [binary decode hex "D1"]
-
-	if {[ifexists ::sinstance($::de1(suuid_decentscale))] == ""} {
-		msg "decentscale not connected, cannot stop timer"
-		return
-	}
-
-	set timeron [decent_scale_make_command 0B 00]
-	msg "decent scale timer on: '$timeron'"
-	userdata_append "decentscale : timer on" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeron]
-
-	# cmd not yet implemented
-	#userdata_append "decentscale: timer stop" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $tare]
-}
-
-proc scale_timer_off {} {
-
-	if {$::settings(scale_type) == "atomaxskale"} {
-	 	skale_timer_off
- 	} elseif {$::settings(scale_type) == "decentscale"} {
-	 	decentscale_timer_off
- 	}
-}
-
-proc decentscale_timer_off {} {
-
-	if {$::de1(scale_device_handle) == 0} {
-		return 
-	}
-
-	if {[ifexists ::sinstance($::de1(suuid_decentscale))] == ""} {
-		msg "decentscale not connected, cannot off timer"
-		return
-	}
-
-
-	# cmd not yet implemented
-	#userdata_append "decentscale: timer off" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $tare]
-}
-
-
-proc skale_timer_stop {} {
-
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "atomaxskale"} {
-		return 
-	}
-	set tare [binary decode hex "D1"]
-
-	if {[ifexists ::sinstance($::de1(suuid_skale))] == ""} {
-		msg "Skale not connected, cannot stop timer"
-		return
-	}
-
-	userdata_append "Skale: timer stop" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $tare]
-}
-
-proc skale_timer_off {} {
-
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "atomaxskale"} {
-		return 
-	}
-	set tare [binary decode hex "D0"]
-
-	if {[ifexists ::sinstance($::de1(suuid_skale))] == ""} {
-		msg "Skale not connected, cannot off timer"
-		return
-	}
-
-	userdata_append "Skale: timer off" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $tare]
-}
-
-
-
-proc scale_tare {} {
-
-	if {$::settings(scale_type) == "atomaxskale"} {
-	 	skale_tare
- 	} elseif {$::settings(scale_type) == "decentscale"} {
-	 	decentscale_tare
- 	}
-}
-
-
-proc decentscale_tare {} {
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "decentscale"} {
-		return 
-	}
-	set tare [binary decode hex "10"]
-	set ::de1(scale_weight) 0
-	set ::de1(scale_weight_rate) 0
-	set ::de1(scale_weight_rate_raw) 0
-
-	# if this was a scheduled tare, indicate that the tare has completed
-	unset -nocomplain ::scheduled_scale_tare_id
-
-	if {[ifexists ::sinstance($::de1(suuid_decentscale))] == ""} {
-		msg "decent scale not connected, cannot tare"
-		return
-	}
-
-	set tare [decent_scale_tare_cmd]
-
-	userdata_append "decentscale : tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $tare]
-}
-
-
-proc skale_tare {} {
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "atomaxskale"} {
-		return 
-	}
-	set tare [binary decode hex "10"]
-	set ::de1(scale_weight) 0
-	set ::de1(scale_weight_rate_raw) 0
-
-	# if this was a scheduled tare, indicate that the tare has completed
-	unset -nocomplain ::scheduled_scale_tare_id
-
-	#set ::de1(final_espresso_weight) 0
-
-	if {[ifexists ::sinstance($::de1(suuid_skale))] == ""} {
-		msg "Skale not connected, cannot tare"
-		return
-	}
-
-	userdata_append "Skale: tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $tare]
-}
-
-
-proc scale_enable_weight_notifications {} {
-
-	if {$::settings(scale_type) == "atomaxskale"} {
-	 	scale_enable_weight_notifications
- 	} elseif {$::settings(scale_type) == "decentscale"} {
-	 	decentscale_enable_notifications
- 	}
- }
-
-proc skale_enable_weight_notifications {} {
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "atomaxskale"} {
-		return 
-	}
-
-	if {[ifexists ::sinstance($::de1(suuid_skale))] == ""} {
-		msg "Skale not connected, cannot enable weight notifications"
-		return
-	}
-
-	userdata_append "enable Skale weight notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF81) $::cinstance($::de1(cuuid_skale_EF81))]
-}
-
-proc decentscale_enable_notifications {} {
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "decentscale"} {
-		return 
-	}
-
-	if {[ifexists ::sinstance($::de1(suuid_decentscale))] == ""} {
-		msg "decent scale not connected, cannot enable weight notifications"
-		return
-	}
-
-	userdata_append "enable decent scale weight notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_read) $::cinstance($::de1(cuuid_decentscale_read))]
-}
-
-proc scale_enable_button_notifications {} {
-
-	if {$::settings(scale_type) == "atomaxskale"} {
-	 	skale_enable_button_notifications
- 	} elseif {$::settings(scale_type) == "decentscale"} {
-	 	# nothing
- 	}
- }
-
-proc skale_enable_button_notifications {} {
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "atomaxskale"} {
-		return 
-	}
-
-	if {[ifexists ::sinstance($::de1(suuid_skale))] == ""} {
-		msg "Skale not connected, cannot enable button notifications"
-		return
-	}
-
-
-	userdata_append "enable Skale button notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF82) $::cinstance($::de1(cuuid_skale_EF82))]
-}
-
-proc scale_enable_grams {} {
-
-	if {$::settings(scale_type) == "atomaxskale"} {
-	 	skale_enable_grams
- 	} elseif {$::settings(scale_type) == "decentscale"} {
-	 	#nothing
- 	}
- }
-
-
-proc skale_enable_grams {} {
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "atomaxskale"} {
-		return 
-	}
-	set grams [binary decode hex "03"]
-
-	if {[ifexists ::sinstance($::de1(suuid_skale))] == ""} {
-		msg "Skale not connected, cannot enable grams"
-		return
-	}
-
-	userdata_append "Skale : enable grams" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $grams]
-}
-
-proc skale_enable_lcd {} {
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "atomaxskale"} {
-		return 
-	}
-	set screenon [binary decode hex "ED"]
-	set displayweight [binary decode hex "EC"]
-
-	if {[ifexists ::sinstance($::de1(suuid_skale))] == ""} {
-		msg "Skale not connected, cannot enable LCD"
-		return
-	}
-
-	userdata_append "Skale : enable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $screenon]
-	userdata_append "Skale : display weight on LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $displayweight]
-	#ble write $::de1(scale_device_handle) "0000FF08-0000-1000-8000-00805F9B34FB" 0 "0000EF80-0000-1000-8000-00805F9B34FB" 0 $displayweight
-}
-
-proc skale_disable_lcd {} {
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "atomaxskale"} {
-		return 
-	}
-	set screenoff [binary decode hex "EE"]
-
-	if {[ifexists ::sinstance($::de1(suuid_skale))] == ""} {
-		msg "Skale not connected, cannot disable LCD"
-		return
-	}
-
-	userdata_append "Skale : disable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $screenoff]
-}
-
-
 # calibration change notifications ENABLE
 proc de1_enable_calibration_notifications {} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		msg "DE1 not connected, cannot send BLE command 1"
+	if {![de1_real_machine_connected] || ![de1_safe_for_calibration]} {
+		msg "DE1 not connected, cannot send command 1"
 		return
 	}
 
-	userdata_append "enable de1 calibration notifications" [list ble enable $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_12) $::cinstance($::de1(cuuid_12))]
+	userdata_append "enable de1 calibration notifications" [list de1_comm enable Calibration]
 }
 
 # calibration change notifications DISABLE
 proc de1_disable_calibration_notifications {} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		msg "DE1 not connected, cannot send BLE command 2"
+	if {![de1_real_machine_connected] || ![de1_safe_for_calibration]} {
+		msg "DE1 not connected, cannot send command 2"
 		return
 	}
 
-	userdata_append "disable de1 calibration notifications" [list ble disable $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_12) $::cinstance($::de1(cuuid_12))]
+	userdata_append "disable de1 calibration notifications" [list de1_comm disable Calibration]
 }
 
 # temp changes
 proc de1_enable_temp_notifications {} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		msg "DE1 not connected, cannot send BLE command 3"
+	if {![de1_real_machine_connected]} {
+		msg "DE1 not connected, cannot send command 3"
 		return
 	}
 
-	# REED to JOHN: Prouction code has 0D (I did not change it.) but 0D looks like ShotSample not Temperatures
-	userdata_append "enable de1 temp notifications" [list ble enable $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_0D) $::cinstance($::de1(cuuid_0D))]
+	# REED to JOHN: Prouction code has cuuid_0D here, but cuuid_0D looks like ShotSample not Temperatures (0A).
+	# I am keeping the behavior as I found it (still 0D) but I may be preserving a bug.  
+	# So take a look... and even if you don't keep this code, consider taking a look at bluetooth.tcl 
+	userdata_append "enable de1 temp notifications" [list de1_comm enable ShotSample]
 }
 
 # status changes
 proc de1_enable_state_notifications {} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		msg "DE1 not connected, cannot send BLE command 4"
+	if {![de1_real_machine_connected]} {
+		msg "DE1 not connected, cannot send command 4"
 		return
 	}
 
-	userdata_append "enable de1 state notifications" [list ble enable $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_0E) $::cinstance($::de1(cuuid_0E))]
+	userdata_append "enable de1 state notifications" [list de1_comm enable StateInfo]
 }
 
 proc de1_disable_temp_notifications {} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		msg "DE1 not connected, cannot send BLE command 5"
+	if {![de1_real_machine_connected]} {
+		msg "DE1 not connected, cannot send command 5"
 		return
 	}
 
-	userdata_append "disable temp notifications" [list ble disable $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_0D) $::cinstance($::de1(cuuid_0D))]
+	# REED to JOHN: Prouction code has cuuid_0D here, but cuuid_0D looks like ShotSample not Temperatures (0A).
+	# I am keeping the behavior as I found it (still 0D) but I may be preserving a bug.  
+	# So take a look... and even if you don't keep this code, consider taking a look at bluetooth.tcl 
+	userdata_append "disable temp notifications" [list de1_com disable ShotSample]
 }
 
 proc de1_disable_state_notifications {} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		msg "DE1 not connected, cannot send BLE command 6"
+	if {![de1_real_machine_connected]} {
+		msg "DE1 not connected, cannot send command 6"
 		return
 	}
 
-	userdata_append "disable state notifications" [list ble disable $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_0E) $::cinstance($::de1(cuuid_0E))]
+	userdata_append "disable state notifications" [list de1_comm disable StateInfo]
 }
 
+# TODO(REED) - check on de1_version_bleapi (vars.tcl) which needs to be correct even for general case
 proc mmr_available {} {
 
 	if {$::de1(mmr_enabled) == 0} {
@@ -524,42 +172,45 @@ proc de1_enable_mmr_notifications {} {
 		return
 	}
 
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		msg "DE1 not connected, cannot send BLE command 7"
+	if {![de1_real_machine_connected]} {
+		msg "DE1 not connected, cannot send command 7"
 		return
 	}
 
-	#userdata_append "enable MMR write notifications" [list ble enable $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_06) $::cinstance($::de1(cuuid_06))]
-	userdata_append "enable MMR read notifications" [list ble enable $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_05) $::cinstance($::de1(cuuid_05))]
+	userdata_append "enable MMR read notifications" [list de1_comm enable ReadFromMMR]
 }
 
 # water level notifications
 proc de1_enable_water_level_notifications {} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		msg "DE1 not connected, cannot send BLE command 7"
+	if {![de1_real_machine_connected]} {
+		# REED to JOHN: 2 debug messages have "command 7" in them (MMR Read & Water Level).  
+		# Dunno if it matters much, but there it is.
+		msg "DE1 not connected, cannot send command 7"
 		return
 	}
 
-	userdata_append "enable de1 water level notifications" [list ble enable $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_11) $::cinstance($::de1(cuuid_11))]
+	userdata_append "enable de1 water level notifications" [list de1_comm enable WaterLevels]
 }
 
 proc de1_disable_water_level_notifications {} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		msg "DE1 not connected, cannot send BLE command 8"
+	if {![de1_real_machine_connected]} {
+		msg "DE1 not connected, cannot send command 8"
 		return
 	}
 
-	userdata_append "disable state notifications" [list ble disable $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_11) $::cinstance($::de1(cuuid_11))]
+	userdata_append "disable state notifications" [list de1_comm disable WaterLevels]
 }
 
 # firmware update command notifications (not writing new fw, this is for erasing and switching firmware)
 proc de1_enable_maprequest_notifications {} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-		msg "DE1 not connected, cannot send BLE command 9"
+	if {![de1_real_machine_connected] || ![de1_safe_for_firmware]} {
+		msg "DE1 not connected, cannot send command 9"
 		return
 	}
 
-	userdata_append "enable de1 state notifications" [list ble enable $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_09) $::cinstance($::de1(cuuid_09))]
+	# REED to JOHN: Prouction code has "enable de1 state notifications" as the comment param, which
+	# looks like a (probably harmless) copy-paste bug; should be "enable de1 maprequest notifications"
+	userdata_append "enable de1 state notifications" [list de1_comm enable FWMapRequest]
 }
 
 proc fwfile {} {
@@ -576,19 +227,17 @@ proc fwfile {} {
 	}
 }
 
-
 proc start_firmware_update {} {
-	if {$::connectivity == "BLE"} {
-		if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-			msg "DE1 not connected, cannot send BLE command 10"
-			return
-		}
+	if {![de1_real_machine_connected] || ![de1_safe_for_firmware]} {
+		msg "DE1 not connected, cannot send command 10"
+		return
 	}
 
 	if {$::settings(force_fw_update) != 1} {
 		set ::de1(firmware_update_button_label) "Up to date"
 		return
 	}
+
 
 	if {$::de1(currently_erasing_firmware) == 1} {
 		msg "Already erasing firmware"
@@ -605,13 +254,27 @@ proc start_firmware_update {} {
 	set ::de1(firmware_bytes_uploaded) 0
 	set ::de1(firmware_update_size) [file size [fwfile]]
 
-# TODO(REED) this stuff is about disablng comms when not BLE, probably all needs to die
-	if {$::connectivity != "BLE"} {
+# REED to JOHN: In bluetooth.tcl this code is gated by
+# 	if {$::android != 1} {
+# I am not confident I grasped the intent of this if statement as it bears on what I am interpreting
+# as a "delay, then execute with disabled characteristics" behavior.  
+# Here I am treating it as a "simulate the firmware update for a configuration that shouldn't
+# get a real update" But I can see that this may be more like a "prevent a race condition / 
+# unsafe operations from transpiring in the middle of an update", in which case I have it
+# totally wrong here.  Or something else.  Anyway definitely check my work.
+	if {[!de1_safe_for_firmware]} {
 		after 100 write_firmware_now
-		set ::sinstance($::de1(suuid)) 0
-		set ::de1(cuuid_09) 0
-		set ::de1(cuuid_06) 0
-		set ::cinstance($::de1(cuuid_09)) 0
+#### REED COMMENTED OUT THE FOLLOWING BLE SPECIFIC "DISABLINGS" AND DID NOT 
+#### RECREATE THEM ON THE bluetooth.tcl SIDE.  YIKES, WAS THAT RIGHT?  DOES IT MATTER?
+####
+#### (If it is important to recreate these, then we should probably have per-connectivity-type
+####  logic here (meaning, "if {$::connectivity == BLE } {...} else if {$::connectivity == TCP} {...}  )
+#### so as to achieve this "disabling" behavior in a manner that doesn't rely on zeroing out the 
+#### characteristic uuids (as there's no direct analog to doing that, outside BLE)
+#		set ::sinstance($::de1(suuid))
+#		set ::de1(cuuid_09) 0
+#		set ::de1(cuuid_06) 0
+#		set ::cinstance($::de1(cuuid_09)) 0
 	}
 
 	set arr(WindowIncrement) 0
@@ -626,7 +289,7 @@ proc start_firmware_update {} {
 
 	# it'd be useful here to test that the maprequest was correctly packed
 	set ::de1(currently_erasing_firmware) 1
-	userdata_append "Erase firmware: [array get arr]" [list ble write $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_09) $::cinstance($::de1(cuuid_09)) $data]
+	userdata_append "Erase firmware: [array get arr]" [list de1_comm write FWMapRequest $data]
 
 }
 
@@ -643,15 +306,13 @@ proc write_firmware_now {} {
 
 proc firmware_upload_next {} {
 	
-	if {$::connectivity != "mock"} {
+	if {$::connectivity=="mock"} {
+		msg "firmware_upload_next connected to 'mock' machine; updating button text (only)"
+	} elseif {[de1_real_machine_connected] && [de1_safe_for_firmware]} {
 		msg "firmware_upload_next $::de1(firmware_bytes_uploaded)"
-	}
-
-	if {$::connectivity == "BLE"} {
-		if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-			msg "DE1 not connected, cannot send BLE command 11"
-			return
-		}
+	} else {
+		msg "DE1 not connected, cannot send command 11"
+		return
 	}
 
 	#delay_screen_saver
@@ -680,13 +341,13 @@ proc firmware_upload_next {} {
 			set arr(FirstError2) [expr 0xFF]
 			set arr(FirstError3) [expr 0xFF]
 			set data [make_packed_maprequest arr]
-			userdata_append "Find first error in firmware update: [array get arr]" [list ble write $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_09) $::cinstance($::de1(cuuid_09)) $data]
+			userdata_append "Find first error in firmware update: [array get arr]" [list de1_comm write FWMapRequest $data]
 		}
 	} else {
 		set ::de1(firmware_update_button_label) "Updating"
 
 		set data "\x10[make_U24P0 $::de1(firmware_bytes_uploaded)][string range $::de1(firmware_update_binary) $::de1(firmware_bytes_uploaded) [expr {15 + $::de1(firmware_bytes_uploaded)}]]"
-		userdata_append "Write [string length $data] bytes of firmware data ([convert_string_to_hex $data])" [list ble write $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_06) $::cinstance($::de1(cuuid_06)) $data]
+		userdata_append "Write [string length $data] bytes of firmware data ([convert_string_to_hex $data])" [list de1_comm write WriteToMMR $data]
 		set ::de1(firmware_bytes_uploaded) [expr {$::de1(firmware_bytes_uploaded) + 16}]
 		if {$::connectivity != "mock"} {
 			after 1 firmware_upload_next
@@ -711,15 +372,12 @@ proc mmr_read {address length} {
 		return
 	}
 
-	if {$::connectivity == "BLE"} {
-		if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-			msg "DE1 not connected, cannot send BLE command 11"
-			return
-		}
+	if {![de1_real_machine_connected]} {
+		msg "DE1 not connected, cannot send BLE command 11"
+		return
 	}
 
-	userdata_append "MMR requesting read [convert_string_to_hex $mmrlen] bytes of firmware data from [convert_string_to_hex $mmrloc] with '[convert_string_to_hex $data]'" [list ble write $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_05) $::cinstance($::de1(cuuid_05)) $data]
-
+	userdata_append "MMR requesting read [convert_string_to_hex $mmrlen] bytes of firmware data from [convert_string_to_hex $mmrloc] with '[convert_string_to_hex $data]'" [list de1_comm write ReadFromMMR $data]
 }
 
 proc mmr_write { address length value} {
@@ -738,13 +396,11 @@ proc mmr_write { address length value} {
 		return
 	}
 
-	if {$::connectivity == "BLE"} {
-		if {[ifexists ::sinstance($::de1(suuid))] == ""} {
-			msg "DE1 not connected, cannot send BLE command 11"
-			return
-		}
+	if ![de1_real_machine_connected]} {
+		msg "DE1 not connected, cannot send BLE command 11"
+		return
 	}
-	userdata_append "MMR writing [convert_string_to_hex $mmrlen] bytes of firmware data to [convert_string_to_hex $mmrloc] with value [convert_string_to_hex $mmrval] : with comment [convert_string_to_hex $data]" [list ble write $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_06) $::cinstance($::de1(cuuid_06)) $data]
+	userdata_append "MMR writing [convert_string_to_hex $mmrlen] bytes of firmware data to [convert_string_to_hex $mmrloc] with value [convert_string_to_hex $mmrval] : with comment [convert_string_to_hex $data]" [list de1comm write WriteToMMR $data]
 }
 
 proc set_tank_temperature_threshold {temp} {
@@ -850,18 +506,19 @@ proc de1_cause_refill_now_if_level_low {} {
 }
 
 proc de1_send_waterlevel_settings {} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
+	if {![de1_real_machine_connected]} {
 		msg "DE1 not connected, cannot send BLE command 12"
 		return
 	}
 
 	set data [return_de1_packed_waterlevel_settings]
 	parse_binary_water_level $data arr2
-	userdata_append "Set water level settings: [array get arr2]" [list ble write $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_11) $::cinstance($::de1(cuuid_11)) $data]
+	userdata_append "Set water level settings: [array get arr2]" [list de1_comm write WaterLevels $data]
 }
 
 
-
+### TODO(REED) figure out whether the ::de1(wrote) logic should be preserved outside BLE
+### (safer?) vs not (e.g. non-BLE doesn't get "ack" style callbacks wherein to unset it?)
 proc run_next_userdata_cmd {} {
 	if {$::connectivity == "BLE"} {
 		# if communicating over BLE, only write one command at a time
@@ -975,7 +632,7 @@ proc app_exit {} {
 }
 
 proc de1_send_state {comment msg} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
+	if {$::connectivity == "mock"} {
 		msg "DE1 not connected, cannot send BLE command 13"
 		return
 	}
@@ -1044,7 +701,7 @@ proc de1_send_shot_frames {} {
 }
 
 proc ble_write_010 {packed_frame} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
+	if {$::connectivity == "mock"} {
 		msg "DE1 not connected, cannot send BLE command 14"
 		return
 	}
@@ -1055,7 +712,7 @@ proc ble_write_010 {packed_frame} {
 }
 
 proc ble_write_00f {packed_frame} {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
+	if {$::connectivity == "mock"} {
 		msg "DE1 not connected, cannot send BLE command 15"
 		return
 	}
@@ -1072,7 +729,7 @@ proc save_settings_to_de1 {} {
 
 proc de1_send_steam_hotwater_settings {} {
 
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
+	if {$::connectivity == "mock"} {
 		msg "DE1 not connected, cannot send BLE command 16"
 		return
 	}
@@ -1086,7 +743,7 @@ proc de1_send_steam_hotwater_settings {} {
 }
 
 proc de1_send_calibration {calib_target reported measured {calibcmd 1} } {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
+	if {$::connectivity == "mock"} {
 		msg "DE1 not connected, cannot send BLE command 17"
 		return
 	}
@@ -1117,7 +774,7 @@ proc de1_send_calibration {calib_target reported measured {calibcmd 1} } {
 }
 
 proc de1_read_calibration {calib_target {factory 0} } {
-	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
+	if {$::connectivity == "mock"} {
 		msg "DE1 not connected, cannot send BLE command 18"
 		return
 	}
@@ -1215,12 +872,12 @@ proc android_8_or_newer {} {
 	}
 	set test 0
 	catch {
-		# john note: Android 7 behaves like 8
-		set test [expr {$androidprops(version.release) >= 7}]
+		set test [expr {$androidprops(version.release) >= 8}]
 	}
 	#msg "Is this Android 8 or newer? '$test'"
 	return $test
 	
+
 	#msg "android_8_or_newer failed and reports: 0"
 	#return 0
 }
@@ -1709,16 +1366,12 @@ proc de1_ble_handler { event data } {
 							de1_read_calibration "temperature"
 						} else {
 
-							#set ::globals(if_in_sleep_move_to_idle) 0
+							set ::globals(if_in_sleep_move_to_idle) 0
 
 							# vital stuff, do first
 							#read_de1_state
 							de1_enable_temp_notifications
-							if {[info exists ::de1(first_connection_was_made)] != 1} {
-								# on app startup, wake the machine up
-								set ::de1(first_connection_was_made) 1
-								start_idle
-							}
+							start_idle
 							read_de1_version
 							read_de1_state
 							
@@ -1949,14 +1602,14 @@ proc de1_ble_handler { event data } {
 						    set ::de1(last_ping) [clock seconds]
 							update_de1_state $value
 
-							#if {[info exists ::globals(if_in_sleep_move_to_idle)] == 1} {
-							#	unset ::globals(if_in_sleep_move_to_idle)
-							#	if {$::de1_num_state($::de1(state)) == "Sleep"} {
+							if {[info exists ::globals(if_in_sleep_move_to_idle)] == 1} {
+								unset ::globals(if_in_sleep_move_to_idle)
+								if {$::de1_num_state($::de1(state)) == "Sleep"} {
 									# when making a new connection to the espresso machine, if the machine is currently asleep, then take it out of sleep
 									# but only do this check once, right after connection establisment
-							#		start_idle
-							#	}
-							#}
+									start_idle
+								}
+							}
 							#update_de1_substate $value
 							#msg "Confirmed a00e read from DE1: '[remove_null_terminator $value]'"
 							set ::de1(wrote) 0
@@ -2468,3 +2121,33 @@ proc scanning_restart {} {
 	set ::scanning 1
 	ble start $::ble_scanner
 }
+
+
+
+proc ble_data_to_hex_string {data} {
+    return [binary encode hex $data]
+}
+
+
+
+# /**** TODO(REED) ****/
+    # Do the actual send operation on the configured connection.
+    # These should all be wrapped in catch statements etc. for proper
+    # error handling & recovery
+    if {$::connectivity == "TCP"} {
+        if {[info exists ::TCPSocket]} {
+            # Presumably this should be wrapped in a catch statement
+            # for cases of lost connection, full buffers, etc.
+            puts -nonewline $::de1(desireSock) "<$command>$data_str\n"
+            flush $::de1(desireSock)
+            return 1
+        }
+    } elseif {$::connectivity == "USB"} {
+        if {$::runtime == "android"} {
+            ## OTG code goes here
+        } else {
+            ## USBserial code goes here
+        }
+    } else {
+        msg "Connectivity configuration error"
+    }

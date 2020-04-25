@@ -247,10 +247,47 @@ proc vertical_slider {varname minval maxval x y x0 y0 x1 y1} {
 
 }
 
+# on android we track finger-down, instead of button-press, as it gives us lower latency by avoding having to distinguish a potential gesture from a tap
+# finger down gives a http://blog.tcl.tk/39474
+proc translate_coordinates_finger_down_x { x } {
+
+	if {$::android == 1} {
+	 	return [expr {$x * [winfo screenwidth .] / 10000}]
+	 }
+	 return $x
+}
+proc translate_coordinates_finger_down_y { y } {
+
+	if {$::android == 1} {
+	 	return [expr {$y * [winfo screenheight .] / 10000}]
+	 }
+	 return $y
+}
+
+proc is_fast_double_tap { key } {
+	# if this is a fast double-tap, then treat it like a long tap (button-3) 
+
+	set b 0
+	set millinow [clock milliseconds]
+	set prevtime [ifexists ::last_click_time($key)]
+	if {$prevtime != ""} {
+		# check for a fast double-varName
+		if {[expr {$millinow - $prevtime}] < 200} {
+			msg "Fast button double-tap on $key"
+			set b 1
+		}
+	}
+	set ::last_click_time($key) $millinow
+
+	return $b
+}
 
 proc vertical_clicker {bigincrement smallincrement varname minval maxval x y x0 y0 x1 y1 {b 0} } {
 	# b = which button was tapped
-	msg "Button $b"
+	#msg "Var: $varname : Button $b  $x $y $x0 $y0 $x1 $y1 "
+
+	set x [translate_coordinates_finger_down_x $x]
+	set y [translate_coordinates_finger_down_y $y]
 
 	set yrange [expr {$y1 - $y0}]
 	set yoffset [expr {$y - $y0}]
@@ -259,20 +296,30 @@ proc vertical_clicker {bigincrement smallincrement varname minval maxval x y x0 
 	set onequarterpoint [expr {$y0 + ($yrange / 4)}]
 	set threequarterpoint [expr {$y1 - ($yrange / 4)}]
 
+	set onethirdpoint [expr {$y0 + ($yrange / 3)}]
+	set twothirdpoint [expr {$y1 - ($yrange / 3)}]
+
 	if {[info exists $varname] != 1} {
-		# if the variable doesn't yet exist, initiialize it with a zero value
+		# if the variable doesn't yet exist, initialize it with a zero value
 		set $varname 0
 	}
 	set currentval [subst \$$varname]
 	set newval $currentval
 
-	if {$y < $midpoint} {
+	# check for a fast double tap
+	set b 0
+	if {[is_fast_double_tap $varname] == 1} {
+		#set the button to 3, which is the same as a long press, or middle button (ie button 3) on a mouse
+		set b 3
+	}
+
+	if {$y < $onethirdpoint} {
 		if {$b == 3} {
 			set newval [expr "1.0 * \$$varname + $bigincrement"]
 		} else {
 			set newval [expr "1.0 * \$$varname + $smallincrement"]
 		}
-	} else {
+	} elseif {$y > $twothirdpoint} {
 		if {$b == 3} {
 			set newval [expr "1.0 * \$$varname - $bigincrement"]
 		} else {
@@ -541,13 +588,14 @@ proc install_this_app_icon_beta {} {
 	}
 }
 
-
 proc platform_button_press {} {
 	global runtime 
+	#return {<Motion>}
 	if {$runtime == "android"} {
-		#return {<<FingerUp>>}
-		return {<ButtonPress-1>}
+		return {<<FingerDown>>}
+		#return {<ButtonPress-1>}
 	}
+	#return {<Motion>}
 	return {<ButtonPress-1>}
 }
 
@@ -563,9 +611,9 @@ proc platform_button_long_press {} {
 proc platform_finger_down {} {
 	global runtime 
 	if {$runtime == "android"} {
-		return {<Motion>}
+		return {<<FingerDown>>}
 	}
-	return {<Motion>}
+	return {<ButtonPress-1>}
 }
 
 proc platform_button_unpress {} {
@@ -673,14 +721,14 @@ proc add_de1_button {displaycontexts tclcode x0 y0 x1 y1 {options {}}} {
 
 	.can bind $btn_name [platform_button_press] $tclcode
 	
-	if {$::settings(disable_long_press) != 1 } {
-		.can bind $btn_name [platform_button_long_press] $tclcode
-	}
+#	if {$::settings(disable_long_press) != 1 } {
+#		.can bind $btn_name [platform_button_long_press] $tclcode
+#	}
 
-	if {[string first mousemove $options] != -1} {
+#	if {[string first mousemove $options] != -1} {
 		#puts "mousemove detected"
-		.can bind $btn_name [platform_finger_down] $tclcode
-	}
+#		.can bind $btn_name [platform_finger_down] $tclcode
+#	}
 
 	foreach displaycontext $displaycontexts {
 		add_visual_item_to_context $displaycontext $btn_name
@@ -1359,12 +1407,20 @@ proc page_display_change {page_to_hide page_to_show} {
 proc update_de1_explanation_chart_soon  { {context {}} } {
 	# we can optionally delay displaying the chart until data from the slider stops coming
 	update_de1_explanation_chart
-	#return
-	#after cancel update_de1_explanation_chart
-	#after 5 update_de1_explanation_chart
+	return
+	
+	#after 10 {after cancel update_de1_explanation_chart; after idle update_de1_explanation_chart}
+	if {[info exists ::chart_update_id] == 1} {
+		after cancel $::chart_update_id; 
+		unset -nocomplain ::chart_update_id
+	}
+
+	set ::chart_update_id [after idle update_de1_explanation_chart]
+	#after idle update_de1_explanation_chart
 }
 
 proc update_de1_explanation_chart { {context {}} } {
+	puts "update_de1_explanation_chart"
 	#puts "update_de1_explanation_chart 1: $::settings(settings_profile_type)"
 
 	espresso_de1_explanation_chart_elapsed length 0

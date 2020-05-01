@@ -208,8 +208,6 @@ proc de1_enable_maprequest_notifications {} {
 		return
 	}
 
-	# REED to JOHN: Prouction code has "enable de1 state notifications" as the comment param, which
-	# looks like a (probably harmless) copy-paste bug; should be "enable de1 maprequest notifications"
 	userdata_append "enable de1 state notifications" [list de1_comm enable FWMapRequest]
 }
 
@@ -264,6 +262,7 @@ proc start_firmware_update {} {
 # totally wrong here.  Or something else.  Anyway definitely check my work.
 	if {[!de1_safe_for_firmware]} {
 		after 100 write_firmware_now
+# TODO(REED) the following comment is hard to understand, fix
 #### REED COMMENTED OUT THE FOLLOWING BLE SPECIFIC "DISABLINGS" AND DID NOT 
 #### RECREATE THEM ON THE bluetooth.tcl SIDE.  YIKES, WAS THAT RIGHT?  DOES IT MATTER?
 ####

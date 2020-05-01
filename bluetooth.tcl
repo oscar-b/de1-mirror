@@ -1043,6 +1043,7 @@ proc de1_send_shot_frames {} {
 	return
 }
 
+# TODO(REED) deal with these
 proc ble_write_010 {packed_frame} {
 	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
 		msg "DE1 not connected, cannot send BLE command 14"
@@ -1342,39 +1343,19 @@ proc ble_connect_to_de1 {} {
 	msg "ble_connect_to_de1"
 	#return
 
-	if {$::connectivity == "mock"} {
-		msg "simulated DE1 connection"
-	    set ::de1(connect_time) [clock seconds]
-	    set ::de1(last_ping) [clock seconds]
-
-	    msg "Connected to fake DE1"
-		set ::de1(device_handle) 1
-
-		# example binary string containing binary version string
-		#set version_value "\x01\x00\x00\x00\x03\x00\x00\x00\xAC\x1B\x1E\x09\x01"
-		#set version_value "\x01\x00\x00\x00\x03\x00\x00\x00\xAC\x1B\x1E\x09\x01"
-		set version_value "\x02\x04\x00\xA4\x0A\x6E\xD0\x68\x51\x02\x04\x00\xA4\x0A\x6E\xD0\x68\x51"
-		parse_binary_version_desc $version_value arr2
-		set ::de1(version) [array get arr2]
-
+	if {$::connectivity != "BLE"} {
+		# do nothing to the exisint DE1 connection (or lack thereof), if BLE is not supposed
+		# to be handling the connection
 		return
-	} else if {$connectivity != "BLE"} {
-		# recommended by John here: https://3.basecamp.com/3671212/buckets/7351439/messages/1976315941#__recording_2008131794
-		de1_enable_temp_notifications
-		de1_enable_water_level_notifications
-		de1_send_steam_hotwater_settings
-		de1_send_shot_frames
-		read_de1_version
-		de1_enable_state_notifications
-		read_de1_state
-		return
-	} 
+	}
 
 	if {$::settings(bluetooth_address) == ""} {
 		# if no bluetooth address set, then don't try to connect
 		return ""
 	}
 
+# REED to JOHN: I don't see ::de1(scanning) referenced anywhere else in the code, this 
+# maybe should be setting ::scanning? )
     set ::de1(connect_time) 0
     set ::de1(scanning) 0
 

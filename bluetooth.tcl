@@ -1046,8 +1046,32 @@ proc de1_send_shot_frames_DEPRECATED_BY_COMMS {} {
 	return
 }
 
-# TODO(REED) deal with these
-proc ble_write_010 {packed_frame} {
+# REED to JOHN: I was asking you about these two routines (ble_write_010 and ble_write_00f), and
+# in our chat you indicated that the purpose of these two specialized BLE writes is to guarantee the
+# sequencing / atomicity of the shotframe BLE writes -- first sending the header, then the frames,
+# in order, and without interruption.  
+# 
+# That makes sense to me in concept but I can't see how these routines makes that guarantee, or how it 
+# differs in a material way from a "normal" BLE write as seen elsewhere in this
+# file.
+# 
+# If there was a single proc that called both ble_write_010 and ble_write_00f in sequence, 
+# so that they were both executed within a single call to run_next_userdata_cmd .. then I would
+# totally get it.  Or, if there was a looping construct in either of these calls that iteratively called
+# [ble write ...] then I woulg also get it.  But I dont see either of those things happening.
+#
+# Instead I see de1_send_shot_frames actually just pushing ble_write_00f and a series of 
+# ble_write_010s onto the cmdstack independently, via userdata_append, just like any other operation.
+# Seems great but it raises the question - what if de1_send_shot_frames instead just used 
+# userdata_append to push [ble write ... cuuid_0f] and [ble write ... cuuid10]?  Would that be different
+# to calling these two wrapper functions, which in turn just perform the [ble write...] commands I mentioned,
+# directly?
+#
+# Because I couldn't convince myself of the usefulness of these functions I did not preserve these wrappers
+# in the de1_comms layer, and these are now effectively obsolete (unlike most of the other 
+# "_DEPRECATED_BY_COMMS" functions, which were instead ported ino the de1_comms layer -- i.e. the functions
+# themselves are still implemented somewhere)
+proc ble_write_010_DEPRECATED_BY_COMMS {packed_frame} {
 	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
 		msg "DE1 not connected, cannot send BLE command 14"
 		return
@@ -1058,7 +1082,7 @@ proc ble_write_010 {packed_frame} {
 	#ble execute $::de1(device_handle); 
 }
 
-proc ble_write_00f {packed_frame} {
+proc ble_write_00f_DEPRECATED_BY_COMMS {packed_frame} {
 	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
 		msg "DE1 not connected, cannot send BLE command 15"
 		return
@@ -1069,12 +1093,12 @@ proc ble_write_00f {packed_frame} {
 	#ble execute $::de1(device_handle); 
 }
 
-proc save_settings_to_de1 {} {
+proc save_settings_to_de1_DEPRECATED_BY_COMMS {} {
 	de1_send_shot_frames
 	de1_send_steam_hotwater_settings
 }
 
-proc de1_send_steam_hotwater_settings {} {
+proc de1_send_steam_hotwater_settings_DEPRECATED_BY_COMMS {} {
 
 	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
 		msg "DE1 not connected, cannot send BLE command 16"
@@ -1089,7 +1113,7 @@ proc de1_send_steam_hotwater_settings {} {
 	set_steam_highflow_start $::settings(steam_highflow_start)
 }
 
-proc de1_send_calibration {calib_target reported measured {calibcmd 1} } {
+proc de1_send_calibration_DEPRECATED_BY_COMMS {calib_target reported measured {calibcmd 1} } {
 	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
 		msg "DE1 not connected, cannot send BLE command 17"
 		return
@@ -1120,7 +1144,7 @@ proc de1_send_calibration {calib_target reported measured {calibcmd 1} } {
 	userdata_append "Set calibration: [array get arr2] : [string length $data] bytes: ([convert_string_to_hex $data])" [list ble write $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_12) $::cinstance($::de1(cuuid_12)) $data]
 }
 
-proc de1_read_calibration {calib_target {factory 0} } {
+proc de1_read_calibration_DEPRECATED_BY_COMMS {calib_target {factory 0} } {
 	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
 		msg "DE1 not connected, cannot send BLE command 18"
 		return
@@ -1158,7 +1182,7 @@ proc de1_read_calibration {calib_target {factory 0} } {
 
 }
 
-proc de1_read_version_obsolete {} {
+proc de1_read_version_obsolete_DEPRECATED_BY_COMMS {} {
 	msg "LIKELY OBSOLETE BLE FUNCTION: DO NOT USE"
 
 	#if {$::de1(device_handle) == "0"} {
@@ -1169,7 +1193,7 @@ proc de1_read_version_obsolete {} {
 	userdata_append "read de1 version" [list ble read $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_0A) $::cinstance($::de1(cuuid_0A))]
 }
 
-proc de1_read_hotwater {} {
+proc de1_read_hotwater_DEPRECATED_BY_COMMS {} {
 	#if {$::de1(device_handle) == "0"} {
 	#	msg "error: de1 not connected"
 	#	return
@@ -1178,7 +1202,7 @@ proc de1_read_hotwater {} {
 	userdata_append "read de1 hot water/steam" [list ble read $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_0B) $::cinstance($::de1(cuuid_0B))]
 }
 
-proc de1_read_shot_header {} {
+proc de1_read_shot_header_DEPRECATED_BY_COMMS {} {
 	#if {$::de1(device_handle) == "0"} {
 	#	msg "error: de1 not connected"
 	#	return
@@ -1186,7 +1210,7 @@ proc de1_read_shot_header {} {
 
 	userdata_append "read shot header" [list ble read $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_0F) $::cinstance($::de1(cuuid_0F))]
 }
-proc de1_read_shot_frame {} {
+proc de1_read_shot_frame_DEPRECATED_BY_COMMS {} {
 	#if {$::de1(device_handle) == "0"} {
 	#	msg "error: de1 not connected"
 	#	return
@@ -1195,7 +1219,7 @@ proc de1_read_shot_frame {} {
 	userdata_append "read shot frame" [list ble read $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_10) $::cinstance($::de1(cuuid_10))]
 }
 
-proc remove_null_terminator {instr} {
+proc remove_null_terminator_DEPRECATED_BY_COMMS {instr} {
 	set pos [string first "\x00" $instr]
 	if {$pos == -1} {
 		return $instr
@@ -1205,7 +1229,12 @@ proc remove_null_terminator {instr} {
 	return [string range $instr 0 $pos]
 }
 
-proc android_8_or_newer {} {
+# REED to JOHN: I know this version matters a lot to make bluetooth work properly, but because 
+# there's nothign BLE-specific about making the actual "what version is it" determination, I 
+# went ahead and ported it into the de1_comms layer.  
+#
+# It seems like maybe it should even more naturally move into utils.tcl.  Just a thought.
+proc android_8_or_newer_DEPRECATED_BY_COMMS {} {
 
 	if {$::runtime != "android"} {
 		msg "android_8_or_newer reports: not android (0)"		
@@ -1358,7 +1387,7 @@ proc ble_connect_to_de1 {} {
 	}
 
 # REED to JOHN: I don't see ::de1(scanning) referenced anywhere else in the code, this 
-# maybe should be setting ::scanning? )
+# maybe should be setting ::scanning instead? I do see that in a lot of places.
     set ::de1(connect_time) 0
     set ::de1(scanning) 0
 
@@ -1490,7 +1519,7 @@ proc append_to_scale_bluetooth_list {address name} {
 	}
 }
 
-proc later_new_de1_connection_setup {} {
+proc later_new_de1_connection_setup_DEPRECATED_BY_COMMS {} {
 	# less important stuff, also some of it is dependent on BLE version
 
 	de1_enable_mmr_notifications
@@ -1876,7 +1905,7 @@ proc de1_ble_handler { event data } {
 
 						} elseif {$cuuid == "0000A012-0000-1000-8000-00805F9B34FB"} {
 						    #set ::de1(last_ping) [clock seconds]
-						    calibration_ble_received $value
+						    calibration_received $value
 						} elseif {$cuuid == "0000A011-0000-1000-8000-00805F9B34FB"} {
 							set ::de1(last_ping) [clock seconds]
 							parse_binary_water_level $value arr2
@@ -2347,7 +2376,7 @@ proc de1_ble_handler { event data } {
     #msg "exited event"
 }
 
-proc calibration_ble_received {value} {
+proc calibration_ble_received_DEPRECATED_BY_COMMS {value} {
 
     #calibration_ble_received $value
 	parse_binary_calibration $value arr2
@@ -2388,7 +2417,7 @@ proc calibration_ble_received {value} {
 
 }
 
-proc after_shot_weight_hit_update_final_weight {} {
+proc after_shot_weight_hit_update_final_weight_DEPRECATED_BY_COMMS {} {
 
 	if {$::de1(scale_sensor_weight) > $::de1(final_water_weight)} {
 		# if the current scale weight is more than the final weight we have on record, then update the final weight
@@ -2398,7 +2427,7 @@ proc after_shot_weight_hit_update_final_weight {} {
 
 }
 
-proc fast_write_open {fn parms} {
+proc fast_write_open_DEPRECATED_BY_COMMS {fn parms} {
     set f [open $fn $parms]
     fconfigure $f -blocking 0
     fconfigure $f -buffersize 1000000

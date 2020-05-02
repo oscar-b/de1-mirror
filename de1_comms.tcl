@@ -733,7 +733,7 @@ proc de1_send_calibration {calib_target reported measured {calibcmd 1} } {
 	userdata_append "Set calibration: [array get arr2] : [string length $data] bytes: ([convert_string_to_hex $data])" [list de1_comm write Calibration $data]
 }
 
-proc de1_read_calibration {calib_target {factory 0} } {
+proc de1_read_calibration_DEPRECATED_BY_COMMS {calib_target {factory 0} } {
 	if {![de1_real_machine_connected]} {
 		msg "DE1 not connected, cannot send command 18"
 		return
@@ -852,7 +852,7 @@ proc connect_to_devices {} {
 	if {$::connectivity != "BLE"} {
 		connect_to_de1
 	}
-	# we unconditionally call ble_connect_to_devices because:
+	# we unconditionally call bluetooth_connect_to_devices because:
 	# - if BLE *is* the de1 connectivity mode, it establishes that connection
 	# - if BLE is *NOT* the de1 connectivity mode, it does not disrupt whatever is already
 	#   active
@@ -862,11 +862,10 @@ proc connect_to_devices {} {
 	#   in this file (e.g. determining which BLE connection approach to invoke, dependent
 	#   on android version.) seems safer & better architectured to leave that all in one 
 	#   place, with "ble" in the filename)
-	ble_connect_to_devices
+	bluetooth_connect_to_devices
 }
 
 
-set ::currently_connecting_de1_handle 0
 proc connect_to_de1 {} {
 	msg "connect_to_de1"
 	#return
@@ -973,7 +972,7 @@ proc calibration_received {value} {
 	} 
 
 	if {$varname != ""} {
-		# this BLE characteristic receives packets both for notifications of reads and writes, but also the real current value of the calibration setting
+		# this command receives packets both for notifications of reads and writes, but also the real current value of the calibration setting
 		if {[ifexists arr2(WriteKey)] == 0} {
 			msg "$varname value received [string length $value] bytes: [convert_string_to_hex $value] $value : [array get arr2]"
 			set ::de1($varname) $arr2(MeasuredVal)

@@ -1207,6 +1207,7 @@ proc round_date_to_nearest_day {now} {
 
 # from Barney  https://3.basecamp.com/3671212/buckets/7351439/documents/2208672342#__recording_2349428596
 proc load_font {name fn pcsize {androidsize {}} } {
+    set familyname ""
     # calculate font size
     if {($::runtime == "android" || $::runtime == "undroid") && $androidsize != ""} {
         set pcsize $androidsize
@@ -1230,7 +1231,12 @@ proc load_font {name fn pcsize {androidsize {}} } {
         catch {
             set familyname [lindex [sdltk addfont $fn] 0]
         }
-        lappend ::loaded_fonts $fn $familyname
+
+        if {$familyname == ""} {
+            msg "Unable to get familyname from 'sdltk addfont $fn'"
+        } else {
+            lappend ::loaded_fonts $fn $familyname
+        }
     }
 
     if {[info exists familyname] != 1 || $familyname == ""} {

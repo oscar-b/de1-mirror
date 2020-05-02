@@ -28,6 +28,7 @@ proc determine_if_android {} {
         # and also to remove the displaying of the Tcl/Tk app bar, which looks weird being on Android
         . configure -bg black -bd 0
         wm attributes . -fullscreen 1
+        set ::some_droid 1
     }
 
 }

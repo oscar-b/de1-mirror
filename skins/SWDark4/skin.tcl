@@ -1,5 +1,5 @@
-#SWDark theme by Spencer Webb, November 2019, VERSION 4
-#Adapted and inspired by the Insight & Modernist themes.  Thanks John & David V!  
+#SWDark4 theme by Spencer Webb, 30th April 2020
+#Adapted and inspired by the Insight & Modernist themes.  Thanks John, Damian & David V!  
 
 #source "[homedir]/skins/default/standard_includes.tcl"
 
@@ -222,7 +222,7 @@ add_de1_button "home off espresso_1 espresso_3 preheat_1 preheat_3 preheat_4 ste
 #add_de1_button "steam espresso preheat water espresso_2 preheat_2 steam_2 water_2 espresso_zoomed espresso_zoomed_temperature steam_zoom_3 steam_zoom" {say [translate {stop}] $::settings(sound_button_in); set_next_page off off; start_idle} 2173 360 2538 678
 
 #STOP Button when doing something
-add_de1_button "steam espresso espresso_zoomed espresso_zoomed_temperature steam_zoom_3 preheat water espresso_2 preheat_2 steam_2 water_2 steam_zoom" {say [translate {stop}] $::settings(sound_button_in);set_next_page off off; start_idle} 1789 20 2539 678
+add_de1_button "steam espresso espresso_zoomed espresso_zoomed_temperature steam_zoom_3 preheat water espresso_2 preheat_2 steam_2 water_2 steam_zoom" {after cancel {set_next_page off off; start_idle}; set_next_page off off; start_idle} 1789 20 2539 678
 
 
 
@@ -1064,7 +1064,7 @@ add_de1_variable "preheat_2 preheat_4" $column1_pos [expr {$pos_top + (3 * $spac
 		add_de1_widget "espresso espresso_zoomed espresso_zoomed_temperature" ProgressBar 2390 [expr {$pos_top + (13 * $spacer)}] {} -width [rescale_y_skin 108] -height [rescale_x_skin 16] -type normal  -variable ::de1(scale_weight_rate) -fg #FF6A00 -bg #4e4e4e -maximum 6 -borderwidth 1 -relief flat
 		add_de1_text "off off_zoomed espresso_3 espresso_3_zoomed off_zoomed_temperature espresso_3_zoomed_temperature" $column1_pos [expr {$pos_top + (8.25 * $spacer)}] -justify left -anchor "nw" -text [translate "Recipe"] -font Helv_7_bold -fill #ffffff -width [rescale_x_skin 520]
 		#add_de1_variable "off off_zoomed espresso_3 espresso_3_zoomed off_zoomed_temperature espresso_3_zoomed_temperature" $column1_pos [expr {$pos_top + (10 * $spacer)}] -justify left -anchor "nw" -font Helv_7 -fill $::detailtextcol -width [rescale_x_skin 520] -textvariable {[round_to_integer [update_swcoffeeweight]][translate "g"]}
-		add_de1_variable "off off_zoomed espresso_3 espresso_3_zoomed off_zoomed_temperature espresso_3_zoomed_temperature" $column1_pos [expr {$pos_top + (9.25 * $spacer)}] -justify left -anchor "nw" -font Helv_7 -fill $::detailtextcol -width [rescale_x_skin 520] -textvariable {$::swdark_settings(swcoffeedose)[translate "g @ 1:"]$::swdark_settings(swbrewratio)[translate " to "][round_to_integer [update_swcoffeeweight]][translate "g"]}
+		add_de1_variable "off off_zoomed espresso_3 espresso_3_zoomed off_zoomed_temperature espresso_3_zoomed_temperature" $column1_pos [expr {$pos_top + (9.25 * $spacer)}] -justify left -anchor "nw" -font Helv_7 -fill $::detailtextcol -width [rescale_x_skin 520] -textvariable {[round_to_one_digits $::swdark_settings(swcoffeedose)][translate "g @ 1:"][round_to_one_digits $::swdark_settings(swbrewratio)][translate " to "][round_to_integer [update_swcoffeeweight]][translate "g"]}
 		#off screen variable to call update of swweight variable to keep swsettings inline with main stop at weight
 		#add_de1_variable "off off_zoomed espresso_3 espresso_3_zoomed off_zoomed_temperature espresso_3_zoomed_temperature" 3000 3000 -justify left -anchor "nw" -font Helv_7 -fill $::detailtextcol -width [rescale_x_skin 520] -textvariable {[update_swweight]}
 		add_de1_variable "off off_zoomed espresso_3 espresso_3_zoomed off_zoomed_temperature espresso_3_zoomed_temperature" $column1_pos [expr {$pos_top + (10.25 * $spacer)}] -justify left -anchor "nw" -text "" -font Helv_7 -fill $::detailtextcol -width [rescale_x_skin 520] -textvariable {[finalwaterweight_text]} 
@@ -1229,8 +1229,8 @@ if {$::settings(scale_bluetooth_address) != ""} {
 add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 10 10 ::settings(water_volume) 10 250 %x %y %x0 %y0 %x1 %y1; save_settings; de1_send_steam_hotwater_settings; set ::swdark_settings(swwatervol) [round_to_integer $::settings(water_volume)]; save_swdark_settings} 115 165 802 360 ""
 add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 1 1 ::settings(water_volume) 10 250 %x %y %x0 %y0 %x1 %y1; save_settings; de1_send_steam_hotwater_settings; set ::swdark_settings(swwatervol) [round_to_integer $::settings(water_volume)]; save_swdark_settings} 235 165 682 360 ""
 
-add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 10 10 ::settings(water_temperature) 60 100 %x %y %x0 %y0 %x1 %y1; save_settings; de1_send_steam_hotwater_settings; set ::swdark_settings(swwatertemp) [round_to_integer $::settings(water_temperature)]; save_swdark_settings} 115 530 802 725 ""
-add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 1 1 ::settings(water_temperature) 60 100 %x %y %x0 %y0 %x1 %y1; save_settings; de1_send_steam_hotwater_settings; set ::swdark_settings(swwatertemp) [round_to_integer $::settings(water_temperature)]; save_swdark_settings} 235 530 682 725 ""
+add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 10 10 ::settings(water_temperature) 60 100 %x %y %x0 %y0 %x1 %y1; save_settings; de1_send_steam_hotwater_settings; set ::swdark_settings(swwatertemp) $::settings(water_temperature); save_swdark_settings} 115 530 802 725 ""
+add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 1 1 ::settings(water_temperature) 60 100 %x %y %x0 %y0 %x1 %y1; save_settings; de1_send_steam_hotwater_settings; set ::swdark_settings(swwatertemp) $::settings(water_temperature); save_swdark_settings} 235 530 682 725 ""
 
 add_de1_variable "swsettings" 458.75 262 -text "" -font Helv_10_bold -fill "#000000" -anchor "center"  -textvariable {[return_liquid_measurement $::settings(water_volume)]}
 add_de1_variable "swsettings" 458.75 627 -text "" -font Helv_10_bold -fill "#000000" -anchor "center" -textvariable {[return_temperature_measurement $::settings(water_temperature)]}
@@ -1269,14 +1269,14 @@ if {$::settings(scale_bluetooth_address) != ""} {
 }
 	add_de1_variable "swsettings" 3000 3000 -text "" -font Helv_10_bold -fill "#000000" -anchor "center"  -textvariable {[swweighttype2][translate "g"]}
 if {$::settings(scale_bluetooth_address) != ""} {
-	add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 10 10 $::swdark_settings(swweighttype) 1 250	%x %y %x0 %y0 %x1 %y1;updateswbrewratio2; save_swdark_settings} 990 530 1677 725 ""
-	add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 1 1 $::swdark_settings(swweighttype) 1 250 %x %y %x0 %y0 %x1 %y1;updateswbrewratio2; save_swdark_settings} 1110 530 1557 725 ""
+	add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 10 10 $::swdark_settings(swweighttype) 1 2000	%x %y %x0 %y0 %x1 %y1;updateswbrewratio2; save_swdark_settings} 990 530 1677 725 ""
+	add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 1 1 $::swdark_settings(swweighttype) 1 2000 %x %y %x0 %y0 %x1 %y1;updateswbrewratio2; save_swdark_settings} 1110 530 1557 725 ""
    }
 
 #Brew Ratio Settings
 if {$::settings(scale_bluetooth_address) != ""} {
-	add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 1 1 ::swdark_settings(swbrewratio) 1 5 %x %y %x0 %y0 %x1 %y1;updateswbrewratio; save_swdark_settings} 990 895 1677 1090 ""
-	add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 0.1 0.1 ::swdark_settings(swbrewratio) 1 5 %x %y %x0 %y0 %x1 %y1;updateswbrewratio; save_swdark_settings} 1110 895 1557 1090 ""
+	add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 1 1 ::swdark_settings(swbrewratio) 1 100 %x %y %x0 %y0 %x1 %y1;updateswbrewratio; save_swdark_settings} 990 895 1677 1090 ""
+	add_de1_button "swsettings" {say "" $::settings(sound_button_in);horizontal_clicker 0.1 0.1 ::swdark_settings(swbrewratio) 1 100 %x %y %x0 %y0 %x1 %y1;updateswbrewratio; save_swdark_settings} 1110 895 1557 1090 ""
 	add_de1_variable "swsettings" 1333.75 992 -text "" -font Helv_10_bold -fill "#000000" -anchor "center"  -textvariable {[translate "1:"][round_to_one_digits $::swdark_settings(swbrewratio)]}
    }
 

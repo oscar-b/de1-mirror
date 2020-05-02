@@ -1420,7 +1420,7 @@ proc update_de1_explanation_chart_soon  { {context {}} } {
 }
 
 proc update_de1_explanation_chart { {context {}} } {
-	puts "update_de1_explanation_chart"
+	#puts "update_de1_explanation_chart"
 	#puts "update_de1_explanation_chart 1: $::settings(settings_profile_type)"
 
 	espresso_de1_explanation_chart_elapsed length 0
@@ -2448,28 +2448,60 @@ proc profile_title {} {
 }
 
 # space = idle
-# e = espresso 
-# f = flush
-# s = steam
-# w = water
+# f = flush (1)
+# e = espresso (2)
+# s = steam (3)
+# w = water (4)
+# the number version causes the state to arrive as if the DE1 has caused it, such as from the GHC.  
+# This is useful for testing that the GUI responds correctly to GHC caused events.  
 
 proc handle_keypress {keycode} {
-	#msg "Keypress detected: $keycode"
-	if {$keycode == 101} {
+	msg "Keypress detected: $keycode / $::some_droid"
+
+	if {($::some_droid != 1 && $keycode == 101) || ($::some_droid == 1 && $keycode == 8)} {
 		# e = espresso 
 		start_espresso
-	} elseif {$keycode == 32} {
+
+	} elseif {($::some_droid != 1 && $keycode == 32) || ($::some_droid == 1 && $keycode == 44)} {
 		# space = idle
 		start_idle
-	} elseif {$keycode == 102} {
+
+	} elseif {($::some_droid != 1 && $keycode == 102) || ($::some_droid == 1 && $keycode == 9)} {
 		# f = flush
 		start_hot_water_rinse
-	} elseif {$keycode == 115} {
+
+	} elseif {($::some_droid != 1 && $keycode == 115) || ($::some_droid == 1 && $keycode == 22)} {
 		# s = steam
 		start_steam
-	} elseif {$keycode == 119} {
+
+	} elseif {($::some_droid != 1 && $keycode == 119) || ($::some_droid == 1 && $keycode == 26)} {
 		# w = water
 		start_water
+
+	} elseif {($::some_droid != 1 && $keycode == 50) || ($::some_droid == 1 && $keycode == 31)} {
+		# ctrl-e = espresso or 2 on android
+		update_de1_state "$::de1_state(Espresso)\x0"
+		de1_send_state "make espresso" $::de1_state(Espresso)
+
+	} elseif {($::some_droid != 1 && $keycode == 48) || ($::some_droid == 1 && $keycode == 39)} {
+		# ctrl-space = idle or 0 on android
+		update_de1_state "$::de1_state(Idle)\x0"
+		de1_send_state "go idle" $::de1_state(Idle)
+
+	} elseif {($::some_droid != 1 && $keycode == 49) || ($::some_droid == 1 && $keycode == 30)} {
+		# ctrl-f = flush or 1 on android
+		update_de1_state "$::de1_state(HotWaterRinse)\x0"
+		de1_send_state "hot water rinse" $::de1_state(HotWaterRinse)
+
+	} elseif {($::some_droid != 1 && $keycode == 51) || ($::some_droid == 1 && $keycode	== 32)} {
+		# ctrl-s = steam or 3 on android
+		update_de1_state "$::de1_state(Steam)\x0"
+		de1_send_state "make steam" $::de1_state(Steam)
+
+	} elseif {($::some_droid != 1 && $keycode == 52) || ($::some_droid == 1 && $keycode == 33)} {
+		# ctrl-w = water or 4 on android
+		update_de1_state "$::de1_state(HotWater)\x0"
+		de1_send_state "make hot water" $::de1_state(HotWater)
 	}
 }
 

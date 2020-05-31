@@ -34,7 +34,9 @@ jobs:
         git config --local user.name "GitHub Action"
         
     - name: Run git rebase
-      run: git rebase origin/master
+      run: |
+        git rebase origin/master
+        git status
         
     - name: push
       run: git push

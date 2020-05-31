@@ -23,7 +23,7 @@ jobs:
     # Runs a set of commands using the runners shell
     - name: Run git rebase
       run: |
-        git fetch origin webapi
+        git fetch
         git rebase master webapi
         git commit -m "rebase on master"
         git push

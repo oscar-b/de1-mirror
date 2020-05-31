@@ -30,8 +30,7 @@ jobs:
     - name: Run git rebase
       run: git rebase origin/master origin/webapi
         
-    - name: commit
+    - name: push
       run: |
-        git commit -m "rebase on master"
         git push
       

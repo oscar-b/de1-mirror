@@ -23,7 +23,7 @@ jobs:
         fetch-depth: 0
         
     - name: git fetch
-      run: git fetch origin webapi
+      run: git fetch
     
     - name: git user info
       run: |

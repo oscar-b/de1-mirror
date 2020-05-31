@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: Rebase on master
+name: Automerge master
 
 # Controls when the action will run. Triggers the workflow on push or pull request
 # events but only for the master branch
@@ -33,9 +33,9 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         
-    - name: Run git rebase
+    - name: Run git merge
       run: |
-        git rebase origin/master
+        git merge origin/master --no-edit
         git status
         
     - name: push

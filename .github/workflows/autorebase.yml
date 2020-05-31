@@ -23,7 +23,7 @@ jobs:
         fetch-depth: 0
         
     - name: Run git rebase
-      run: git rebase master webapi
+      run: git rebase origin/master origin/webapi
         
     - name: commit
       run: |

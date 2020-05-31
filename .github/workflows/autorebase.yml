@@ -24,9 +24,7 @@ jobs:
         ref: webapi
         
     - name: git fetch
-      run: |
-        git fetch origin master
-        git pull
+      run: git fetch origin master
     
     - name: git user info
       run: |

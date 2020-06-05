@@ -737,9 +737,10 @@ proc mmr_write { address length value} {
 }
 
 proc set_tank_temperature_threshold {temp} {
-	msg "Setting desired water tank temperature to '$temp'"
+	msg "Setting desired water tank temperature to '$temp' [stacktrace]"
 
-	if {$temp == 0} {
+	if {$temp < 10} {
+		# no point in circulating the water if the desired temp is <10ºC, or no preheating.
 		mmr_write "80380C" "04" [zero_pad [int_to_hex $temp] 2]
 	} else {
 		# if the water temp is being set, then set the water temp temporarily to 60º in order to force a water circulation for 2 seconds
@@ -812,7 +813,7 @@ proc get_fan_threshold {} {
 }
 
 proc set_fan_temperature_threshold {temp} {
-	msg "Setting desired water tank temperature to '$temp'"
+	msg "Setting fan temperature to '$temp'"
 	mmr_write "803808" "04" [zero_pad [int_to_hex $temp] 2]
 }
 
@@ -888,12 +889,13 @@ proc run_next_userdata_cmd {} {
 				msg "Not retrying this command because BLE handle for the device is now invalid"
 				#after 500 run_next_userdata_cmd
 			} else {
-				msg "BLE command failed, will retry ($result): [lindex $cmd 1]"
+				msg "BLE command failed, will retry ($result): [lindex $cmd 1] $::errorInfo"
 
 				# john 4/28/18 not sure if we should give up on the command if it fails, or retry it
 				# retrying a command that will forever fail kind of kills the BLE abilities of the app
 				
 				after 500 run_next_userdata_cmd
+				update
 				return 
 			}
 		}
@@ -1003,6 +1005,8 @@ proc de1_send_state {comment msg} {
 #}
 
 proc de1_send_shot_frames {} {
+
+	msg "de1_send_shot_frames"
 
 	set parts [de1_packed_shot]
 	set header [lindex $parts 0]
@@ -1619,7 +1623,7 @@ proc de1_ble_handler { event data } {
 					#set ::de1(scale_type) ""
 
 			    		set ::de1(wrote) 0
-				    	msg "scale disconnected $data"
+				    	msg "$::settings(scale_type) disconnected $data"
 			    		catch {
 			    			ble close $handle
 			    		}
@@ -1996,7 +2000,7 @@ proc de1_ble_handler { event data } {
 
 								if {[info exists weightarray(weight)] == 1} {
 									set sensorweight [expr {$weightarray(weight) / 10.0}]
-									msg "scale: ${sensorweight}g [array get weightarray] '[convert_string_to_hex $value]'"
+									msg "decent scale: ${sensorweight}g [array get weightarray] '[convert_string_to_hex $value]'"
 									#msg "decentscale recv read: '[convert_string_to_hex $value]'"
 								} else {
 									msg "decent scale recv: [array get weightarray]"

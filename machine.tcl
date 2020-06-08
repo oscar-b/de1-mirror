@@ -27,7 +27,6 @@ array set ::de1 {
 	advanced_shot_moveone_enabled 1
     found    0
     scanning 1
-    mmr_enabled 0
     device_handle 0
     scale_device_handle 0
     decentscale_device_handle 0
@@ -170,6 +169,7 @@ array set ::settings {
 	tank_desired_water_temperature 0
 	screen_size_height {}
 	current_frame_description {}
+	mmr_enabled 0	
 	default_font_calibration 0.5
 	linear_resistance_adjustment 1
 	language en
@@ -546,7 +546,7 @@ proc start_hot_water_rinse {} {
 	msg "Tell DE1 to start HOT WATER RINSE (flush)"
 	de1_send_state "hot water rinse" $::de1_state(HotWaterRinse)
 
-	if {$::settings(ghc_is_installed) == 3} {
+	if {$::settings(ghc_is_installed) != 0} {
 		# show the user what button to press on the group head
 		ghc_message ghc_flush
 		return
@@ -591,7 +591,7 @@ proc start_steam {} {
 	msg "Tell DE1 to start making STEAM"
 
 	de1_send_state "make steam" $::de1_state(Steam)
-	if {$::settings(ghc_is_installed) == 3} {
+	if {$::settings(ghc_is_installed) != 0} {
 		# show the user what button to press on the group head
 		ghc_message ghc_steam
 		return
@@ -688,7 +688,7 @@ proc start_espresso {} {
 
 	de1_send_state "make espresso" $::de1_state(Espresso)
 
-	if {$::settings(ghc_is_installed) == 3} {
+	if {$::settings(ghc_is_installed) != 0} {
 		# show the user what button to press on the group head
 		ghc_message ghc_espresso
 		return
@@ -715,7 +715,7 @@ proc start_water {} {
 	msg "Tell DE1 to start making HOT WATER"
 	de1_send_state "make hot water" $::de1_state(HotWater)
 
-	if {$::settings(ghc_is_installed) == 3} {
+	if {$::settings(ghc_is_installed) != 0} {
 		# show the user what button to press on the group head
 		ghc_message ghc_hotwater
 		return

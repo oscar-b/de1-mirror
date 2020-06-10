@@ -18,7 +18,7 @@ jobs:
           ref: webapi
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
-          git archive -o webapi.zip HEAD $(git diff --name-only origin/master)
+          git archive -o webapi.zip HEAD $(git diff --name-only origin/master ':!.*')
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1

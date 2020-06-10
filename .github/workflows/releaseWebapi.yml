@@ -17,8 +17,10 @@ jobs:
           fetch-depth: 0
           ref: webapi
       - name: Get current time
-        uses: gerred/actions/current-time@master
+        uses: srfrnk/current-time@v1.1.0
         id: current-time
+        with:
+          format: X
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
           git archive -o webapi.zip HEAD $(git diff --name-only origin/master ':!.*')
@@ -28,8 +30,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.current-time.outputs.time }}
-          release_name: Release ${{ steps.current-time.outputs.time }}
+          tag_name: ${{ steps.current-time.outputs.formattedTime }}
+          release_name: Release ${{ steps.current-time.outputs.formattedTime }}
           draft: false
           prerelease: true
       - name: Upload Release Asset

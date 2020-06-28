@@ -3003,6 +3003,8 @@ proc round_to_half_integer {in} {
 	return $r
 }
 
+
+
 proc check_firmware_update_is_available {} {
 	#msg "check_firmware_update_is_available"
 
@@ -3027,7 +3029,7 @@ proc check_firmware_update_is_available {} {
 	}
 
 	if {($::de1(firmware_crc) != [ifexists ::settings(firmware_crc)]) && $::de1(currently_updating_firmware) == ""} {
-		msg "firmware CRCs are not the same"
+		#msg "firmware CRCs are not the same"
 		set ::de1(firmware_update_button_label) "Firmware update available"
 	} else {
 		#msg "firmware CRCs are the same $::de1(firmware_crc) == [ifexists ::settings(firmware_crc)]"
@@ -3035,10 +3037,42 @@ proc check_firmware_update_is_available {} {
 	return ""
 }
 
+proc firmware_update_eta_label {} {
+
+	if {[info exists ::de1(firmware_update_start_time)] != 1} {
+		#msg "firmware_update_eta_label - no ::de1(firmware_update_start_time)"
+		return
+	}
+
+	set elapsed [expr {[clock milliseconds] - $::de1(firmware_update_start_time)}]
+	set ::de1(firmware_update_eta) 0
+
+	set percentage [expr {1.0 * ($::de1(firmware_bytes_uploaded)) / $::de1(firmware_update_size)}]
+
+	if {$percentage >= 1 && $::de1(currently_updating_firmware) == 0} {
+		#return "[translate {Turn your machine off and on again}]"
+		return ""
+	} elseif {$percentage < 0.003 } {
+		# not enough data to give a good estimate yet
+		return ""
+	} else {
+		set etamin [expr {round((($elapsed / $percentage) - $elapsed) / 60000)}]
+		set etasec [expr {1 + round((($elapsed / $percentage) - $elapsed) / 1000)}]
+		if {$etasec >=120} {
+			return "$etamin [translate minutes]"
+		} else {
+			return "$etasec [translate seconds]"
+		}
+	}	
+}
+
+
 proc firmware_uploaded_label {} {
 	#puts "firmware_uploaded_label firmware_uploaded_label"
 
-	if {($::de1(firmware_bytes_uploaded) == 0 || $::de1(firmware_update_size) == 0) && $::de1(currently_updating_firmware) == ""} {
+	#msg "currently_updating_firmware:  $::de1(currently_updating_firmware)/ $::de1(currently_erasing_firmware)"
+
+	if {($::de1(firmware_bytes_uploaded) == 0 || $::de1(firmware_update_size) == 0) && $::de1(currently_updating_firmware) != "1" && $::de1(currently_erasing_firmware) != "1"} {
 		if {$::de1(firmware_crc) == [ifexists ::settings(firmware_crc)]} {
 			return [translate "No update necessary"]
 		}
@@ -3046,10 +3080,15 @@ proc firmware_uploaded_label {} {
 		return ""
 	} 
 
+	if {$::de1(firmware_update_size) == 0 || $::de1(firmware_bytes_uploaded) == 0} {
+		return "0.0%"
+	}
+
 	set percentage [expr {(100.0 * $::de1(firmware_bytes_uploaded)) / $::de1(firmware_update_size)}]
 	#puts "percentage $percentage"
 	if {$percentage >= 100 && $::de1(currently_updating_firmware) == 0} {
-		return "[translate {Turn your machine off and on again}]"
+		#return "[translate {Turn your machine off and on again}]"
+		return [translate "Done"]
 	} else {
 		return "[round_to_one_digits $percentage]%"
 	}
@@ -3070,6 +3109,17 @@ proc de1_version_string {} {
 	set version "BLE v[ifexists v(BLE_Release)].[ifexists v(BLE_Changes)].[ifexists v(BLE_Commits)], API v[ifexists v(BLE_APIVersion)], SHA=[ifexists v(BLE_Sha)]"
 	if {[ifexists v(FW_Sha)] != [ifexists v(BLE_Sha)] && [ifexists v(FW_Sha)] != 0} {
 		append version "\nFW v[ifexists v(FW_Release)].[ifexists v(FW_Changes)].[ifexists v(FW_Commits)], API v[ifexists v(FW_APIVersion)], SHA=[ifexists v(FW_Sha)]"
+	}
+
+	array set modelarr [list 0 [translate "unknown"] 1 DE1 2 DE1+ 3 DE1PRO 4 DE1XL 5 DE1CAFE]
+
+	set brev ""
+	if {[ifexists ::settings(cpu_board_model)] != ""} {
+		set brev [expr {$::settings(cpu_board_model) / 1000.0}]
+	}
+	
+	if {[ifexists ::settings(machine_model)] != "" && [ifexists ::settings(machine_model)] != "0"} {
+		append version ", pcb=$brev, model=[ifexists modelarr([ifexists ::settings(machine_model)])], rev=[ifexists ::settings(firmware_version_number)]"
 	}
 	return $version
 

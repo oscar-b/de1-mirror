@@ -504,7 +504,7 @@ proc de1_disable_state_notifications {} {
 
 set ::mmr_enabled ""
 proc mmr_available {} {
-return 1
+#return 1
 	if {$::mmr_enabled == ""} {
 
 		if {$::de1(version) == ""} {
@@ -595,6 +595,9 @@ proc fwfile {} {
 
 
 proc start_firmware_update {} {
+
+	puts "start_firmware_update : [stacktrace]"
+
 	if {[ifexists ::sinstance($::de1(suuid))] == ""} {
 		if {$::android == 1} {
 			msg "DE1 not connected, cannot send BLE command 10"
@@ -625,13 +628,12 @@ proc start_firmware_update {} {
 		return
 	}
 
-	de1_enable_maprequest_notifications
+	#de1_enable_maprequest_notifications
 	
 	set ::de1(firmware_bytes_uploaded) 0
 	set ::de1(firmware_update_size) [file size [fwfile]]
 
 	if {$::android != 1} {
-		after 100 write_firmware_now
 		set ::sinstance($::de1(suuid)) 0
 		set ::de1(cuuid_09) 0
 		set ::de1(cuuid_06) 0
@@ -646,17 +648,34 @@ proc start_firmware_update {} {
 	set arr(FirstError3) 0
 	set data [make_packed_maprequest arr]
 
-	set ::de1(firmware_update_button_label) "Updating"
+	#set ::de1(firmware_update_button_label) "Updating"
 
 	# it'd be useful here to test that the maprequest was correctly packed
-	set ::de1(currently_erasing_firmware) 1
-	userdata_append "Erase firmware: [array get arr]" [list ble write $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_09) $::cinstance($::de1(cuuid_09)) $data]
 
+	set ::de1(currently_erasing_firmware) 1
+	set ::de1(currently_updating_firmware) 0
+
+	set ::de1(firmware_update_button_label) "Starting"
+
+	#de1_send_state "go to sleep" $::de1_state(Sleep)
+
+	#set ::de1(firmware_update_binary) [read_binary_file [fwfile]]
+	#set ::de1(firmware_bytes_uploaded) 0
+
+
+	if {$::android == 1} {
+		userdata_append "Erase firmware do: [array get arr]" [list ble write $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_09) $::cinstance($::de1(cuuid_09)) $data]
+		after 10000 write_firmware_now
+	} else {
+		after 1000 write_firmware_now
+	}
 }
 
 proc write_firmware_now {} {
 	set ::de1(currently_updating_firmware) 1
-	msg "Start writing firmware now"
+	set ::de1(currently_erasing_firmware) 0
+	set ::de1(firmware_update_start_time) [clock milliseconds]
+	msg "Start writing firmware now [stacktrace]"
 
 	set ::de1(firmware_update_binary) [read_binary_file [fwfile]]
 	set ::de1(firmware_bytes_uploaded) 0
@@ -684,8 +703,12 @@ proc firmware_upload_next {} {
 
 		if {$::android != 1} {
 			set ::de1(firmware_update_button_label) "Updated"
+			set ::de1(currently_updating_firmware) 0			
 			
 		} else {
+			# finished
+			de1_enable_maprequest_notifications
+			
 			set ::de1(firmware_update_button_label) "Testing"
 
 			#set ::de1(firmware_update_size) 0
@@ -711,7 +734,9 @@ proc firmware_upload_next {} {
 		userdata_append "Write [string length $data] bytes of firmware data ([convert_string_to_hex $data])" [list ble write $::de1(device_handle) $::de1(suuid) $::sinstance($::de1(suuid)) $::de1(cuuid_06) $::cinstance($::de1(cuuid_06)) $data]
 		set ::de1(firmware_bytes_uploaded) [expr {$::de1(firmware_bytes_uploaded) + 16}]
 		if {$::android != 1} {
+			#set ::de1(firmware_bytes_uploaded) [expr {$::de1(firmware_bytes_uploaded) + 160}]
 			after 1 firmware_upload_next
+			#firmware_upload_next
 		}
 	}
 }
@@ -808,6 +833,26 @@ proc get_steam_flow {} {
 	mmr_read "get_steam_flow" "803828" "00"
 }
 
+proc get_3_mmr_cpuboard_machinemodel_firmwareversion {} {
+	mmr_read "cpuboard_machinemodel_firmwareversion" "800008" "02"
+
+}
+
+proc get_cpu_board_model {} {
+	msg "Getting CPU board model"
+	mmr_read "get_cpu_board_model" "800008" "00"
+}
+
+proc get_machine_model {} {
+	msg "Getting machine model"
+	mmr_read "get_machine_model" "80000C" "00"
+}
+
+proc get_firmware_version_number {} {
+	msg "Getting firmware version number"
+	mmr_read "get_firmware_version_number" "800010" "00"
+}
+
 
 proc set_steam_highflow_start {desired_seconds} {
 	#return
@@ -899,10 +944,10 @@ proc run_next_userdata_cmd {} {
 		set cmds [lrange $::de1(cmdstack) 1 end]
 		set result 0
 		msg ">>> [lindex $cmd 0] (-[llength $::de1(cmdstack)]) : [lindex $cmd 1]"
+		set eer ""
 		set errcode [catch {
-		set result [{*}[lindex $cmd 1]]
-			
-		}]
+			set result [{*}[lindex $cmd 1]]			
+		} eer]
 
 	    if {$errcode != 0} {
 	        catch {
@@ -918,7 +963,12 @@ proc run_next_userdata_cmd {} {
 				msg "Not retrying this command because BLE handle for the device is now invalid"
 				#after 500 run_next_userdata_cmd
 			} else {
-				msg "BLE command failed, will retry ($result): [lindex $cmd 1] $::errorInfo"
+				if {$eer != 0} {
+					msg "BLE command failed, will retry ($result): [lindex $cmd 1] ($eer) $::errorInfo"
+				} else {
+					msg "BLE command failed, will retry ($result): [lindex $cmd 1] ($eer)"
+				}
+
 
 				# john 4/28/18 not sure if we should give up on the command if it fails, or retry it
 				# retrying a command that will forever fail kind of kills the BLE abilities of the app
@@ -1386,8 +1436,24 @@ proc ble_connect_to_de1 {} {
 		#set version_value "\x01\x00\x00\x00\x03\x00\x00\x00\xAC\x1B\x1E\x09\x01"
 		#set version_value "\x01\x00\x00\x00\x03\x00\x00\x00\xAC\x1B\x1E\x09\x01"
 		set version_value "\x02\x04\x00\xA4\x0A\x6E\xD0\x68\x51\x02\x04\x00\xA4\x0A\x6E\xD0\x68\x51"
-		parse_binary_version_desc $version_value arr2
+		#parse_binary_version_desc $version_value arr2
 		set ::de1(version) [array get arr2]
+
+		set mmr_test "\x0C\x80\x00\x08\x14\x05\x00\x00\x03\x00\x00\x00\x71\x04\x00\x00\x00\x00\x00\x00"
+		#parse_binary_mmr_read $mmr_test arr3
+		msg [array get arr3]
+
+		#set mmr_test "\x0C\x80\x00\x08\x14\x05\x00\x00\x03\x00\x00\x00\x71\x04\x00\x00\x00\x00\x00\x00"
+		parse_binary_mmr_read_int $mmr_test arr4
+		msg [array get arr4]
+
+		msg "MMRead: CPU board model: '[ifexists arr4(Data0)]'"
+		msg "MMRead: machine model:  '[ifexists arr4(Data1)]'"
+		msg "MMRead: firmware version number: '[ifexists arr4(Data2)]'"
+
+		set ::settings(cpu_board_model) [ifexists arr4(Data0)]
+		set ::settings(machine_model) [ifexists arr4(Data1)]
+		set ::settings(firmware_version_number) [ifexists arr4(Data2)]
 
 		return
 	}
@@ -1436,6 +1502,12 @@ proc ble_connect_to_de1 {} {
 
 set ::currently_connecting_scale_handle 0
 proc ble_connect_to_scale {} {
+
+	if {[ifexists ::de1(in_fw_update_mode)] == 1} {
+		msg "in_fw_update_mode : ble_connect_to_scale"
+		return
+	}
+
 
 	if {$::settings(scale_bluetooth_address) == ""} {
 		msg "No Scale BLE address in settings, so not connecting to it"
@@ -1531,18 +1603,33 @@ proc append_to_scale_bluetooth_list {address name} {
 proc later_new_de1_connection_setup {} {
 	# less important stuff, also some of it is dependent on BLE version
 
-	#de1_enable_mmr_notifications
+	if {[ifexists ::de1(in_fw_update_mode)] == 1} {
+		msg "in_fw_update_mode : later_new_de1_connection_setup skipped"
+		return
+	}
+
+	de1_enable_mmr_notifications
+	get_ghc_is_installed
 	de1_send_shot_frames
 	set_fan_temperature_threshold $::settings(fan_threshold)
 	de1_send_steam_hotwater_settings
-
 	de1_send_waterlevel_settings
+	get_3_mmr_cpuboard_machinemodel_firmwareversion
 	de1_enable_water_level_notifications
-	get_ghc_is_installed
+	
 
 	after 5000 read_de1_state
 
 }
+
+proc mmr_read_queue_add {cmd} {
+	if {[info exists mmr_read_queue] != 1} {
+		set mmr_read_queue {}
+	}
+
+	lappend mmr_read_queue $cmd
+}
+
 
 proc de1_ble_handler { event data } {
 	#msg "de1 ble_handler '$event' $data"
@@ -1728,17 +1815,13 @@ proc de1_ble_handler { event data } {
 
 
 						#msg "connected to de1 with handle $handle"
-						set testing 0
-						if {$testing == 1} {
-							de1_read_calibration "temperature"
+
+						if {[ifexists ::de1(in_fw_update_mode)] == 1} {
+							msg "in_fw_update_mode : de1 connected"
+							de1_send_state "go to sleep" $::de1_state(Sleep)
+							set_fan_temperature_threshold 60
 						} else {
-
-							#set ::globals(if_in_sleep_move_to_idle) 0
-
-							# vital stuff, do first
-							#read_de1_state
 							de1_enable_mmr_notifications
-							#get_ghc_is_installed
 
 							set dothis 1
 							if {$dothis == 1} {
@@ -1753,34 +1836,7 @@ proc de1_ble_handler { event data } {
 								
 								after 2000 de1_enable_state_notifications
 							}
-
-							#after 5000 later_new_de1_connection_setup
-
-							# john 02-16-19 need to make this pair in android bluetooth settings -- not working yet
-							#catch {
-							#	if {$::settings(ble_unpair_at_exit) == 0} {
-							#		ble pair $::settings(bluetooth_address)
-							#	}
-							#}
-
-							#ble pair $::settings(bluetooth_address)
-
-							#after 2000 "; ; ; "
-							#poll_de1_state
-							#start_idle
-							#after 2000 de1_enable_calibration_notifications
-							#after 3000 de1_read_calibration "temperature"
 						}
-
-
-						#if {$::settings(scale_bluetooth_address) != "" && $::de1(scale_device_handle) == 0 } {
-							# connect to the scale once the connection to the DE1 is set up
-							#userdata_append "BLE connect to scale" [list ble_connect_to_scale] 
-							#ble_connect_to_scale
-						#}
-						
-						#set_next_page off off
-						#start_idle
 
 			    		if {$::de1(scale_device_handle) != 0} {
 							# if we're connected to both the scale and the DE1, stop scanning (or if there is not scale to connect to and we're connected to the de1)
@@ -1912,7 +1968,9 @@ proc de1_ble_handler { event data } {
 			    			parse_binary_mmr_read $value arr
 			    			set mmr_id $arr(Address)
 			    			set mmr_val [ifexists arr(Data0)]
-			    			msg "MMR recv read from $mmr_id ($mmr_val): '[convert_string_to_hex $value]' : [array get arr]"
+			    			
+			    			#msg "MMR recv read from $mmr_id ($mmr_val): '[convert_string_to_hex $value]' : [array get arr]"
+
 			    			if {$mmr_id == "80381C"} {
 			    				msg "Read: GHC is installed: '$mmr_val'"
 			    				set ::settings(ghc_is_installed) $mmr_val
@@ -1928,18 +1986,56 @@ proc de1_ble_handler { event data } {
 			    			} elseif {$mmr_id == "803808"} {
 			    				set ::de1(fan_threshold) $mmr_val
 			    				set ::settings(fan_threshold) $mmr_val
-			    				msg "Read: Fan threshold: '$mmr_val'"
+			    				msg "MMRead: Fan threshold: '$mmr_val'"
 			    			} elseif {$mmr_id == "80380C"} {
-			    				msg "Read: tank temperature threshold: '$mmr_val'"
+			    				msg "MMRead: tank temperature threshold: '$mmr_val'"
 			    				set ::de1(tank_temperature_threshold) $mmr_val
 			    			} elseif {$mmr_id == "803820"} {
-			    				msg "Read: group head control mode: '$mmr_val'"
+			    				msg "MMRead: group head control mode: '$mmr_val'"
 			    				set ::settings(ghc_mode) $mmr_val
 			    			} elseif {$mmr_id == "803828"} {
-			    				msg "Read: steam flow: '$mmr_val'"
+			    				msg "MMRead: steam flow: '$mmr_val'"
 			    				set ::settings(steam_flow) $mmr_val
+			    			} elseif {$mmr_id == "800008"} {
+				    			parse_binary_mmr_read_int $value arr2
+
+			    				if {[ifexists arr(Len)] == 12} {
+			    					# it's possibly to read all 3 MMR characteristics at once
+
+					    			# CPU Board Model * 1000. eg: 1100 = 1.1
+				    				msg "MMRead: CPU board model: '[ifexists arr2(Data0)]'"
+				    				set ::settings(cpu_board_model) [ifexists arr2(Data0)]
+
+				    				# v1.3+ Firmware Model (Unset = 0, DE1 = 1, DE1Plus = 2, DE1Pro = 3, DE1XL = 4, DE1Cafe = 5)
+				    				msg "MMRead: machine model:  '[ifexists arr2(Data1)]'"
+				    				set ::settings(machine_model) [ifexists arr2(Data1)]
+
+				    				# CPU Board Firmware build number. (Starts at 1000 for 1.3, increments by 1 for every build)
+				    				msg "MMRead: firmware version number: '[ifexists arr2(Data2)]'"
+			    					set ::settings(firmware_version_number) [ifexists arr2(Data2)]
+
+		    					} else {
+		    						# CPU Board Model * 1000. eg: 1100 = 1.1
+				    				msg "MMRead: CPU board model: '[ifexists arr2(Data0)]'"
+				    				set ::settings(cpu_board_model) [ifexists arr2(Data0)]
+				    			}
+
+			    			} elseif {$mmr_id == "80000C"} {
+								parse_binary_mmr_read_int $value arr2
+
+			    				# v1.3+ Firmware Model (Unset = 0, DE1 = 1, DE1Plus = 2, DE1Pro = 3, DE1XL = 4, DE1Cafe = 5)
+			    				msg "MMRead: machine model:  '[ifexists arr2(Data0)]'"
+			    				set ::settings(machine_model) [ifexists arr2(Data0)]
+
+			    			} elseif {$mmr_id == "800010"} {
+								parse_binary_mmr_read_int $value arr2
+
+			    				# CPU Board Firmware build number. (Starts at 1000 for 1.3, increments by 1 for every build)
+			    				msg "MMRead: firmware version number: '[ifexists arr2(Data0)]'"
+		    					set ::settings(firmware_version_number) [ifexists arr2(Data0)]
+
 			    			} elseif {$mmr_id == "80382C"} {
-			    				msg "Read: steam_highflow_start: '$mmr_val'"
+			    				msg "MMRead: steam_highflow_start: '$mmr_val'"
 			    				set ::settings(steam_highflow_start) $mmr_val
 			    			} else {
 			    				msg "Uknown type of direct MMR read on '[convert_string_to_hex $mmr_id]': $data"
@@ -1973,12 +2069,14 @@ proc de1_ble_handler { event data } {
 						} elseif {$cuuid == "0000A009-0000-1000-8000-00805F9B34FB"} {
 						    #set ::de1(last_ping) [clock seconds]
 							parse_map_request $value arr2
+							msg "a009: [array get arr2]"
 							if {$::de1(currently_erasing_firmware) == 1 && [ifexists arr2(FWToErase)] == 0} {
 								msg "BLE recv: finished erasing fw '[ifexists arr2(FWToMap)]'"
 								set ::de1(currently_erasing_firmware) 0
-								write_firmware_now
+								#write_firmware_now
 							} elseif {$::de1(currently_erasing_firmware) == 1 && [ifexists arr2(FWToErase)] == 1} { 
 								msg "BLE recv: currently erasing fw '[ifexists arr2(FWToMap)]'"
+								#after 1000 read_fw_erase_progress
 							} elseif {$::de1(currently_erasing_firmware) == 0 && [ifexists arr2(FWToErase)] == 0} { 
 								msg "BLE firmware find error BLE recv: '$value' [array get arr2]'"
 						
@@ -2292,12 +2390,21 @@ proc de1_ble_handler { event data } {
 									parse_state_change $value arr
 						    		msg "Confirmed state change written to DE1: '[array get arr]'"
 								} elseif {$cuuid == "0000A006-0000-1000-8000-00805F9B34FB"} {
-									if {$::de1(currently_erasing_firmware) == 1 || $::de1(currently_updating_firmware) == 1} {
+									if {$::de1(currently_erasing_firmware) == 1 && $::de1(currently_updating_firmware) == 0} {
+										# erase ack received
+										#set ::de1(currently_erasing_firmware) 0
+										msg "firmware erase write ack recved: [string length $value] bytes: $value : [array get arr2]"
+									} elseif {$::de1(currently_erasing_firmware) == 0 && $::de1(currently_updating_firmware) == 1} {
+
 										msg "firmware write ack recved: [string length $value] bytes: $value : [array get arr2]"
 										firmware_upload_next
 									} else {
 										msg "MMR write ack: [string length $value] bytes: [convert_string_to_hex $value ] : $value : [array get arr2]"
 									}
+								} elseif {$cuuid == "0000A009-0000-1000-8000-00805F9B34FB" && $::de1(currently_erasing_firmware) == 1} {
+									msg "fw request to erase sent"
+									#msg "fw request to erase sent, now starting send"
+									#write_firmware_now
 								} else {
 						    		msg "Confirmed wrote to $cuuid of DE1: '$value'"
 								}

@@ -266,6 +266,7 @@ proc make_de1_dir {} {
         skins/SWDark4/2560x1600/saver-1.png *
         skins/SWDark4/2560x1600/saver-2.png *
         skins/SWDark4/2560x1600/saver-3.png *
+        skins/SWDark4/2560x1600/swbrewsettings.png *
         skins/SWDark4/userdata/swdark_usersettings.tdb *
         skins/SWDark4/1280x800/icon.jpg *
         skins/SWDark4/1280x800/sleep.png *
@@ -278,6 +279,7 @@ proc make_de1_dir {} {
         skins/SWDark4/1280x800/home_2_single.png *
         skins/SWDark4/1280x800/home_2_split.png *
         skins/SWDark4/1280x800/swsettings.png *
+        skins/SWDark4/1280x800/swbrewsettings.png *
 
 
         skins/Borg/skin.tcl *

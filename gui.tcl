@@ -951,20 +951,34 @@ proc resized_filename {infile} {
 }
 
 proc change_screen_saver_img {} {
-	#msg "change_screen_saver_img $::de1(current_context)"
+
+	if {[llength [ifexists ::saver_files_cache]] == 1} {
+		# no need to change the background screen saver image if it's only 1
+		msg "xxxxno need to change the background screen saver image if it's only 1"
+		return
+	}
+
+	#msg "change_screen_saver_img $::de1(current_context) '[page_displaying_now]'"
 	#if {$::de1(current_context) == "saver"} {
-		image delete saver
+		#catch {
+			image delete saver
+		#}
 
 		set fn [random_saver_file]
 
+		set err ""
 		catch {
 			# this can happen during an upgrade
 			image create photo saver -file $fn
 			.can create image {0 0} -anchor nw -image saver  -tag saver -state hidden
 			.can lower saver
+		} err
+
+		if {$err != ""} {
+			error $err
 		}
 		#update
-	#}#
+	#}
 
 	if {[info exists ::change_screen_saver_image_handle] == 1} {
 		after cancel $::change_screen_saver_image_handle
@@ -1259,6 +1273,7 @@ proc display_brightness {percentage} {
 	#puts "brightness: $percentage %"
 	get_set_tablet_brightness $percentage
 }
+
 
 proc page_display_change {page_to_hide page_to_show} {
 

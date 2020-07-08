@@ -475,6 +475,61 @@ proc random_saver_file {} {
 
 }
 
+proc tcl_introspection {} {
+    catch {
+        set txt ""
+
+        append txt "Commands available: [llength [info commands]]\nInstructions run: [info cmdcount]\nGlobals: [llength [info globals]]\nProcs: [llength [info procs]]\nAfter commands: [llength [after info]]\n"
+
+        append txt "Images loaded: [llength [image names]]\n"
+
+        set cnt 0
+        foreach i [image names] {
+            #append txt "[incr cnt]. $i [image height $i]x[image width $i] in use:[image inuse $i]\n"
+        }
+
+        #append txt \n
+
+        set vs [vector names]
+        append txt "Vectors: [llength $vs]"
+        set total 0
+        foreach v $vs {
+            set sz [$v length]
+            set total [expr {$total + $sz}]
+        }
+        append txt "\nTOTAL vector length: $total bytes\n"
+
+
+
+        set globs [info globals] 
+        append txt "Globals [llength $globs]:\n"
+        set txt2 ""
+        set total 0
+        set cnt 0
+        foreach g $globs {
+            if {[array exists $g] == 1} {   
+                set sz [string length [array get $g]]
+                if {$sz > 100} {
+                    append txt "[incr cnt]. array $g : $sz\n"
+                }
+                set total [expr {$total + $sz}]
+            } else {
+                set sz [string length $g]
+                if {$sz > 100} {
+                    append txt "[incr cnt]. string $g : $sz\n"
+                }
+                set total [expr {$total + $sz}]
+            }
+
+        }
+        append txt "TOTAL global variable memory used: $total bytes\n\n"
+
+        msg $txt
+    }
+
+    after [expr {60 * 60 * 1000}] tcl_introspection
+}
+
 proc random_splash_file {} {
     if {[info exists ::splash_files_cache] != 1} {
 

@@ -287,14 +287,17 @@ proc stop_timer_espresso_pour {} {
 }
 
 proc stop_timer_water_pour {} {
+	msg "stop_timer_water_pour"
 	set ::timers(water_pour_stop) [clock milliseconds]
 }
 
 proc stop_timer_steam_pour {} {
+	msg "stop_timer_steam_pour"
 	set ::timers(steam_pour_stop) [clock milliseconds]
 }
 
 proc stop_timer_flush_pour {} {
+	msg "stop_timer_flush_pour"
 	set ::timers(flush_pour_stop) [clock milliseconds]
 }
 
@@ -454,19 +457,25 @@ proc steam_pour_millitimer {} {
 }
 
 proc flush_pour_timer {} {
+	set t ""
+	set c 0
 	if {[info exists ::timers(flush_pour_start)] != 1} {
-		return 0
-	}
-
-	if {$::timers(flush_pour_start) == 0} {
-		return 0
+		set t "-0"
+		set c 1
+	} elseif {$::timers(flush_pour_start) == 0} {
+		set t "-1"
+		set c 2
 	} elseif {$::timers(flush_pour_stop) == 0} {
 		# no stop, so show current elapsed time
-		return [expr {([clock milliseconds] - $::timers(flush_pour_start))/1000}]
+		set t [expr {([clock milliseconds] - $::timers(flush_pour_start))/1000}]
+		set c 3
 	} else {
 		# stop occured, so show that.
-		return [expr {($::timers(flush_pour_stop) - $::timers(flush_pour_start))/1000}]
+		set t [expr {($::timers(flush_pour_stop) - $::timers(flush_pour_start))/1000}]
+		set c 4
 	}
+	#msg "flush_pour_timer: $t ($c)"
+	return $t
 }
 proc done_timer {} {
 	if {$::timers(stop) == 0} {
@@ -808,6 +817,13 @@ proc group_head_heating_text {} {
 	}
 }
 
+proc return_seconds_divided_by_ten {in} {
+	if {$in == ""} {return ""}
+
+	set t [expr {$in / 10.0}]
+	return "[round_to_one_digits $t] [translate "seconds"]"
+
+}
 proc timer_text {} {
 	return [subst {[timer] [translate "seconds"]}]
 }
@@ -818,6 +834,11 @@ proc return_liquid_measurement {in} {
 	} else {
 		return [subst {[round_to_integer [ml_to_oz $in]] oz}]
 	}
+}
+
+proc return_flow_calibration_measurement {in} {
+	return [subst {[round_to_one_digits [expr {0.1 * $in}]] [translate "mL/s"]}]
+
 }
 
 proc return_flow_measurement {in} {
@@ -1246,7 +1267,6 @@ proc return_temperature_setting_or_off {in} {
 		return [return_temperature_setting $in]
 	}
 }
-
 
 proc return_temperature_setting {in} {
 	#msg "return_temperature_setting: $in"
@@ -3106,10 +3126,14 @@ proc de1_version_bleapi {} {
 
 proc de1_version_string {} {
 	array set v $::de1(version)
+
+	#set v(BLE_Sha) [clock seconds]
+
 	set version "BLE v[ifexists v(BLE_Release)].[ifexists v(BLE_Changes)].[ifexists v(BLE_Commits)], API v[ifexists v(BLE_APIVersion)], SHA=[ifexists v(BLE_Sha)]"
 	if {[ifexists v(FW_Sha)] != [ifexists v(BLE_Sha)] && [ifexists v(FW_Sha)] != 0} {
 		append version "\nFW v[ifexists v(FW_Release)].[ifexists v(FW_Changes)].[ifexists v(FW_Commits)], API v[ifexists v(FW_APIVersion)], SHA=[ifexists v(FW_Sha)]"
 	}
+
 
 	array set modelarr [list 0 [translate "unknown"] 1 DE1 2 DE1+ 3 DE1PRO 4 DE1XL 5 DE1CAFE]
 
@@ -3127,6 +3151,16 @@ proc de1_version_string {} {
 	if {[ifexists ::settings(firmware_version_number)] != ""} {
 		append version ", rev=[ifexists ::settings(firmware_version_number)]"
 	}
+
+	if {$::settings(firmware_sha) != "" && [ifexists v(BLE_Sha)] != "" && $::settings(firmware_sha) != [ifexists v(BLE_Sha)] } {
+		after 5000 [list info_page "[translate {Your DE1 firmware has been upgraded}]\n\n$version" [translate "Ok"]]
+	}
+	
+	if {[ifexists v(BLE_Sha)] != "" && $::settings(firmware_sha) != [ifexists v(BLE_Sha)] } {
+		set ::settings(firmware_sha) $v(BLE_Sha)
+		save_settings
+	}
+
 	return $version
 
 	#return "HW=[ifexists v(BLEFWMajor)].[ifexists v(BLEFWMinor)].[ifexists v(P0BLECommits)].[ifexists v(Dirty)] API=[ifexists v(APIVersion)] SHA=[ifexists v(BLESha)]"

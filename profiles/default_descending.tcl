@@ -3,11 +3,11 @@ author Decent
 espresso_decline_time 35
 espresso_hold_time 4
 espresso_pressure 8.6
-espresso_temperature 90.0
-espresso_temperature_0 90.0
-espresso_temperature_1 88.0
-espresso_temperature_2 87.0
-espresso_temperature_3 86.0
+espresso_temperature 92.0
+espresso_temperature_0 92.0
+espresso_temperature_1 90.0
+espresso_temperature_2 89.0
+espresso_temperature_3 88.0
 espresso_temperature_steps_enabled 1
 final_desired_shot_volume 36
 final_desired_shot_volume_advanced 0
@@ -25,7 +25,7 @@ preinfusion_guarantee 0
 preinfusion_stop_pressure 4
 preinfusion_time 20
 pressure_end 6.0
-profile_hide 1
+profile_hide 0
 profile_language en
 profile_notes {This profile is gentle on the coffee puck and not too demanding on the barista.  Produces a very acceptable espresso in a wide variety of settings.  The temperature declines several degrees over the course of the extraction.  This will give you a stronger tasting espresso without causing any unpleasant side effects.}
 profile_title {Default with descending temperature}

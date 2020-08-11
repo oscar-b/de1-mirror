@@ -75,7 +75,7 @@ proc clear_espresso_chart {} {
 }	
 
 proc espresso_chart_structures {} {
-	return [list espresso_elapsed espresso_pressure espresso_weight espresso_weight_chartable espresso_flow espresso_flow_weight espresso_flow_weight_raw espresso_water_dispensed espresso_flow_weight_2x espresso_flow_2x espresso_resistance espresso_resistance_weight espresso_pressure_delta espresso_flow_delta espresso_flow_delta_negative espresso_flow_delta_negative_2x espresso_temperature_mix espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_de1_explanation_chart_flow espresso_de1_explanation_chart_elapsed_flow espresso_de1_explanation_chart_flow_2x espresso_de1_explanation_chart_flow_1_2x espresso_de1_explanation_chart_flow_2_2x espresso_de1_explanation_chart_flow_3_2x espresso_de1_explanation_chart_pressure espresso_de1_explanation_chart_pressure_1 espresso_de1_explanation_chart_pressure_2 espresso_de1_explanation_chart_pressure_3 espresso_de1_explanation_chart_elapsed_flow espresso_de1_explanation_chart_elapsed_flow_1 espresso_de1_explanation_chart_elapsed_flow_2 espresso_de1_explanation_chart_elapsed_flow_3 espresso_de1_explanation_chart_elapsed espresso_de1_explanation_chart_elapsed_1 espresso_de1_explanation_chart_elapsed_2 espresso_de1_explanation_chart_elapsed_3]
+	return [list espresso_elapsed espresso_pressure espresso_weight espresso_weight_chartable espresso_flow espresso_flow_weight espresso_flow_weight_raw espresso_water_dispensed espresso_flow_weight_2x espresso_flow_2x espresso_resistance espresso_resistance_weight espresso_pressure_delta espresso_flow_delta espresso_flow_delta_negative espresso_flow_delta_negative_2x espresso_temperature_mix espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_de1_explanation_chart_flow espresso_de1_explanation_chart_elapsed_flow espresso_de1_explanation_chart_flow_2x espresso_de1_explanation_chart_flow_1_2x espresso_de1_explanation_chart_flow_2_2x espresso_de1_explanation_chart_flow_3_2x espresso_de1_explanation_chart_pressure espresso_de1_explanation_chart_temperature espresso_de1_explanation_chart_temperature_10 espresso_de1_explanation_chart_pressure_1 espresso_de1_explanation_chart_pressure_2 espresso_de1_explanation_chart_pressure_3 espresso_de1_explanation_chart_elapsed_flow espresso_de1_explanation_chart_elapsed_flow_1 espresso_de1_explanation_chart_elapsed_flow_2 espresso_de1_explanation_chart_elapsed_flow_3 espresso_de1_explanation_chart_elapsed espresso_de1_explanation_chart_elapsed_1 espresso_de1_explanation_chart_elapsed_2 espresso_de1_explanation_chart_elapsed_3]
 }
 
 proc backup_espresso_chart {} {
@@ -1605,10 +1605,12 @@ proc profile_directories {} {
 		}
 
 		unset -nocomplain profile
-		array set profile $filecontents
+		catch {
+			array set profile $filecontents
+		}
 		if {[info exists profile(profile_title)] != 1} {
-			msg "Corrupt profile file: '$d'"
-			continue
+			msg "Corrupt profile file in profile_directories: '$d'"
+			#continue
 		}
 
 		if {[ifexists profile(profile_hide)] == 1} {
@@ -1778,11 +1780,14 @@ proc fill_profiles_listbox {} {
 		set fn "[homedir]/profiles/${d}.tcl"
 		#puts "fn: $fn"
 		unset -nocomplain profile
-		array set profile [encoding convertfrom utf-8 [read_binary_file $fn]]
+		catch {
+			array set profile [encoding convertfrom utf-8 [read_binary_file $fn]]
+		}
 
 		if {[info exists profile(profile_title)] != 1} {
-			msg "Corrupt profile file: '$d'"
-			continue
+			msg "Corrupt profile file in choices: '$d'"
+			#continue
+			set profile(profile_title) "$d \u2639 \u2639 \u2639"
 		}
 
 		set ptitle $profile(profile_title)
@@ -2213,7 +2218,7 @@ proc save_current_adv_shot_step {} {
 	profile_has_changed_set
 	# for display purposes, make the espresso temperature be equal to the temperature of the first step in the advanced shot
 	array set first_step [lindex $::settings(advanced_shot) 0]
-	set ::settings(espresso_temperature) $first_step(temperature)
+	set ::settings(espresso_temperature) [ifexists first_step(temperature)]
 }
 
 proc delete_current_adv_step {} {
@@ -2338,7 +2343,6 @@ proc preview_history {w args} {
 		set fn "[homedir]/history/${profile}.tcl"
 
 		# need to code this
-		#load_settings_vars $fn
 		array set props [encoding convertfrom utf-8 [read_binary_file $fn]]
 
 		array set ::settings $props(settings)
@@ -2521,7 +2525,14 @@ proc preview_profile {} {
 
 	if {[ifexists ::profiles_hide_mode] == 1} {
 
-		array set thisprofile [encoding convertfrom utf-8 [read_binary_file $fn]]
+		catch {
+			array set thisprofile [encoding convertfrom utf-8 [read_binary_file $fn]]
+		}
+
+		if {[info exists thisprofile(profile_title)] != 1} {
+			msg "Corrupt profile file to preview: '$d'"
+			return
+		}
 
 
 		if {[ifexists thisprofile(profile_hide)] == 1} {
@@ -2727,15 +2738,17 @@ proc load_settings_vars {fn} {
 		set ::settings(settings_profile_type) "settings_2"
 	}
 
-	foreach {k v} [encoding convertfrom utf-8 [read_binary_file $fn]] {
-		#puts "$k $v"
-		#set ::settings($k) $v
-		set temp_settings($k) $v
+	catch {
+		foreach {k v} [encoding convertfrom utf-8 [read_binary_file $fn]] {
+			#puts "$k $v"
+			#set ::settings($k) $v
+			set temp_settings($k) $v
+		}
 	}
 
 	if {[ifexists temp_settings(settings_profile_type)] == "settings_2c" && [ifexists temp_settings(final_desired_shot_weight)] != "" && [ifexists temp_settings(final_desired_shot_weight_advanced)] == "" } {
 		msg "Using a default for final_desired_shot_weight_advanced from final_desired_shot_weight of [ifexists temp_settings(final_desired_shot_weight)]"
-		set temp_settings(final_desired_shot_weight_advanced) $temp_settings(final_desired_shot_weight)
+		set temp_settings(final_desired_shot_weight_advanced) [ifexists temp_settings(final_desired_shot_weight)]
 	}
 
 	# pre-set the shot volume, to the shot weight, if importing an old shot definition that doesn't have a an end volume 
@@ -2745,7 +2758,9 @@ proc load_settings_vars {fn} {
 	}
 
 
-	array set ::settings [array get temp_settings]
+	catch {
+		array set ::settings [array get temp_settings]
+	}
 
 	# john disabling LONG PRESS support as it appears to be buggy on tablets https://3.basecamp.com/3671212/buckets/7351439/messages/2566269076#__recording_2595312790
 	set ::setting(disable_long_press) 1
@@ -2776,18 +2791,24 @@ proc profile_vars {} {
  	return { advanced_shot espresso_temperature_steps_enabled author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature espresso_temperature_0 espresso_temperature_1 espresso_temperature_2 espresso_temperature_3 settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced preinfusion_guarantee profile_title profile_language preinfusion_stop_pressure profile_hide final_desired_shot_volume_advanced_count_start}
 }
 
+
+proc set_profile_title_untitled {} {
+	# if no name then give it a name which is just a number
+	if {$::settings(profile_title) == ""} {
+		incr ::settings(preset_counter)  
+		save_settings
+
+		set ::settings(profile_title) [subst {[translate "Untitled"] $::settings(preset_counter)}]
+	}
+}
+
 proc save_profile {} {
 	if {$::settings(profile_title) == [translate "Saved"]} {
 		return
 	}
 
 	# if no name then give it a name which is just a number
-	if {$::settings(profile_title) == ""} {
-		incr ::settings(preset_counter)  
-		save_settings
-
-		set ::settings(profile_title) $::settings(preset_counter)  
-	}
+	set_profile_title_untitled
 
 	#set profile_vars { advanced_shot author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced preinfusion_guarantee profile_title profile_language preinfusion_stop_pressure}
 	#set profile_name_to_save $::settings(profile_to_save) 

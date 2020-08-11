@@ -1074,6 +1074,7 @@ proc run_next_userdata_cmd {} {
 }
 
 proc close_all_ble_and_exit {} {
+	msg "close_all_ble_and_exit"
 	if {$::scanning  == 1} {
 		catch {
 			ble stop $::ble_scanner
@@ -1127,6 +1128,9 @@ proc app_exit {} {
 	} else {
 		after 5000 close_all_ble_and_exit
 	}
+
+	after 5000 { .can itemconfigure $::message_button_label -text [translate "Quit"] }
+
 
 	after 10000 "exit 0"
 }
@@ -1727,6 +1731,7 @@ proc later_new_de1_connection_setup {} {
 	after 5000 read_de1_state
 	after 7000 get_heater_voltage
 	after 9000 de1_enable_temp_notifications
+	after 11000 de1_enable_state_notifications
 
 }
 

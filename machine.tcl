@@ -196,7 +196,7 @@ array set ::settings {
 	steam_flow 700
 	color_stage_1 "#c8e7d5"
 	color_stage_2 "#efdec2"
-	hot_water_idle_temp "800"
+	hot_water_idle_temp "850"
 	espresso_warmup_timeout "100"
 	color_stage_3 "#edceca"
 	start_espresso_only_if_scale_connected 0
@@ -230,6 +230,7 @@ array set ::settings {
 	espresso_notes {}
 	profile_graph_smoothing_technique "quadratic"
 	live_graph_smoothing_technique "linear"
+	preview_graph_smoothing_technique "quadratic"
 	espresso_count 0
 	steaming_count 0
 	profile_has_changed 0

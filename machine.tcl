@@ -37,14 +37,13 @@ array set ::de1 {
 	cuuid_02 "0000A002-0000-1000-8000-00805F9B34FB"
 	cuuid_05 "0000A005-0000-1000-8000-00805F9B34FB"
 	cuuid_06 "0000A006-0000-1000-8000-00805F9B34FB"
+	cuuid_09 "0000A009-0000-1000-8000-00805F9B34FB"
 	cuuid_0A "0000A00A-0000-1000-8000-00805F9B34FB"
 	cuuid_0B "0000A00B-0000-1000-8000-00805F9B34FB"
 	cuuid_0C "0000A00C-0000-1000-8000-00805F9B34FB"
 	cuuid_0D "0000A00D-0000-1000-8000-00805F9B34FB"
 	cuuid_0E "0000A00E-0000-1000-8000-00805F9B34FB"
 	cuuid_0F "0000A00F-0000-1000-8000-00805F9B34FB"
-	cuuid_06 "0000A006-0000-1000-8000-00805F9B34FB"
-	cuuid_09 "0000A009-0000-1000-8000-00805F9B34FB"
 	cuuid_10 "0000A010-0000-1000-8000-00805F9B34FB"
 	cuuid_11 "0000A011-0000-1000-8000-00805F9B34FB"
 	cuuid_12 "0000A012-0000-1000-8000-00805F9B34FB"
@@ -54,6 +53,7 @@ array set ::de1 {
 	suuid_skale "0000FF08-0000-1000-8000-00805F9B34FB"
 	cuuid_decentscale_read "0000FFF4-0000-1000-8000-00805F9B34FB"
 	cuuid_decentscale_write "000036F5-0000-1000-8000-00805F9B34FB"
+	cuuid_decentscale_writeback "83CDC3D4-3BA2-13FC-CC5E-106C351A9352"
 	suuid_decentscale "0000FFF0-0000-1000-8000-00805F9B34FB"
 	cuuid_acaia_ips_age "00002A80-0000-1000-8000-00805F9B34FB"
 	suuid_acaia_ips "00001820-0000-1000-8000-00805F9B34FB"
@@ -140,6 +140,30 @@ if {$android == 0 || $undroid == 1} {
     android_specific_stubs
 }
 
+array set ::de1_cuuids_to_command_names {
+	$::de1(cuuid_01) Version
+	$::de1(cuuid_02) RequestedState
+	#$::de1(cuuid_03) SetTime
+	#$::de1(cuuid_04) ShotDirectory
+	$::de1(cuuid_05) ReadFromMMR
+	$::de1(cuuid_06) WriteToMMR
+	#$::de1(cuuid_07) ShotMapRequest
+	#$::de1(cuuid_08) DeleteShotRange
+	$::de1(cuuid_09) FWMapRequest
+	$::de1(cuuid_0A) Temperatures
+	$::de1(cuuid_0B) ShotSettings
+	$::de1(cuuid_0C) DeprecatedShotDesc
+	$::de1(cuuid_0D) ShotSample
+	$::de1(cuuid_0E) StateInfo
+	$::de1(cuuid_0F) HeaderWrite
+	$::de1(cuuid_10) FrameWrite
+	$::de1(cuuid_11) WaterLevels
+	$::de1(cuuid_12) Calibration
+}
+
+array set ::de1_command_names_to_cuuids [reverse_array ::de1_cuuids_to_command_names]
+
+
 #set ::de1(in_fw_update_mode) 1
 
 
@@ -171,6 +195,7 @@ array set ::settings {
 	ble_debug 0
 	tank_desired_water_temperature 0
 	screen_size_height {}
+	log_enabled 0
 	current_frame_description {}
 	mmr_enabled 0	
 	default_font_calibration 0.5
@@ -188,6 +213,7 @@ array set ::settings {
 	heater_voltage ""
 	steam_over_temp_count_trigger 10
 	go_idle_before_all_operations 0
+	mark_most_popular_profiles_used 0
 	active_settings_tab settings_2a
 	espresso_temperature_steps_enabled 0
 	black_screen_saver 0
@@ -213,7 +239,7 @@ array set ::settings {
 	ble_unpair_at_exit 1
 	preload_all_page_images 0
 	temp_bump_time_seconds 2
-	export_history_automatically_to_csv 1
+	enable_shot_history_export 0
 	advanced_shot_chart_temp_max 100
 	advanced_shot_chart_temp_min 80
 	final_desired_shot_volume_advanced 0

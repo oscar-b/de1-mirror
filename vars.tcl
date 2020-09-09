@@ -2950,7 +2950,7 @@ proc save_this_espresso_to_history {unused_old_state unused_new_state} {
 }
 
 proc ghc_required {} {
-	if {$::settings(ghc_is_installed) != 0 && $::settings(ghc_is_installed) != 1 && $::settings(ghc_is_installed) != 2} {
+	if {$::settings(ghc_is_installed) != 0 && $::settings(ghc_is_installed) != 1 && $::settings(ghc_is_installed) != 2 && $::settings(ghc_is_installed) != 4} {
 		return 1
 	}
 	return 0
@@ -3600,17 +3600,17 @@ proc change_espresso_temperature {amount} {
 		set ::settings(espresso_temperature_3) [expr {$::settings(espresso_temperature_3) + $amount}]
 
 
-		range_check_variable ::settings(espresso_temperature_0) 0 100
-		range_check_variable ::settings(espresso_temperature_1) 0 100
-		range_check_variable ::settings(espresso_temperature_2) 0 100
-		range_check_variable ::settings(espresso_temperature_3) 0 100
+		range_check_variable ::settings(espresso_temperature_0) 0 110
+		range_check_variable ::settings(espresso_temperature_1) 0 110
+		range_check_variable ::settings(espresso_temperature_2) 0 110
+		range_check_variable ::settings(espresso_temperature_3) 0 110
 		
 
 	} else {
 		set ::settings(espresso_temperature) [expr {$::settings(espresso_temperature) + $amount}]
 	}
 
-	range_check_variable ::settings(espresso_temperature) 0 100
+	range_check_variable ::settings(espresso_temperature) 0 110
 }
 
 proc when_to_start_pour_tracking_advanced {} {

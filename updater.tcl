@@ -90,7 +90,11 @@ proc fast_write_open {fn parms} {
     set f 0
     set errcode [catch {
         set f [open $fn $parms]
-        fconfigure $f -blocking 0
+
+        # Michael argues that there's no need to go nonblocking if you have a write buffer defined.
+        # https://3.basecamp.com/3671212/buckets/7351439/messages/3033510129#__recording_3037579684
+        # so disabling for now, to see if he's right.
+        # fconfigure $f -blocking 0
         fconfigure $f -buffersize 1000000
         set success 1
     }]
@@ -297,12 +301,18 @@ proc log_to_debug_file {text} {
             catch {
                 set ::logfile_handle [open "[homedir]/$::settings(logfile)" w]
 
-                
+                # per https://3.basecamp.com/3671212/buckets/7351439/messages/3033510129#__recording_3039704280
+                # logging is always fast now, with only line level buffering
+                set ::settings(log_fast) 1
                 if {[ifexists ::settings(log_fast)] == "1"} {
                     msg "fast log file"
                     fconfigure $::logfile_handle -blocking 0 -buffering line 
                 } else {
-                    fconfigure $::logfile_handle -buffersize 102400 -blocking 0 
+                    # Michael argues that there's no need to go nonblocking if you have a write buffer defined.
+                    # https://3.basecamp.com/3671212/buckets/7351439/messages/3033510129#__recording_3037579684
+                    # so disabling for now, to see if he's right.
+                    # -blocking 0 
+                    fconfigure $::logfile_handle -buffersize 102400 
                 }
             }
         } 
@@ -310,6 +320,12 @@ proc log_to_debug_file {text} {
         catch {
             puts $::logfile_handle "$::debugcnt. ([clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S" ]) $text"
         }
+
+        catch {
+            # if logging, display info to the screen terminal too
+            puts $text
+        }
+
 
         # temporarily do 
         #close_log_file
@@ -359,6 +375,11 @@ proc check_timestamp_for_app_update_available { {check_only 0} } {
 
     set host "http://decentespresso.com"
     set progname "de1plus"
+    if {[ifexists ::settings(app_updates_beta_enabled)] == 1} {
+        set progname "de1beta"
+    }
+    puts "update timestanp endpoint: '$progname'"
+
     set url_timestamp "$host/download/sync/$progname/timestamp.txt"    
 
     set remote_timestamp {}
@@ -471,6 +492,12 @@ proc start_app_update {} {
     }
 
     set progname "de1plus"
+    if {[ifexists ::settings(app_updates_beta_enabled)] == 1} {
+        set progname "de1beta"
+    }
+
+    puts "update download endpoint: '$progname'"
+
     #set progname "de1"
     #if {[de1plus] == 1} {
     #    set progname "de1plus"

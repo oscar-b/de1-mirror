@@ -114,12 +114,16 @@ if {[de1plus]} {
 
 
 	add_de1_text "settings_2a" 890 755 -text [translate "2: rise and hold"] -font Helv_10_bold -fill "#7f879a" -anchor "nw" -width 600 -justify "left" 
-		add_de1_widget "settings_2a" scale 892 850 {} -from 0 -to 60 -background $::settings(color_stage_2) -borderwidth 1 -showvalue 0  -bigincrement 1 -resolution 1 -length [rescale_x_skin 600] -width [rescale_y_skin 150] -variable ::settings(espresso_hold_time) -font Helv_10_bold -sliderlength [rescale_x_skin 125] -relief flat -command "profile_has_changed_set; update_de1_explanation_chart_soon" -orient horizontal -foreground #FFFFFF -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0 
-		add_de1_variable "settings_2 settings_2a" 892 1000 -text "" -font Helv_8 -fill "#4e85f4" -anchor "nw" -width 600 -justify "left" -textvariable {[canvas_hide_if_zero $::settings(espresso_hold_time) [list $::espresso_pressure_widget $::espresso_pressure_widget_label]; seconds_text $::settings(espresso_hold_time)]}
+		add_de1_widget "settings_2a" scale 892 850 {} -from -30 -to 90 -background $::settings(color_stage_2) -borderwidth 1 -showvalue 0  -bigincrement 1 -resolution 1 -length [rescale_x_skin 600] -width [rescale_y_skin 150] -variable ::settings(espresso_hold_time) -font Helv_10_bold -sliderlength [rescale_x_skin 125] -relief flat -command "profile_has_changed_set; update_de1_explanation_chart_soon" -orient horizontal -foreground #FFFFFF -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0 
+		add_de1_variable "settings_2 settings_2a" 1192 1030 -text "" -font Helv_8 -fill "#4e85f4" -anchor "center" -width 600 -justify "left" -textvariable {[canvas_hide_if_zero $::settings(espresso_hold_time) [list $::espresso_pressure_widget $::espresso_pressure_widget_label]; seconds_text $::settings(espresso_hold_time)]}
+		add_de1_text "settings_2 settings_2a" 942 1000 -text "-" -font Helv_8 -fill "#888888" -anchor "nw" -width 600 -justify "left" 
+		add_de1_text "settings_2 settings_2a" 1440 1000 -text "+" -font Helv_8 -fill "#888888" -anchor "ne" -width 600 -justify "left" 
+		add_de1_button "settings_2a" {say [translate {minus}] $::settings(sound_button_in); incr ::settings(espresso_hold_time) -1; profile_has_changed_set; update_de1_explanation_chart_soon} 892 1000 1100 1200 
+		add_de1_button "settings_2a" {say [translate {plus}] $::settings(sound_button_in); incr ::settings(espresso_hold_time); profile_has_changed_set; update_de1_explanation_chart_soon } 1290 1000 1490 1200
+
 
 		set ::espresso_pressure_widget [add_de1_widget "settings_2a" scale 1516 850 {} -to 0 -from $::de1(maxpressure) -tickinterval 0  -showvalue 0 -background $::settings(color_stage_2)  -bigincrement 1 -resolution 0.1 -length [rescale_y_skin 470] -width [rescale_y_skin 150] -variable ::settings(espresso_pressure) -font Helv_15_bold -sliderlength [rescale_x_skin 125] -relief flat -command "profile_has_changed_set; update_de1_explanation_chart_soon" -foreground #000000 -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0]
 		set ::espresso_pressure_widget_label [add_de1_variable "settings_2 settings_2a" 1667 1325 -text "" -font Helv_8 -fill "#4e85f4" -anchor "ne" -width 600 -justify "left" -textvariable {[return_pressure_measurement $::settings(espresso_pressure)]}]
-	
 
 	add_de1_text "settings_2 settings_2a" 1730 755 -text [translate "3: decline"] -font Helv_10_bold -fill "#7f879a" -anchor "nw" -width 600 -justify "left" 
 		add_de1_widget "settings_2 settings_2a" scale 1730 850 {} -from 0 -to 60 -background $::settings(color_stage_3) -borderwidth 1 -showvalue 0 -bigincrement 1 -resolution 1 -length [rescale_x_skin 605] -width [rescale_y_skin 150] -variable ::settings(espresso_decline_time) -font Helv_10_bold -sliderlength [rescale_x_skin 125] -relief flat -command "profile_has_changed_set; update_de1_explanation_chart_soon" -orient horizontal -foreground #FFFFFF -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0 
@@ -262,9 +266,9 @@ if {[de1plus]} {
 		
 
 	if {$::settings(enable_fahrenheit) == 1} {
-		add_de1_button "settings_2" {say [translate {temperature}] $::settings(sound_button_in);vertical_clicker 0.555556 0.555556 ::settings(espresso_temperature) $::settings(minimum_water_temperature) 100 %x %y %x0 %y0 %x1 %y1 %b} 2404 192 2590 750 ""
+		add_de1_button "settings_2" {say [translate {temperature}] $::settings(sound_button_in);vertical_clicker 0.555556 0.555556 ::settings(espresso_temperature) $::settings(minimum_water_temperature) 110 %x %y %x0 %y0 %x1 %y1 %b} 2404 192 2590 750 ""
 	} else {
-		add_de1_button "settings_2" {say [translate {temperature}] $::settings(sound_button_in);vertical_clicker 1 1 ::settings(espresso_temperature) $::settings(minimum_water_temperature) 100 %x %y %x0 %y0 %x1 %y1 %b} 2404 192 2590 750 ""
+		add_de1_button "settings_2" {say [translate {temperature}] $::settings(sound_button_in);vertical_clicker 1 1 ::settings(espresso_temperature) $::settings(minimum_water_temperature) 110 %x %y %x0 %y0 %x1 %y1 %b} 2404 192 2590 750 ""
 	}
 	add_de1_variable "settings_2" 2470 600 -text "" -font Helv_7 -fill "#4e85f4" -anchor "center" -textvariable {[return_temperature_setting $::settings(espresso_temperature)]}
 
@@ -316,7 +320,7 @@ add_de1_widget "settings_2c" listbox 70 310 {
 	load_advanced_profile_step 1
 	bind $widget <<ListboxSelect>> {::load_advanced_profile_step; update_de1_explanation_chart}
 
-} -background #fbfaff -yscrollcommand {scale_scroll_new $::advanced_shot_steps_widget ::advsteps_slider} -font $listbox_font -bd 0 -height $adv_listbox_height -width 18 -foreground #d3dbf3 -borderwidth 0 -selectborderwidth 0  -relief flat -highlightthickness 0 -selectmode single  -selectbackground #c0c4e1
+} -background #fbfaff -yscrollcommand {scale_scroll_new $::advanced_shot_steps_widget ::advsteps_slider} -xscrollcommand {scale_prevent_horiz_scroll $::advanced_shot_steps_widget} -font $listbox_font -bd 0 -height $adv_listbox_height -width 18 -foreground #d3dbf3 -borderwidth 0 -selectborderwidth 0  -relief flat -highlightthickness 0 -selectmode single  -selectbackground #c0c4e1
 
 set ::advsteps_slider 0
 
@@ -346,7 +350,7 @@ add_de1_button "settings_2c" {say [translate {add}] $::settings(sound_button_in)
 
 add_de1_text "settings_2c" 1070 680 -text [translate "goal"] -font Helv_6 -fill "#7f879a" -anchor "center" -width 400 -justify "center" 
 	add_de1_variable "settings_2c" 1070 744 -text "" -font Helv_7_bold -fill "#4e85f4" -anchor "center" -textvariable {[return_temperature_setting [ifexists ::current_adv_step(temperature)]]}
-	add_de1_button "settings_2c" {say [translate {temperature}] $::settings(sound_button_in);vertical_clicker 1.5 .5 ::current_adv_step(temperature) $::settings(minimum_water_temperature) 100 %x %y %x0 %y0 %x1 %y1 %b; save_current_adv_shot_step; update_de1_explanation_chart} 980 310 1150 640 ""
+	add_de1_button "settings_2c" {say [translate {temperature}] $::settings(sound_button_in);vertical_clicker 1.5 .5 ::current_adv_step(temperature) $::settings(minimum_water_temperature) 110 %x %y %x0 %y0 %x1 %y1 %b; save_current_adv_shot_step; update_de1_explanation_chart} 980 310 1150 640 ""
 
 add_de1_text "settings_2c" 1380 680 -text [translate "sensor"] -font Helv_6 -fill "#7f879a" -anchor "center" -width 400 -justify "center" 
 	add_de1_button "settings_2c" { say [translate {sensor}] $::settings(sound_button_in); if {[ifexists ::current_adv_step(sensor)] == "water"} {  set ::current_adv_step(sensor) "coffee" } else { set ::current_adv_step(sensor) "water" }; save_current_adv_shot_step } 1200 310 1550 680 ""
@@ -408,7 +412,7 @@ add_de1_widget "settings_1" listbox 50 305 {
 	 	set ::globals(profiles_listbox) $widget
 		fill_profiles_listbox
 		bind $::globals(profiles_listbox) <<ListboxSelect>> ::preview_profile
-	} -background #fbfaff -yscrollcommand {scale_scroll_new $::globals(profiles_listbox) ::profiles_slider} -font $listbox_font -bd 0 -height $profiles_listbox_length -width 32 -foreground #d3dbf3 -borderwidth 0 -selectborderwidth 0  -relief flat -highlightthickness 0 -selectmode single  -selectbackground #c0c4e1 
+	} -background #fbfaff -xscrollcommand {scale_prevent_horiz_scroll $::globals(profiles_listbox)} -yscrollcommand {scale_scroll_new $::globals(profiles_listbox) ::profiles_slider} -font $listbox_font -bd 0 -height $profiles_listbox_length -width 32 -foreground #d3dbf3 -borderwidth 0 -selectborderwidth 0  -relief flat -highlightthickness 0 -selectmode single  -selectbackground #c0c4e1 
 
 set ::profiles_slider 0
 
@@ -538,6 +542,7 @@ add_de1_text "settings_3" 1304 750 -text [translate "Firmware"] -font Helv_10_bo
 # app update
 add_de1_text "settings_4" 50 220 -text [translate "Update App"] -font Helv_10_bold -fill "#7f879a" -justify "left" -anchor "nw"
 	set ::de1(app_update_button_label) [translate "Update"]
+	add_de1_text "settings_4" 1240 226 -text "v[package version de1app]" -width [rescale_y_skin 1000] -font Helv_8 -fill "#7f879a"  -justify "center" -anchor "ne"
 	add_de1_variable "settings_4" 700 416 -text $::de1(app_update_button_label) -width [rescale_y_skin 1000] -font Helv_10_bold -fill "#FFFFFF"  -justify "center" -anchor "center" -textvariable {$::de1(app_update_button_label)} 
 	add_de1_button "settings_4" {set ::de1(app_update_button_label) [translate "Updating"]; update; start_app_update} 20 306 1250 526
 
@@ -554,7 +559,7 @@ add_de1_text "settings_4" 50 220 -text [translate "Update App"] -font Helv_10_bo
 				set ::globals(tablet_styles_listbox) $widget
 				fill_skin_listbox
 				bind $::globals(tablet_styles_listbox) <<ListboxSelect>> ::preview_tablet_skin
-			} -background #fbfaff -yscrollcommand {scale_scroll_new $::globals(tablet_styles_listbox) ::skin_slider} -font $listbox_font -bd 0 -height $tabletstyles_listbox_length -width 30 -foreground #d3dbf3 -borderwidth 0 -selectborderwidth 0  -relief flat -highlightthickness 0 -selectmode single -selectbackground #c0c4e1
+			} -background #fbfaff -xscrollcommand {scale_prevent_horiz_scroll $::globals(tablet_styles_listbox)} -yscrollcommand {scale_scroll_new $::globals(tablet_styles_listbox) ::skin_slider} -font $listbox_font -bd 0 -height $tabletstyles_listbox_length -width 30 -foreground #d3dbf3 -borderwidth 0 -selectborderwidth 0  -relief flat -highlightthickness 0 -selectmode single -selectbackground #c0c4e1
 
 		set ::skin_slider 0
 		set ::skin_scrollbar [add_de1_widget "tabletstyles" scale 10000 1 {} -from 0 -to .90 -bigincrement 0.2 -background "#d3dbf3" -borderwidth 1 -showvalue 0 -resolution .01 -length [rescale_x_skin 400] -width [rescale_y_skin 150] -variable ::skin_slider -font Helv_10_bold -sliderlength [rescale_x_skin 125] -relief flat -command {listbox_moveto $::globals(tablet_styles_listbox) $::skin_slider}  -foreground #FFFFFF -troughcolor "#f7f6fa" -borderwidth 0  -highlightthickness 0]
@@ -645,7 +650,7 @@ add_de1_text "settings_4" 50 220 -text [translate "Update App"] -font Helv_10_bo
 			set ::languages_widget $widget
 			bind $widget <<ListboxSelect>> ::load_language
 			fill_languages_listbox
-		} -background #fbfaff -yscrollcommand {scale_scroll_new $::languages_widget ::language_slider} -font global_font -bd 0 -height 9 -width 26 -foreground #d3dbf3 -borderwidth 0 -selectborderwidth 0  -relief flat -highlightthickness 0 -selectmode single  -selectbackground #c0c4e1
+		} -background #fbfaff -xscrollcommand {scale_prevent_horiz_scroll $::languages_widget} -yscrollcommand {scale_scroll_new $::languages_widget ::language_slider} -font global_font -bd 0 -height 9 -width 26 -foreground #d3dbf3 -borderwidth 0 -selectborderwidth 0  -relief flat -highlightthickness 0 -selectmode single  -selectbackground #c0c4e1
 
 
 		set ::language_slider 0
@@ -669,29 +674,55 @@ add_de1_text "settings_4" 50 220 -text [translate "Update App"] -font Helv_10_bo
 		add_de1_button "settings_4" {say [translate {Misc}] $::settings(sound_button_in); page_to_show_when_off measurements; }  1290 520 1900 720
 		add_de1_text "measurements" 1280 300 -text [translate "Misc"] -font Helv_20_bold -width 1200 -fill "#444444" -anchor "center" -justify "center" 
 		
-		add_de1_text "measurements" 1600 500 -text [translate "Units"] -font Helv_10_bold -fill "#7f879a" -justify "left" -anchor "nw"
-			add_de1_widget "measurements" checkbutton 1600 580 {} -text [translate "Fahrenheit"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(enable_fahrenheit)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF  -bd 0 -activeforeground #4e85f4 -relief flat -bd 0
-			add_de1_widget "measurements" checkbutton 1600 640 {} -text [translate "AM/PM"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(enable_ampm)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
-			add_de1_widget "measurements" checkbutton 2000 580 {} -text [translate "1.234,56"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(enable_commanumbers)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
+		add_de1_text "measurements" 1300 480 -text [translate "Units"] -font Helv_10_bold -fill "#7f879a" -justify "left" -anchor "nw"
+			add_de1_widget "measurements" checkbutton 1300 560 {} -text [translate "Fahrenheit"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(enable_fahrenheit)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF  -bd 0 -activeforeground #4e85f4 -relief flat -bd 0
+			add_de1_widget "measurements" checkbutton 1650 560 {} -text [translate "AM/PM"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(enable_ampm)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
+			add_de1_widget "measurements" checkbutton 2000 560 {} -text [translate "1.234,56"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(enable_commanumbers)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
 
 		#if {$::settings(display_fluid_ounces_option) == 1} {
 		#	add_de1_widget "measurements" checkbutton 690 1000 {} -text [translate "Fluid ounces"] -indicatoron true  -font Helv_9 -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(enable_fluid_ounces)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4 -relief flat  
 		#}
 
-		add_de1_text "measurements" 1600 730 -text [translate "Optional features"] -font Helv_10_bold -fill "#7f879a" -justify "left" -anchor "nw"
-			add_de1_widget "measurements" checkbutton 1600 810 {} -text [translate "One-tap mode"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(one_tap_mode)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
-			add_de1_widget "measurements" checkbutton 1600 870  {} -text [translate "Repeat last command"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(stress_test)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
-			add_de1_widget "measurements" checkbutton 1600 930  {} -text [translate "Screen saver clock"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(display_time_in_screen_saver)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
-			add_de1_widget "measurements" checkbutton 1600 990  {} -text [translate "Black screen saver"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(black_screen_saver)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
-			add_de1_widget "measurements" checkbutton 1600 1050  {} -text [translate "Make a log file"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(log_enabled)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
+		add_de1_text "measurements" 1300 660 -text [translate "Optional features"] -font Helv_10_bold -fill "#7f879a" -justify "left" -anchor "nw"
+
+			if {[ifexists ::settings(skin)] == "Insight"} {
+				# this feature is specific to the Insight skin
+				add_de1_widget "measurements" checkbutton 1800 740 {} -text [translate "One-tap mode"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(one_tap_mode)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
+			}
+
+			if {[ghc_required] == 0} {
+				# this feature requires NO GHC to be installed because UL requires that all dangerous operations be started on the GHC. 
+				# The way this feature currently works is by sending a bluetooth start command after the command ends. With a GHC installed, that bluetooth command is ignored
+				# note: we could likely replicate this feature in the future with a firmware requiest to repeat the command indefinitely, and this would be UL compliant as the first time would need to be GHC started.
+				add_de1_widget "measurements" checkbutton 1800 800  {} -text [translate "Repeat last command"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(stress_test)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
+			}
+
+			add_de1_widget "measurements" checkbutton 1300 740  {} -text [translate "Make a log file"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(log_enabled)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
+			add_de1_widget "measurements" checkbutton 950 490  {} -text [translate "clock"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor ne -foreground #4e85f4 -variable ::settings(display_time_in_screen_saver)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
+
+		add_de1_text "measurements" 1300 900 -text [translate "Font size"] -font Helv_10_bold -fill "#7f879a" -justify "left" -anchor "nw"
+			add_de1_widget "measurements" scale 1300 960 {} -from 0.1 -to 2 -background #e4d1c1 -borderwidth 1 -bigincrement 0.05 -showvalue 0 -resolution 0.05 -length [rescale_x_skin 800] -width [rescale_y_skin 100] -variable ::settings(default_font_calibration) -font Helv_10_bold -sliderlength [rescale_x_skin 125] -relief flat -orient horizontal -foreground #FFFFFF -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0 
+			add_de1_variable "measurements" 1300 1060 -text "" -font Helv_8 -fill "#4e85f4" -anchor "nw" -width 800 -justify "left" -textvariable {$::settings(default_font_calibration)}
 
 
-		add_de1_text "measurements" 340 500 -text [translate "Screen saver"] -font Helv_10_bold -fill "#7f879a" -justify "left" -anchor "nw"
-			add_de1_widget "measurements" scale 340 580 {} -from 0 -to 100 -background #e4d1c1 -borderwidth 1 -bigincrement 1 -showvalue 0 -resolution 1 -length [rescale_x_skin 900] -width [rescale_y_skin 135] -variable ::settings(saver_brightness) -font Helv_10_bold -sliderlength [rescale_x_skin 125] -relief flat -orient horizontal -foreground #FFFFFF -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0 
-			add_de1_variable "measurements" 340 720 -text "" -font Helv_8 -fill "#4e85f4" -anchor "nw" -width 800 -justify "left" -textvariable {[translate "Brightness"] $::settings(saver_brightness)%}
-			add_de1_widget "measurements" scale 340 840 {} -from 1 -to 120 -background #e4d1c1 -borderwidth 1 -bigincrement 1 -showvalue 0 -resolution 1 -length [rescale_x_skin 900] -width [rescale_y_skin 135] -variable ::settings(screen_saver_change_interval) -font Helv_10_bold -sliderlength [rescale_x_skin 125] -relief flat -orient horizontal -foreground #FFFFFF -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0 
-			add_de1_variable "measurements" 340 980 -text "" -font Helv_8 -fill "#4e85f4" -anchor "nw" -width 800 -justify "left" -textvariable {[translate "Change image every:"] [minutes_text $::settings(screen_saver_change_interval)]}
+		add_de1_text "measurements" 340 480 -text [translate "Screen saver"] -font Helv_10_bold -fill "#7f879a" -justify "left" -anchor "nw"
+			add_de1_widget "measurements" scale 340 560 {} -from 0 -to 100 -background #e4d1c1 -borderwidth 1 -bigincrement 1 -showvalue 0 -resolution 1 -length [rescale_x_skin 800] -width [rescale_y_skin 100] -variable ::settings(saver_brightness) -font Helv_10_bold -sliderlength [rescale_x_skin 125] -relief flat -orient horizontal -foreground #FFFFFF -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0 
+			add_de1_variable "measurements" 340 660 -text "" -font Helv_8 -fill "#4e85f4" -anchor "nw" -width 800 -justify "left" -textvariable {[translate "Brightness"] $::settings(saver_brightness)%}
+			add_de1_widget "measurements" scale 340 740 {} -from 0 -to 120 -background #e4d1c1 -borderwidth 1 -bigincrement 1 -showvalue 0 -resolution 1 -length [rescale_x_skin 800] -width [rescale_y_skin 100] -variable ::settings(screen_saver_change_interval) -font Helv_10_bold -sliderlength [rescale_x_skin 125] -relief flat -orient horizontal -foreground #FFFFFF -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0
+			add_de1_variable "measurements" 340 840 -text "" -font Helv_8 -fill "#4e85f4" -anchor "nw" -width 800 -justify "left" -textvariable {[screen_saver_change_minutes $::settings(screen_saver_change_interval)]}
 
+			add_de1_text "measurements" 340 940 -text [translate "App version"] -font Helv_10_bold -fill "#7f879a" -justify "left" -anchor "nw"
+				add_de1_widget "measurements" radiobutton 340 1010  {} -value 0 -text [translate "stable"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor ne -foreground #4e85f4 -variable ::settings(app_updates_beta_enabled)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
+				add_de1_widget "measurements" radiobutton 340 1070  {} -value 1 -text [translate "beta"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor ne -foreground #4e85f4 -variable ::settings(app_updates_beta_enabled)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
+
+
+
+
+# grid [radiobutton .gender.maleBtn -text "Male"   -variable gender -value "Male"-command "set  myLabel1 Male"] -row 1 -column 2
+# grid [radiobutton .gender.femaleBtn -text "Female" -variable gender -value "Female"   -command "set  myLabel1 Female"] -row 1 -column 3				
+				#add_de1_widget "measurements" scale 340 1010 {} -to 30 -from 0 -background #e4d1c1 -showvalue 0 -borderwidth 1 -bigincrement 1 -resolution 1 -length [rescale_x_skin 800]  -width [rescale_y_skin 100] -variable ::settings(app_update_delay_notification) -font Helv_15_bold -sliderlength [rescale_x_skin 125] -relief flat -command "" -foreground #FFFFFF -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0 -orient horizontal 
+
+				#add_de1_variable "measurements" 340 1110 -text "" -font Helv_7 -fill "#4e85f4" -anchor "nw" -width 800 -justify "left" -textvariable {[translate "Once stable for:"] [days_text $::settings(app_update_delay_notification)]}
 
 	# "done" button for all these sub-pages.
 	add_de1_text "tabletstyles languages measurements" 1280 1310 -text [translate "Done"] -font Helv_10_bold -fill "#fAfBff" -anchor "center"
@@ -908,7 +939,7 @@ add_de1_text "settings_1" 1360 230 -text [translate "Preview"] -font Helv_10_bol
 add_de1_text "settings_1" 1360 830 -text [translate "Description"] -font Helv_10_bold -fill "#7f879a" -justify "left" -anchor "nw" 
 
 add_de1_variable "settings_1" 1360 1240 -text "" -font Helv_10_bold -fill "#7f879a" -justify "left" -anchor "nw"  -textvariable {[profile_has_changed_set_colors; return [translate "Name and save"]]}
-	add_de1_variable "settings_1" 1360 900 -text $::settings(profile_notes) -font Helv_6 -fill "#7f879a" -justify "left" -anchor "nw"  -width [rescale_y_skin 1150] -textvariable {$::settings(profile_notes)}
+	add_de1_variable "settings_1" 1360 900 -text "" -font Helv_6 -fill "#7f879a" -justify "left" -anchor "nw"  -width [rescale_y_skin 1150] -textvariable {[maxstring $::settings(profile_notes) 380 " \[[translate {Tap here for more}]\]" ]}
 	add_de1_widget "settings_1" entry 1360 1310  {
 			set ::globals(widget_profile_name_to_save) $widget
 			bind $widget <Return> { say [translate {save}] $::settings(sound_button_in); borg toast [translate "Saved"]; save_profile; }
@@ -1008,7 +1039,7 @@ add_de1_text "settings_1 settings_2 settings_2a settings_2b settings_2c settings
 				set_fan_temperature_threshold $::settings(fan_threshold)
 				de1_enable_water_level_notifications
 			}
-			if {[array_item_difference ::settings ::settings_backup "enable_fahrenheit log_enabled hot_water_idle_temp espresso_warmup_timeout scale_bluetooth_address language skin waterlevel_indicator_on waterlevel_indicator_blink display_rate_espresso display_espresso_water_delta_number display_group_head_delta_number display_pressure_delta_line display_flow_delta_line display_weight_delta_line allow_unheated_water black_screen_saver display_time_in_screen_saver"] == 1  || [ifexists ::app_has_updated] == 1} {
+			if {[array_item_difference ::settings ::settings_backup "enable_fahrenheit log_enabled hot_water_idle_temp espresso_warmup_timeout scale_bluetooth_address language skin waterlevel_indicator_on default_font_calibration waterlevel_indicator_blink display_rate_espresso display_espresso_water_delta_number display_group_head_delta_number display_pressure_delta_line display_flow_delta_line display_weight_delta_line allow_unheated_water display_time_in_screen_saver"] == 1  || [ifexists ::app_has_updated] == 1} {
 				# changes that effect the skin require an app restart
 				.can itemconfigure $::message_label -text [translate "Please quit and restart this app to apply your changes."]
 				.can itemconfigure $::message_button_label -text [translate "Wait"]
@@ -1248,5 +1279,5 @@ proc setting_profile_type_to_text { } {
 	}
 }
 
-#show_settings  settings_2c
+#show_settings measurements
 #set ::settings(force_fw_update) 1; set ::de1(in_fw_update_mode) 1; page_to_show_when_off firmware_update_1

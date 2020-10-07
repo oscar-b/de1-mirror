@@ -28,6 +28,7 @@ array set ::de1 {
     found    0
     scanning 1
     device_handle 0
+    language_rtl 0
     scale_device_handle 0
     decentscale_device_handle 0
 	suuid "0000A000-0000-1000-8000-00805F9B34FB"
@@ -122,6 +123,7 @@ array set ::de1 {
 	steam_time_max 250
 	last_ping 0
 	steam_heater_temperature 150
+	connectivity "ble"
 }
 
 set ::de1(last_ping) [clock seconds]
@@ -196,6 +198,7 @@ array set ::settings {
 	tank_desired_water_temperature 0
 	screen_size_height {}
 	log_enabled 0
+	app_updates_beta_enabled 0
 	current_frame_description {}
 	mmr_enabled 0	
 	default_font_calibration 0.5
@@ -216,7 +219,6 @@ array set ::settings {
 	mark_most_popular_profiles_used 0
 	active_settings_tab settings_2a
 	espresso_temperature_steps_enabled 0
-	black_screen_saver 0
 	chart_total_shot_weight 1
 	phase_1_flow_rate 20
 	phase_2_flow_rate 40
@@ -405,6 +407,8 @@ array set ::settings {
 	water_volume 50
 	ghc_is_installed 0
 	force_acaia_heartbeat 0
+	comms_debugging 0
+	scale_stop_at_half_shot 0
 }
 
 if {[de1plus]} {

@@ -107,6 +107,7 @@ proc make_de1_dir {} {
         translation.tcl *
         de1plus.tcl *
         de1.tcl *
+        de1_comms.tcl *
         gui.tcl *
         machine.tcl *
         utils.tcl *
@@ -567,6 +568,7 @@ proc make_de1_dir {} {
         profiles/Advanced\ spring\ lever.tcl *
         profiles/Blooming\ espresso.tcl *
         profiles/cold_brew.tcl *
+        profiles/kalita_20.tcl *
         profiles/Blooming\ allonge.tcl *
         profiles/Classic\ Italian\ espresso.tcl *
         profiles/Flow\ profile\ for\ milky\ drinks.tcl *
@@ -597,7 +599,8 @@ proc make_de1_dir {} {
 
     set srcdir "/d/admin/code/de1beta"
     #set destdirs [list "/d/download/sync/de1" "/d/download/sync/de1plus" "/d/download/sync/de1plusbig"]
-    set destdirs [list "/d/download/sync/de1plus"]
+    #set destdirs [list "/d/download/sync/de1plus"]
+    set destdirs [list "/d/download/sync/de1beta"]
 
     # load the local manifest into memory 
     foreach {filename filesize filemtime filesha} [string trim [read_file "[homedir]/complete_manifest.txt"]] {

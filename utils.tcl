@@ -473,7 +473,7 @@ proc random_saver_file {} {
 
         set ::saver_files_cache [glob -nocomplain "[saver_directory]/${::screen_size_width}x${::screen_size_height}/*.jpg"]
 
-        if {$::settings(black_screen_saver) == 1} {    
+         if {$::settings(screen_saver_change_interval) == 0} {
             # remove all other savers if we are only showing the black one
             set ::saver_files_cache [glob -nocomplain "[saver_directory]/${::screen_size_width}x${::screen_size_height}/black_saver.jpg"]
 
@@ -813,6 +813,9 @@ proc android_specific_stubs {} {
             # do nothing
         } elseif {[lindex $args 0] == "systemui"} {
             # do nothing
+        } elseif {[lindex $args 0] == "osbuildinfo"} {
+            # do nothing
+            return ""
         } elseif {[lindex $args 0] == "spinner"} {
             # do nothing
         } elseif {[lindex $args 0] == "toast"} {
@@ -1133,10 +1136,40 @@ proc save_settings {} {
 }
 
 proc load_settings {} {
-    #puts "loading settings XXXXXXX"
-    array set ::settings [encoding convertfrom utf-8 [read_binary_file [settings_filename]]]
 
+
+    #puts "loading settings XXXXXXX"
+
+    set osbuildinfo_string [borg osbuildinfo]
+
+    set settings_file_contents [encoding convertfrom utf-8 [read_binary_file [settings_filename]]]    
+    if {[string length $settings_file_contents] == 0} {
+       
+        # if there are no settings, then set some based on what we know about this machine's settings
+        # nb : we could 
+        catch {
+            array set osbuildinfo $osbuildinfo_string
+        }
+        if {[ifexists osbuildinfo(product)] == "P80X_EEA"} {
+            # this "Teclast" tablet firmware version has an Android metadata configuration bug, and needs 20% larger fonts
+            # other Teclast tablets do not have this error.
+            set ::settings(default_font_calibration) 0.6
+        }
+    } else {
+        array set ::settings $settings_file_contents
+
+        msg "OS build info: $osbuildinfo_string"
+
+    }
+
+    if {[ifexists ::settings(language)] == "ar" || [ifexists ::settings(language)] == "arb" || [ifexists ::settings(language)] == "he" || [ifexists ::settings(language)] == "heb"} {
+        set ::de1(language_rtl) 1
+    }
+
+    #set ::de1(language_rtl) 1
+    
     set ::settings(stress_test) 0
+
 
     # rao request to increase these defaults to 300 (from 120) to aid in pour-overs. Will remove this settings.tdb override in the future, once 
     # everyone's settings.tdb has had time to save this new default

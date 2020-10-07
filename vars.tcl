@@ -830,6 +830,10 @@ proc timer_text {} {
 }
 
 proc return_liquid_measurement {in} {
+    if {$::de1(language_rtl) == 1} {
+		return [subst {[translate "mL"] [round_to_integer $in] }]
+    }
+
 	if {$::settings(enable_fluid_ounces) != 1} {
 		return [subst {[round_to_integer $in] [translate "mL"]}]
 	} else {
@@ -838,11 +842,18 @@ proc return_liquid_measurement {in} {
 }
 
 proc return_flow_calibration_measurement {in} {
+    if {$::de1(language_rtl) == 1} {
+		return [subst {[translate "mL/s"] [round_to_one_digits [expr {0.1 * $in}]]}]
+    }
 	return [subst {[round_to_one_digits [expr {0.1 * $in}]] [translate "mL/s"]}]
 
 }
 
 proc return_flow_measurement {in} {
+    if {$::de1(language_rtl) == 1} {
+		return [subst {[translate "mL/s"] [round_to_one_digits $in]}]
+    }
+
 	if {$::settings(enable_fluid_ounces) != 1} {
 		return [subst {[round_to_one_digits $in] [translate "mL/s"]}]
 	} else {
@@ -851,10 +862,17 @@ proc return_flow_measurement {in} {
 }
 
 proc return_pressure_measurement {in} {
+    if {$::de1(language_rtl) == 1} {
+		return [subst {[translate "bar"] [commify [round_to_one_digits $in]]}]
+    }
 	return [subst {[commify [round_to_one_digits $in]] [translate "bar"]}]
 }
 
 proc return_flow_weight_measurement {in} {
+    if {$::de1(language_rtl) == 1} {
+		return [subst {[translate "g/s"] [round_to_one_digits $in]}]
+    }
+
 	if {$::settings(enable_fluid_ounces) != 1} {
 		return [subst {[round_to_one_digits $in] [translate "g/s"]}]
 	} else {
@@ -863,6 +881,10 @@ proc return_flow_weight_measurement {in} {
 }
 
 proc return_weight_measurement {in} {
+    if {$::de1(language_rtl) == 1} {
+		return [subst {[translate "g"][round_to_one_digits $in]}]
+    }
+
 	if {$::settings(enable_fluid_ounces) != 1} {
 		return [subst {[round_to_one_digits $in][translate "g"]}]
 	} else {
@@ -916,6 +938,11 @@ proc return_stop_at_weight_measurement {in} {
 	if {$in == 0} {
 		return [translate "off"]
 	} else {
+
+	    if {$::de1(language_rtl) == 1} {
+			return [subst {[translate "g"][round_to_integer $in]}]
+		}
+
 		if {$::settings(enable_fluid_ounces) != 1} {
 			return [subst {[round_to_integer $in][translate "g"]}]
 		} else {
@@ -928,6 +955,9 @@ proc return_stop_at_weight_measurement_precise {in} {
 	if {$in == 0} {
 		return [translate "off"]
 	} else {
+	    if {$::de1(language_rtl) == 1} {
+			return [subst {[translate "g"][round_to_one_digits $in]}]
+		}
 		if {$::settings(enable_fluid_ounces) != 1} {
 			return [subst {[round_to_one_digits $in][translate "g"]}]
 		} else {
@@ -940,11 +970,89 @@ proc return_shot_weight_measurement {in} {
 	if {$in == 0} {
 		return [translate "off"]
 	} else {
+	    if {$::de1(language_rtl) == 1} {
+			return [subst {[translate "g"][round_to_one_digits $in]}]
+		}
+
 		if {$::settings(enable_fluid_ounces) != 1} {
 			return [subst {[round_to_one_digits $in][translate "g"]}]
 		} else {
 			return [subst {[round_to_one_digits [ml_to_oz $in]] oz}]
 		}
+	}
+}
+
+proc preinfusion_pour_timer_text {} {
+    if {$::de1(language_rtl) == 1} {
+		return [subst {[translate "s"][espresso_preinfusion_timer] [translate "preinfusion"] }]
+	}
+
+	return [subst {[espresso_preinfusion_timer][translate "s"] [translate "preinfusion"]}]
+}
+
+proc total_pour_timer_text {} {
+    if {$::de1(language_rtl) == 1} {
+		if {$::settings(final_desired_shot_volume_advanced) > 0 && $::settings(settings_profile_type) == "settings_2c"} {
+			return "[return_liquid_measurement [round_to_integer $::settings(final_desired_shot_volume_advanced)]] < [translate {total}] [translate {s}][espresso_elapsed_timer]"
+		} else {
+			return "[translate {s}][espresso_elapsed_timer] [translate {total}] "
+		}
+	}
+
+	if {$::settings(final_desired_shot_volume_advanced) > 0 && $::settings(settings_profile_type) == "settings_2c"} {
+		return "[espresso_elapsed_timer][translate {s}] [translate {total}] < [return_liquid_measurement [round_to_integer $::settings(final_desired_shot_volume_advanced)]]"
+	} else {
+		return "[espresso_elapsed_timer][translate {s}] [translate {total}]"
+	}
+}
+
+proc espresso_done_timer_text {} {
+	if {[espresso_done_timer] < $::settings(seconds_to_display_done_espresso)} {
+	    if {$::de1(language_rtl) == 1} {
+			return "[translate s][espresso_done_timer] [translate done]"
+	    }
+
+		return "[espresso_done_timer][translate s] [translate done]"
+	} else { 
+		return ""
+	}
+
+}
+
+proc pouring_timer_text {} {
+    if {$::de1(language_rtl) == 1} {
+		if {$::settings(scale_bluetooth_address) == "" && $::settings(final_desired_shot_volume) > 0 && ($::settings(settings_profile_type) == "settings_2a" || $::settings(settings_profile_type) == "settings_2b")} {
+			return "[translate {s}][espresso_pour_timer] [translate {pouring}] < [return_liquid_measurement [round_to_integer $::settings(final_desired_shot_volume)]]"
+
+		} else {
+			return "[translate {s}][espresso_pour_timer] [translate {pouring}]"
+		}
+	}
+
+	if {$::settings(scale_bluetooth_address) == "" && $::settings(final_desired_shot_volume) > 0 && ($::settings(settings_profile_type) == "settings_2a" || $::settings(settings_profile_type) == "settings_2b")} {
+		return "[espresso_pour_timer][translate {s}] [translate {pouring}] < [return_liquid_measurement [round_to_integer $::settings(final_desired_shot_volume)]]"
+	} else {
+		return "[espresso_pour_timer][translate {s}] [translate {pouring}]"
+	}
+
+}
+
+proc pouring_timer_text_2 {} {
+	OBSOLETE
+	if {$::de1(language_rtl) == 1} {
+		if {$::settings(scale_bluetooth_address) == "" && $::settings(final_desired_shot_volume) > 0 && ($::settings(settings_profile_type) == "settings_2a" || $::settings(settings_profile_type) == "settings_2b")} {
+
+			return "[translate {s}][espresso_pour_timer] [translate {pouring}] < [return_liquid_measurement [round_to_integer $::settings(final_desired_shot_volume)]]"
+
+		} else {
+			return "[translate {pouring}] [translate {s}][espresso_pour_timer]"
+		}
+	}
+
+	if {$::settings(scale_bluetooth_address) == "" && $::settings(final_desired_shot_volume) > 0 && ($::settings(settings_profile_type) == "settings_2a" || $::settings(settings_profile_type) == "settings_2b")} {
+		return "[espresso_pour_timer][translate {s}] [translate {pouring}] < [return_liquid_measurement [round_to_integer $::settings(final_desired_shot_volume)]]"
+	} else {
+		return "[espresso_pour_timer][translate {s}] [translate {pouring}]"
 	}
 }
 
@@ -1080,6 +1188,10 @@ proc espresso_goal_temp_text {} {
 	return [return_temperature_measurement $::de1(goal_temperature)]
 }
 
+proc espresso_goal_temp_text_rtl_aware {} {
+	return [subst {[return_temperature_measurement $::de1(goal_temperature)] [translate "goal"]}]
+}
+
 set ::diff_brew_temp_from_goal 0
 set ::positive_diff_brew_temp_from_goal 0
 proc diff_brew_temp_from_goal {} {
@@ -1147,6 +1259,9 @@ proc steamtemp_text {} {
 }
 
 proc pressure_text {} {
+	if {$::de1(language_rtl) == 1} {
+		return [subst {[translate "bar"] [commify [round_to_one_digits [pressure]]]}]
+	}
 	return [subst {[commify [round_to_one_digits [pressure]]] [translate "bar"]}]
 }
 
@@ -1339,6 +1454,16 @@ proc steam_heater_temperature_text {} {
 
 proc group_head_heater_temperature_text {} {
 	return [return_temperature_measurement [group_head_heater_temperature]]
+}
+
+proc group_head_heater_temperature_text_rtl_aware {} {
+
+	return [subst {[return_temperature_measurement [group_head_heater_temperature]] [translate "metal"]}]
+}
+
+proc coffee_temp_text_rtl_aware {} {
+	return "[watertemp_text] [translate {coffee}]"
+
 }
 
 proc setting_espresso_temperature_text {} {
@@ -1633,7 +1758,9 @@ proc delete_selected_profile {} {
 	set w $::globals(profiles_listbox)
 	#$w selection set $::current_profile_number
 	#puts "cc: '[$w curselection]'"
-	set profile [lindex [profile_directories] [lindex [$w curselection] 0]]
+	#set profile [lindex [profile_directories] [lindex [$w curselection] 0]]
+	set profile $::profile_number_to_directory([$w curselection]) 
+
 	set fn "[homedir]/profiles/${profile}.tcl"
 	puts "todelete: '$fn'"
 
@@ -1766,6 +1893,25 @@ proc profile_type_text {} {
 	}
 }
 
+proc array_keys_sorted_by_val {arrname {sort_order -increasing}} {
+	upvar $arrname arr
+	foreach k [array names arr] {
+		set k2 "$arr($k) $k"
+		#set k2 "[format {"%0.12i"} $arr($k)] $k"
+		#puts "k2: $k2"
+		set t($k2) $k
+	}
+	
+	set toreturn {}
+
+	set keys [lsort $sort_order -dictionary [array names t]]
+	foreach k $keys {
+		set v $t($k)
+		lappend toreturn $v
+	}
+	return $toreturn
+}
+
 
 proc fill_profiles_listbox {} {
 
@@ -1778,8 +1924,28 @@ proc fill_profiles_listbox {} {
 	$widget delete 0 99999
 	set cnt 0
 	set ::current_profile_number 0
+	set grouping ""
+
+	unset -nocomplain ::profile_number_to_directory
 
 	foreach d [profile_directories] {
+
+		unset -nocomplain profile
+		catch {
+			set fn "[homedir]/profiles/$d.tcl"
+
+			array set profile [encoding convertfrom utf-8 [read_binary_file $fn]]
+		}
+
+		set profile_to_title($d) [translate [ifexists profile(profile_title)]]
+
+	}
+
+	set profiles [array_keys_sorted_by_val profile_to_title]
+	#puts [array get profile_to_title]
+	#exit
+
+	foreach d $profiles {
 		#if {$d == "CVS" || $d == "example"} {
 		#	continue
 		#}
@@ -1798,6 +1964,7 @@ proc fill_profiles_listbox {} {
 		}
 
 		set ptitle $profile(profile_title)
+
 		set pcnt [ifexists ::profile_shot_count($d)]
 		#puts "ptitle: '$ptitle '$pcnt'"
 
@@ -1806,6 +1973,8 @@ proc fill_profiles_listbox {} {
 		} else {
 			set p $ptitle
 		}
+
+
 
 		if {[ifexists ::profiles_hide_mode] != 1} {
 			if {[ifexists profile(profile_hide)] == 1} {
@@ -1816,16 +1985,43 @@ proc fill_profiles_listbox {} {
 				# mark the most frequently used profiles with a special symbol, to attract the eye to them
 				set p "$p \u25C0"
 			}
+
+			set parts [split $p /]
+			if {[llength $parts] > 1} {
+				set this_group [lindex $parts 0]
+				if {$this_group != $grouping} {
+					set grouping $this_group
+					$widget insert $cnt $this_group
+					set ::profile_number_to_directory($cnt) $d
+					incr cnt
+				}
+				set p " - [lindex $parts 1]"
+	
+			} else {
+			}
+	
 		} else {
 			# if editing what profiles to show, then use a check or empty box, to indicate which profiles will be shown
+
 			if {[ifexists profile(profile_hide)] == 1} {
-				set p "\u2610 $p"
+				if {[language] == "he"} {
+					set p "\[   \] $p"
+				} else {
+					set p "\u2610 $p"
+				}
 			} else {
-				set p "\u2612 $p"
+				if {[language] == "he"} {
+					set p "\[X\] $p"
+				} else {
+					set p "\u2612 $p"
+				}
 			}
+
 		}
 
 		$widget insert $cnt $p
+		set ::profile_number_to_directory($cnt) $d
+	
 
 		#msg "'$::settings(profile)' == '[ifexists profile(profile_title)]'"
 		if {[string tolower $::settings(profile)] == [string tolower [ifexists profile(profile_title)]]} {
@@ -2526,8 +2722,11 @@ proc preview_profile {} {
 
 	#set profile [$w get [$w curselection]]
 
-	set profile [lindex [profile_directories] [$w curselection]]
-	#set profile [$w get active]
+	#set profile [lindex [profile_directories] [$w curselection]]
+	set profile $::profile_number_to_directory([$w curselection]) 
+	
+
+	
 	set fn "[homedir]/profiles/${profile}.tcl"
 
 	if {[ifexists ::profiles_hide_mode] == 1} {
@@ -2770,6 +2969,12 @@ proc load_settings_vars {fn} {
 		set temp_settings(final_desired_shot_volume) [ifexists temp_settings(final_desired_shot_weight)]
 	}
 
+	if {[ifexists ::temp_settings(black_screen_saver)] == 1} {
+		# we've moved the "black screen saver" feature from its own dedicated variable to now be a setting of "0 minutes" on the screen saver change timer
+		# this line is simply for backward compatiblity, moving the old setting to a new one
+		set temp_settings(final_desired_shot_volume) 0
+		set temp_settings(saver_brightness) 0		
+	}
 
 	catch {
 		array set ::settings [array get temp_settings]
@@ -3061,6 +3266,15 @@ proc seconds_text {num} {
 	}
 }
 
+proc screen_saver_change_minutes {num} {
+	if {$num == 0} {
+		set ::settings(saver_brightness) 0
+		return [translate "Always black"]
+	} else {
+		return "[translate {Change image every:}] [minutes_text $num]"
+	}
+}
+
 proc minutes_text {num} {
 	if {$num == 0} {
 		return [translate "off"]
@@ -3072,6 +3286,16 @@ proc minutes_text {num} {
 		return [subst {$num [translate "minute"]}]
 	} else {
 		return [subst {$num [translate "minutes"]}]
+	}
+}
+
+proc days_text {num} {
+	if {$num == 0} {
+		return [translate "immediately"]
+	} elseif {$num == 30} {
+		return [translate "One month"]
+	} else {
+		return [subst {$num [translate "days"]}]
 	}
 }
 
@@ -3281,6 +3505,7 @@ proc de1_version_string {} {
 
 	#set v(BLE_Sha) [clock seconds]
 
+	#, APP=[package version de1app]	
 	set version "BLE v[ifexists v(BLE_Release)].[ifexists v(BLE_Changes)].[ifexists v(BLE_Commits)], API v[ifexists v(BLE_APIVersion)], SHA=[ifexists v(BLE_Sha)]"
 	if {[ifexists v(FW_Sha)] != [ifexists v(BLE_Sha)] && [ifexists v(FW_Sha)] != 0} {
 		append version "\nFW v[ifexists v(FW_Release)].[ifexists v(FW_Changes)].[ifexists v(FW_Commits)], API v[ifexists v(FW_APIVersion)], SHA=[ifexists v(FW_Sha)]"

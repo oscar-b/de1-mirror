@@ -3,7 +3,7 @@ set -e
 shopt -s extglob
 
 echo "Fetch manifest..."
-wget --no-verbose -O manifest.txt https://decentespresso.com/download/sync/de1plus/manifest.txt
+wget --no-verbose -O manifest.txt https://decentespresso.com/download/sync/de1beta/manifest.txt
 
 echo "Checking if there are differences..."
 git diff --exit-code manifest.txt && HAS_CHANGES=$? || HAS_CHANGES=$?

@@ -18,13 +18,13 @@ else
   rm -rv !(README.md|manifest.txt|.git*|.|..)
 
   echo "Creating list of files to download..."
-  grep -Eo '"(.*)"' manifest.txt | cut -d '"' -f2 | sed 's/^/https:\/\/decentespresso.com\/download\/sync\/de1plus\//' > files.txt
+  grep -Eo '"(.*)"' manifest.txt | cut -d '"' -f2 | sed 's/^/https:\/\/decentespresso.com\/download\/sync\/de1beta\//' > files.txt
 
   echo "Fetching all the files from manifest.txt..."
   wget --no-verbose --force-directories --no-host-directories --cut-dirs=3 --input-file=files.txt
 
   echo "Fetching new timestamp.txt..."
-  wget --no-verbose https://decentespresso.com/download/sync/de1plus/timestamp.txt
+  wget --no-verbose https://decentespresso.com/download/sync/de1beta/timestamp.txt
 
   echo "Removing temporary filelist..."
   rm files.txt

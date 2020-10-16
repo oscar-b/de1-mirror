@@ -154,6 +154,8 @@ proc setup_environment {} {
 
         }            
 
+        set fontawesome_brands [lindex [sdltk addfont "fonts/Font Awesome 5 Brands-Regular-400.otf"] 0]
+        font create Fontawesome_brands_11 -family $fontawesome_brands -size [expr {int($fontm * 20)}]
 
         font create global_font -family $global_font_name -size [expr {int($fontm * $global_font_size)}] 
 
@@ -293,6 +295,10 @@ proc setup_environment {} {
         font create Helv_20_bold -family $boldfont -size [expr {int($fontm * 48)}]
         font create Helv_30_bold -family $boldfont -size [expr {int($fontm * 69)}]
         font create Helv_30 -family $regularfont -size [expr {int($fontm * 72)}]
+
+        
+        font create Fontawesome_brands_11 -family "Font Awesome 5 Brands Regular" -size [expr {int($fontm * 25)}]
+
 
         font create global_font -family "Noto Sans CJK JP" -size [expr {int($fontm * 23)}] 
         android_specific_stubs

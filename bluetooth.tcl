@@ -27,6 +27,8 @@ proc scale_timer_start {} {
 		skale_timer_start
 	} elseif {$::settings(scale_type) == "decentscale"} {
 		decentscale_timer_start
+	} elseif {$::settings(scale_type) == "felicita"} {
+		felicita_start_timer
 	}
 }
 
@@ -36,6 +38,8 @@ proc scale_timer_stop {} {
 		skale_timer_stop
 	} elseif {$::settings(scale_type) == "decentscale"} {
 		decentscale_timer_stop
+	} elseif {$::settings(scale_type) == "felicita"} {
+		felicita_stop_timer
 	}
 }
 
@@ -45,6 +49,8 @@ proc scale_timer_off {} {
 		skale_timer_off
 	} elseif {$::settings(scale_type) == "decentscale"} {
 		decentscale_timer_off
+	} elseif {$::settings(scale_type) == "felicita"} {
+		felicita_reset_timer
 	}
 }
 
@@ -56,6 +62,8 @@ proc scale_tare {} {
 		decentscale_tare
 	} elseif {$::settings(scale_type) == "acaiascale"} {
 		acaia_tare
+	} elseif {$::settings(scale_type) == "felicita"} {
+		felicita_tare
 	}
 }
 
@@ -67,6 +75,8 @@ proc scale_enable_weight_notifications {} {
 		decentscale_enable_notifications
 	} elseif {$::settings(scale_type) == "acaiascale"} {
 		acaia_enable_weight_notifications
+	} elseif {$::settings(scale_type) == "felicita"} {
+		felicita_enable_weight_notifications
 	}
 }
 
@@ -216,7 +226,7 @@ proc handle_new_weight_from_scale { sensorweight scale_refresh_rate } {
 		# lets assume clean, filtered delicious water actually has a density of 1
 
 		# ignore first few seconds of pour as it can generate a lot of noise on the scale and trigger a false stop
-		if {[water_pour_timer] > 2.5} {
+		if {[water_pour_timer] > 2.5 && $::settings(water_stop_on_scale) == 1} {
 			set water_offset_calibration  1.0
 			set target_water_weight [expr {$::settings(water_volume) - $water_offset_calibration}]
 			set current_calibrated_water_weight [round_to_one_digits $target_water_weight ]
@@ -376,6 +386,98 @@ proc skale_enable_weight_notifications {} {
 	userdata_append "enable Skale weight notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF81) $::cinstance($::de1(cuuid_skale_EF81))] 1
 }
 
+
+#### Felicita
+proc felicita_enable_weight_notifications {} {
+	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "felicita"} {
+		return
+	}
+
+	if {[ifexists ::sinstance($::de1(suuid_felicita))] == ""} {
+		error "Felicita Scale not connected, cannot enable weight notifications"
+		return
+	}
+
+	userdata_append "enable felicita scale weight notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita))] 1
+}
+
+proc felicita_tare {} {
+
+	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "felicita"} {
+		return
+	}
+
+	if {[ifexists ::sinstance($::de1(suuid_felicita))] == ""} {
+		error "Felicita Scale not connected, cannot send tare cmd"
+		return
+	}
+
+	set tare [binary decode hex "54"]
+
+	userdata_append "felicita tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita)) $tare] 0
+	# The tare is not yet confirmed to us, we can therefore assume it worked out
+	set ::de1(scale_autostop_triggered) 0
+}
+
+proc felicita_reset_timer {} {
+
+	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "felicita"} {
+		return
+	}
+
+	if {[ifexists ::sinstance($::de1(suuid_felicita))] == ""} {
+		error "Felicita Scale not connected, cannot send timer cmd"
+		return
+	}
+
+	set tare [binary decode hex "43"]
+
+	userdata_append "felicita timer reset" [list ble write $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita)) $tare] 0
+}
+proc felicita_start_timer {} {
+
+	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "felicita"} {
+		return
+	}
+
+	if {[ifexists ::sinstance($::de1(suuid_felicita))] == ""} {
+		error "Felicita Scale not connected, cannot send timer cmd"
+		return
+	}
+
+	set tare [binary decode hex "52"]
+
+	userdata_append "felicita timer start" [list ble write $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita)) $tare] 0
+}
+proc felicita_stop_timer {} {
+
+	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "felicita"} {
+		return
+	}
+
+	if {[ifexists ::sinstance($::de1(suuid_felicita))] == ""} {
+		error "Felicita Scale not connected, cannot send timer cmd"
+		return
+	}
+
+	set tare [binary decode hex "53"]
+
+	userdata_append "felicita timer stop" [list ble write $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita)) $tare] 0
+}
+
+proc felicita_parse_response { value } {
+	if {[string bytelength $value] >= 9} {
+		binary scan $value cucua1a6 h1 h2 sign weight
+		if {[info exists weight] && $h1 == 1 && $h2 == 2 } {
+			set weight [ scan $weight %d ]
+			if {$weight == ""} { return }
+			if {$sign == "-"} {
+				set weight [expr $weight * -1]
+			}
+			handle_new_weight_from_scale [expr $weight / 100.0] 10
+		}
+	}
+}
 
 #### Acaia
 set ::acaia_command_buffer ""
@@ -805,7 +907,12 @@ proc android_8_or_newer {} {
 	#return 0
 }
 
-set ::ble_scanner [ble scanner de1_ble_handler]
+
+set ::ble_scanner {}
+catch  {
+	# this will fail if this package has been loaded before "proc android_specific_stubs {}" has been run
+	set ::ble_scanner [ble scanner de1_ble_handler]
+}
 set ::scanning -1
 
 proc check_if_initial_connect_didnt_happen_quickly {} {
@@ -973,7 +1080,7 @@ proc ble_connect_to_de1 {} {
 
 	set ::de1_name "DE1"
 	if {[catch {
-		set ::currently_connecting_de1_handle [ble connect $::settings(bluetooth_address) de1_ble_handler false]
+		set ::currently_connecting_de1_handle [ble connect [string toupper $::settings(bluetooth_address)] de1_ble_handler false]
 		msg "Connecting to DE1 on $::settings(bluetooth_address)"
 		set retcode 1
 	} err] != 0} {
@@ -1043,7 +1150,7 @@ proc ble_connect_to_scale {} {
 	}
 
 	if {[catch {
-		set ::currently_connecting_scale_handle [ble connect $::settings(scale_bluetooth_address) de1_ble_handler false]
+		set ::currently_connecting_scale_handle [ble connect [string toupper $::settings(scale_bluetooth_address)] de1_ble_handler false]
 		msg "Connecting to scale on $::settings(scale_bluetooth_address)"
 		set retcode 0
 	} err] != 0} {
@@ -1055,37 +1162,25 @@ proc ble_connect_to_scale {} {
 
 }
 
-proc append_to_de1_bluetooth_list {address} {
-	set newlist $::de1_bluetooth_list
-	lappend newlist $address
-	set newlist [lsort -unique $newlist]
-
-	if {[llength $newlist] == [llength $::de1_bluetooth_list]} {
-		return
-	}
-
-	msg "Scan found DE1: $address"
-	set ::de1_bluetooth_list $newlist
-	catch {
-		fill_ble_listbox
-	}
-}
-
-
-proc append_to_scale_bluetooth_list {address name} {
+proc append_to_scale_bluetooth_list {address name type} {
 	#msg "Sca $address"
 
-	set ::scale_types($address) $name
+	set ::scale_types($address) $type
 
-	set newlist $::scale_bluetooth_list
-	lappend newlist $address
-	set newlist [lsort -unique $newlist]
-
-	if {[llength $newlist] == [llength $::scale_bluetooth_list]} {
-		return
+	foreach { entry } $::scale_bluetooth_list {
+		if { [dict get $entry address] eq $address} {
+			return
+		}
 	}
 
-	msg "Scan found Skale or Decent Scale: $address ($name)"
+	if { $name == "" } {
+		set name $type
+	}
+
+	set newlist $::scale_bluetooth_list
+	lappend newlist [dict create address $address name $name type $type]
+
+	msg "Scan found Skale or Decent Scale: $address ($type)"
 	set ::scale_bluetooth_list $newlist
 	catch {
 		fill_ble_scale_listbox
@@ -1181,7 +1276,7 @@ proc de1_ble_handler { event data } {
 			scan {
 				#msg "-- device $name found at address $address ($data)"
 				if {[string first DE1 $name] != -1} {
-					append_to_de1_bluetooth_list $address
+					append_to_de1_list $address $name "ble"
 					#if {$address == $::settings(bluetooth_address) && $::scanning != 0} {
 						#ble stop $::ble_scanner
 						#set ::scanning 0
@@ -1200,7 +1295,7 @@ proc de1_ble_handler { event data } {
 						}
 					}
 				} elseif {[string first Skale $name] != -1} {
-					append_to_scale_bluetooth_list $address "atomaxskale"
+					append_to_scale_bluetooth_list $address $name "atomaxskale"
 
 					if {$address == $::settings(scale_bluetooth_address)} {
 						if {$::currently_connecting_scale_handle == 0} {
@@ -1210,7 +1305,16 @@ proc de1_ble_handler { event data } {
 					}
 
 				} elseif {[string first "Decent Scale" $name] != -1} {
-					append_to_scale_bluetooth_list $address "decentscale"
+					append_to_scale_bluetooth_list $address $name "decentscale"
+
+					if {$address == $::settings(scale_bluetooth_address)} {
+						if {$::currently_connecting_scale_handle == 0} {
+							msg "Not currently connecting to scale, so trying now"
+							ble_connect_to_scale
+						}
+					}
+				} elseif {[string first "FELICITA" $name] != -1} {
+					append_to_scale_bluetooth_list $address $name "felicita"
 
 					if {$address == $::settings(scale_bluetooth_address)} {
 						if {$::currently_connecting_scale_handle == 0} {
@@ -1225,7 +1329,7 @@ proc de1_ble_handler { event data } {
 					if { [string first "PROCH" $name] != -1 } {
 						set ::settings(force_acaia_heartbeat) 1
 					}
- 					append_to_scale_bluetooth_list $address "acaiascale"
+ 					append_to_scale_bluetooth_list $address $name "acaiascale"
 
 					if {$address == $::settings(scale_bluetooth_address)} {
 						if {$::currently_connecting_scale_handle == 0} {
@@ -1303,7 +1407,7 @@ proc de1_ble_handler { event data } {
 						msg "de1 connected $event $data"
 
 
-						de1_connect_handler $handle $address
+						de1_connect_handler $handle $address "DE1"
 
 						if {$::de1(scale_device_handle) != 0} {
 							# if we're connected to both the scale and the DE1, stop scanning (or if there is not scale to connect to and we're connected to the de1)
@@ -1329,7 +1433,7 @@ proc de1_ble_handler { event data } {
 
 						#set ::de1(scale_type) [ifexists ::scale_types($address)]
 						if {$::settings(scale_type) == "decentscale"} {
-							append_to_scale_bluetooth_list $address "decentscale"
+							append_to_scale_bluetooth_list $address $::settings(scale_bluetooth_name) "decentscale"
 							#after 500 decentscale_enable_lcd
 							decentscale_tare
 							
@@ -1340,18 +1444,21 @@ proc de1_ble_handler { event data } {
 							#after 5000 decentscale_timer_off
 
 						} elseif {$::settings(scale_type) == "atomaxskale"} {
-							append_to_scale_bluetooth_list $address "atomaxskale"
+							append_to_scale_bluetooth_list $address $::settings(scale_bluetooth_name) "atomaxskale"
 							#set ::de1(scale_type) "atomaxskale"
 							skale_enable_lcd
 							after 1000 skale_enable_weight_notifications
 							after 2000 skale_enable_button_notifications
 							after 3000 skale_enable_lcd
+						} elseif {$::settings(scale_type) == "felicita"} {
+							append_to_scale_bluetooth_list $address $::settings(scale_bluetooth_name) "felicita"
+							after 2000 felicita_enable_weight_notifications
 						} elseif {$::settings(scale_type) == "acaiascale"} {
-							append_to_scale_bluetooth_list $address "acaiascale"
+							append_to_scale_bluetooth_list $address $::settings(scale_bluetooth_name) "acaiascale"
 							acaia_send_ident
-							after 2000 acaia_enable_weight_notifications
-							after 2500 acaia_send_config
-							after 5500 acaia_send_heartbeat
+							after 500 acaia_send_config
+							after 1000 acaia_enable_weight_notifications
+							after 4000 acaia_send_heartbeat
 						} else {
 							error "unknown scale: '$::settings(scale_type)'"
 						}
@@ -1710,6 +1817,9 @@ proc de1_ble_handler { event data } {
 						} elseif {$cuuid eq $::de1(cuuid_acaia_ips_age)} {
 							# acaia scale
 							acaia_parse_response $value
+						} elseif {$cuuid eq $::de1(cuuid_felicita)} {
+							# felicita scale
+							felicita_parse_response $value
 						} elseif {$cuuid eq $::de1(cuuid_skale_EF82)} {
 							set t0 {}
 							#set t1 {}
@@ -1985,8 +2095,8 @@ proc scanning_restart {} {
 	}
 	if {$::android != 1} {
 
-		set ::scale_bluetooth_list [list "12:32:56:78:90" "32:56:78:90:12" "56:78:90:12:32"]
-		set ::de1_bluetooth_list [list "12:32:56:18:90" "32:56:78:90:13" "56:78:90:13:32"]
+		set ::de1_device_list [list [dict create address "12:32:56:78:90" name "dummy_ble" type "ble"] [dict create address "ttyS0" name "dummy_usb" type "usb"] [dict create address "192.168.0.1" name "dummy_usb" type "wifi"]]
+		set ::scale_bluetooth_list [list [dict create address "12:32:56:78:90" name "ACAIAxxx"] [dict create address "12:32:56:78:90" name "Skale2"]]
 
 		set ::scale_types(12:32:56:78:90) "decentscale"
 		set ::scale_types(32:56:78:90:12) "decentscale"

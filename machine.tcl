@@ -1,5 +1,5 @@
 package provide de1_machine 1.0
-
+package require de1_comms 1.0
 #set ::debugging 0
 
 # ray's DE1 address (usb key #?)
@@ -58,6 +58,8 @@ array set ::de1 {
 	suuid_decentscale "0000FFF0-0000-1000-8000-00805F9B34FB"
 	cuuid_acaia_ips_age "00002A80-0000-1000-8000-00805F9B34FB"
 	suuid_acaia_ips "00001820-0000-1000-8000-00805F9B34FB"
+	suuid_felicita "0000FFE0-0000-1000-8000-00805F9B34FB"
+	cuuid_felicita "0000FFE1-0000-1000-8000-00805F9B34FB"
 	cinstance 0
 	fan_threshold 0
 	tank_temperature_threshold 0
@@ -327,6 +329,7 @@ array set ::settings {
 	settings_profile_type "settings_2"
 	steam_max_time 120
 	scale_bluetooth_address {}
+	scale_bluetooth_name {}
 	skale_bluetooth_address {}
 	bluetooth_address {}
 	water_max_vol 500
@@ -405,6 +408,7 @@ array set ::settings {
 	preheat_volume 50
 	preheat_temperature 95
 	water_volume 50
+	water_stop_on_scale 1
 	ghc_is_installed 0
 	force_acaia_heartbeat 0
 	comms_debugging 0
@@ -423,9 +427,10 @@ if {$::android != 1} {
 
 set ::settings(preinfusion_guarantee) 0
 
-
-# default the listbox to the currently set ble addresses
-set ::de1_bluetooth_list $settings(bluetooth_address)
+set ::de1_device_list {}
+if { $settings(bluetooth_address) != ""} {
+	append_to_de1_list $settings(bluetooth_address) "DE1" "ble"
+}
 
 #msg "init was run '$::settings(scale_type)'"
 

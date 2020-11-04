@@ -538,16 +538,16 @@ proc generic_button_held {btnup btndown action} {
 
 
 proc appdir {} {
-    return [file tail [homedir]]
+    return [file dirname [info script]]
 }
 
 
-proc install_update_app_icon {dir} {
+proc install_update_app_icon {} {
 	package require base64
-	set icondata_de1 [read_binary_file "/mnt/sdcard/$dir/cloud_download_icon.png"]
+	set icondata_de1 [read_binary_file "[appdir]/cloud_download_icon.png"]
 	set iconbase64_de1 [::base64::encode -maxlen 0 $icondata_de1]
 
-	set appurl "file://mnt/sdcard/$dir/appupdate.tcl"
+	set appurl "file://[file dirname [info script]]/appupdate.tcl"
 	catch {
 		set x [borg shortcut add "Decent Update" $appurl $iconbase64_de1]
 		puts "shortcut added: '$x'"
@@ -557,10 +557,10 @@ proc install_update_app_icon {dir} {
 
 proc install_de1_app_icon {} {
 	package require base64
-	set icondata_de1 [read_binary_file "/mnt/sdcard/[appdir]/de1_icon_v2.png"]
+	set icondata_de1 [read_binary_file "[appdir]/de1_icon_v2.png"]
 	set iconbase64_de1 [::base64::encode -maxlen 0 $icondata_de1]
 
-	set appurl "file://mnt/sdcard/[appdir]/de1.tcl"
+	set appurl "file://[appdir]/de1.tcl"
 	puts "appurl: $appurl"
 	catch {
 		set x [borg shortcut add "DE1" $appurl $iconbase64_de1]
@@ -574,10 +574,10 @@ proc install_de1_app_icon {} {
 
 proc install_de1plus_app_icon {} {
 	package require base64
-	set icondata_de1plus [read_binary_file "/mnt/sdcard/[appdir]/de1plus_icon_v2.png"]
+	set icondata_de1plus [read_binary_file "[appdir]/de1plus_icon_v2.png"]
 	set iconbase64_de1plus [::base64::encode -maxlen 0 $icondata_de1plus]
 
-	set appurl "file://mnt/sdcard/[appdir]/de1plus.tcl"
+	set appurl "file://[appdir]/de1plus.tcl"
 	#puts "appurl: $appurl"
 	catch {
 		set x [borg shortcut add "Decent" $appurl $iconbase64_de1plus]
@@ -585,27 +585,6 @@ proc install_de1plus_app_icon {} {
 	}
 
 	#install_update_app_icon [appdir]
-}
-
-
-proc install_this_app_icon_beta {} {
-	package require base64
-	set icondata_de1 [read_binary_file "/mnt/sdcard/de1beta/de1_icon_v2.png"]
-	set icondata_de1plus [read_binary_file "/mnt/sdcard/de1beta/de1plus_icon_v2.png"]
-	set iconbase64_de1 [::base64::encode -maxlen 0 $icondata_de1]
-	set iconbase64_de1plus [::base64::encode -maxlen 0 $icondata_de1plus]
-
-	set appurl "file://mnt/sdcard/de1beta/de1plus.tcl"
-	catch {
-		set x [borg shortcut add "Decent" $appurl $iconbase64_de1plus]
-		puts "shortcut added: '$x'"
-	}
-
-	set appurl "file://mnt/sdcard/de1beta/de1.tcl"
-	catch {
-		set x [borg shortcut add "DE1" $appurl $iconbase64_de1]
-		puts "shortcut added: '$x'"
-	}
 }
 
 proc platform_button_press {} {
@@ -2297,37 +2276,23 @@ proc water_level_color_check_obs {widget} {
 
 # convenience function to link a "scale" widget with a "listbox" so that the scale becomes a scrollbar to the listbox, rather than using the ugly Tk native scrollbar
 proc listbox_moveto {lb dest1 dest2} {
-	#puts "listbox_moveto $lb $dest1 $dest2"
-	$lb yview moveto $dest2
-
+	listbox_moveto_new $lb $dest1 $dest2
 }
 
 # convenience function to link a "scale" widget with a "listbox" so that the scale becomes a scrollbar to the listbox, rather than using the ugly Tk native scrollbar
-
 proc listbox_moveto_new {lb dest1 dest2} {
-
     # get number of items visible in list box
-
     set visible_items [lindex [split [$lb configure -height] " "] 4]
-
     # get total items in listbox
-
     set total_items [$lb size]
-
     # if all the items fit on screen then there is nothing to do
-
     if {$visible_items >= $total_items} {return}
-
     # determine which item would be at the top if the last items is at the bottom
-
     set last_top_item [expr $total_items - $visible_items]
-
     # determine which item should be at the top for the requested value
-
     set top_item [expr int(round($last_top_item * $dest2))]
 
     $lb yview $top_item
-
 }
 
 proc scale_prevent_horiz_scroll {lb dest1 dest2} {
@@ -2342,12 +2307,7 @@ proc scale_scroll {lb dest1 dest2} {
 }
 
 # convenience function to link a "scale" widget with a "listbox" so that the scale becomes a scrollbar to the listbox, rather than using the ugly Tk native scrollbar
-proc scale_scroll_new {lb value dest1 dest2} {
-
-	return [scale_scroll $lb $dest1 $dest2]
-
-    #TODO: get a reference to the listbox somehow?
-
+proc scale_scroll_new {lb scrollbar dest1 dest2} {
     # get number of items visible in list box
     set visible_items [lindex [split [$lb configure -height] " "] 4]
     # get total items in listbox
@@ -2356,10 +2316,10 @@ proc scale_scroll_new {lb value dest1 dest2} {
     if {$visible_items >= $total_items} {return}
     # determine which item would be at the top if the last items is at the bottom
     set last_top_item [expr $total_items - $visible_items]
-    # determine what percentage of the way down the current item is
-    set rescaled_value [expr $dest1 / $total_items * $visible_items]
+    # determine what percentage of the way down the current top item is
+    set rescaled_value [expr $dest1 * $total_items / $last_top_item]
 
-    upvar $value fieldname
+    upvar $scrollbar fieldname
     set fieldname $rescaled_value
 }
 

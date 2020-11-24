@@ -66,6 +66,7 @@ array set ::de1 {
 	cinstance 0
 	fan_threshold 0
 	tank_temperature_threshold 0
+	listbox_global_width_multiplier 1
 	pressure 0
 	head_temperature 0
 	mix_temperature 0
@@ -415,6 +416,7 @@ array set ::settings {
 	water_stop_on_scale 1
 	ghc_is_installed 0
 	force_acaia_heartbeat 0
+	reconnect_to_scale_on_espresso_start 1
 	comms_debugging 0
 	scale_stop_at_half_shot 0
 }

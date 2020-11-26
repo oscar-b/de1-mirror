@@ -1456,12 +1456,14 @@ proc page_display_change {page_to_hide page_to_show} {
 		}
 	}
 
-	msg "Switched to page: $page_to_show [stacktrace]"
+	#msg "Switched to page: $page_to_show [stacktrace]"
+	msg "Switched to page: $page_to_show"
 
 	update_onscreen_variables
 
 	# make sure on-screen keyboard doesn't auto-pop up
 	sdltk textinput off
+	focus .
 
 }
 
@@ -1531,13 +1533,6 @@ proc update_de1_explanation_chart { {context {}} } {
 		return
 	}
 
-	if {![de1plus]} {
-		if {[expr {$::settings(pressure_end) + 1}] > $::settings(espresso_pressure)} {
-			# the end pressure is not allowed to be higher than the hold pressure
-			set ::settings(pressure_end) [expr {$::settings(espresso_pressure) - 1}]
-		}
-	}
-
 	#puts "update_de1_explanation_chart 2"
 
 	set seconds 0
@@ -1547,10 +1542,8 @@ proc update_de1_explanation_chart { {context {}} } {
 	# preinfusion
 	set preinfusion_pressure 0.5
 	if {$::settings(preinfusion_time) > 0} {
-		if {[de1plus]} {
-			#set preinfusion_pressure [expr {$::settings(preinfusion_flow_rate) / 6.0}]
-			set preinfusion_pressure $::settings(preinfusion_stop_pressure)
-		}
+		#set preinfusion_pressure [expr {$::settings(preinfusion_flow_rate) / 6.0}]
+		set preinfusion_pressure $::settings(preinfusion_stop_pressure)
 
 		espresso_de1_explanation_chart_pressure append 0.1
 		espresso_de1_explanation_chart_elapsed append $seconds

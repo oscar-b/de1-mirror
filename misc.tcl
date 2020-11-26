@@ -106,6 +106,7 @@ proc make_de1_dir {srcdir destdirs} {
         translation.tcl *
         de1plus.tcl *
         de1.tcl *
+        de1app.tcl *
         de1_comms.tcl *
         gui.tcl *
         machine.tcl *
@@ -119,6 +120,7 @@ proc make_de1_dir {srcdir destdirs} {
         de1_icon_v2.png *
         de1plus_icon_v2.png *
         cloud_download_icon.png *
+        create_de1app_icon.tcl *
         create_de1plus_icon.tcl *
         create_de1_update_icon.tcl *
         appupdate.tcl *

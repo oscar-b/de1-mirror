@@ -1,4 +1,5 @@
 package provide de1_gui 1.0
+package require de1_plugins 1.0
 
 proc load_skin {} {
 
@@ -13,8 +14,11 @@ proc load_skin {} {
 		source "[skin_directory]/skin.tcl"
 	} err] != 0} {
 		catch {
-			# reset te skin back to default, if their skin failed to load correctly
-			reset_skin
+			# reset the skin back to default, if their skin failed to load correctly
+			# but don't do so if ::debugging flag is enabled
+			if {[ifexists ::debugging] != 1} {
+				reset_skin
+			}
 		}
 		catch {
 			message_page [subst {[translate "Your choice of skin had an error and cannot be used."]\n\n$err}] [translate "Ok"]
@@ -129,6 +133,7 @@ proc add_de1_page {names filename {skin ""} } {
 	}
 
 	if {$make_new_image == 1} {
+        borg toast [subst {[translate "Resizing image"]\n\n[file tail $filename]}]
 		borg spinner on
     	catch {
     		file mkdir "[homedir]/skins/$skin/${::screen_size_width}x${::screen_size_height}/"
@@ -2071,6 +2076,8 @@ proc ui_startup {} {
 	setup_images_for_first_page
 	setup_images_for_other_pages
 	.can itemconfigure splash -state hidden
+
+	load_plugins
 
 	#after $::settings(timer_interval) 
 	update_onscreen_variables

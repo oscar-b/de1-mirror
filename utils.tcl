@@ -467,6 +467,7 @@ proc random_saver_file {} {
             set rescale_images_y_ratio [expr {$::screen_size_width / 2560.0}]
 
             foreach fn [glob -nocomplain "[saver_directory]/2560x1600/*.jpg"] {
+                borg toast [subst {[translate "Resizing image"]\n\n[file tail $fn]}]
                 borg spinner on
                 msg "random_saver_file image create photo saver -file $fn"
                 image create photo saver -file $fn
@@ -585,6 +586,7 @@ proc random_splash_file {} {
             set rescale_images_y_ratio [expr {$::screen_size_width / 2560.0}]
 
             foreach fn [glob -nocomplain "[splash_directory]/2560x1600/*.jpg"] {
+                borg toast [subst {[translate "Resizing image"]\n\n[file tail $fn]}]
                 borg spinner on
                 msg "random_splash_file image create photo saver -file $fn"
                 image create photo saver -file $fn
@@ -1249,7 +1251,7 @@ proc rescale_font {in} {
 proc skin_convert_all {} {
     skin_convert "[homedir]/saver/2560x1600"
     skin_convert "[homedir]/splash/2560x1600"
-
+    
     foreach d [lsort -increasing [skin_directories]] {
         skin_convert "[homedir]/skins/$d/2560x1600"
     }
@@ -1257,6 +1259,7 @@ proc skin_convert_all {} {
 
 proc skin_convert {indir} {
     #puts "skin_convert: $indir"
+    set pwd [pwd]
     cd $indir
     set skinfiles [concat [glob -nocomplain "*.png"] [glob -nocomplain  "*.jpg"]]
 
@@ -1337,6 +1340,9 @@ proc skin_convert {indir} {
         }
 
     }
+
+    cd $pwd
+
 }
 
 

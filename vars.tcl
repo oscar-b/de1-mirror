@@ -2305,6 +2305,51 @@ proc fill_languages_listbox {} {
 	$::languages_widget yview $current
 }
 
+proc toggle_extension {} {
+	set stepnum [$::extensions_widget curselection]
+	if {$stepnum == ""} {
+		return
+	}
+
+	set plugin [lindex [available_plugins] $stepnum ]
+
+	toggle_plugin $plugin
+
+	fill_extensions_listbox
+}
+
+proc fill_extensions_listbox {} {
+
+	set widget $::extensions_widget
+
+	$widget delete 0 99999
+	set cnt 0
+	set current_profile_number 9999
+	set current 0
+
+	foreach {plugin} [available_plugins] {
+		if {[plugin_enabled $plugin]} {
+			if {[language] == "he"} {
+				set p "\[X\] "
+			} else {
+				set p "\u2612 "
+			}
+		} else {
+			if {[language] == "he"} {
+				set p "\[   \] "
+			} else {
+				set p "\u2610 "
+			}
+		}
+
+		$widget insert $cnt "$p $plugin"
+		incr cnt
+	}
+
+	$widget selection set $current;
+	$::extensions_widget yview $current
+}
+
 proc fill_advanced_profile_steps_listbox {} {
 
 	set widget $::advanced_shot_steps_widget
@@ -2982,7 +3027,7 @@ proc save_settings_vars {fn varlist} {
 }
 
 proc profile_vars {} {
- 	return { advanced_shot espresso_temperature_steps_enabled author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature espresso_temperature_0 espresso_temperature_1 espresso_temperature_2 espresso_temperature_3 settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced preinfusion_guarantee profile_title profile_language preinfusion_stop_pressure profile_hide final_desired_shot_volume_advanced_count_start bean_brand bean_type grinder_setting grinder_dose_weight grinder_model}
+ 	return { advanced_shot espresso_temperature_steps_enabled author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature espresso_temperature_0 espresso_temperature_1 espresso_temperature_2 espresso_temperature_3 settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced preinfusion_guarantee profile_title profile_language preinfusion_stop_pressure profile_hide final_desired_shot_volume_advanced_count_start bean_brand bean_type grinder_setting grinder_dose_weight grinder_model beverage_type}
 }
 
 
@@ -3053,10 +3098,7 @@ proc save_espresso_rating_to_history {} {
 # Lazy way of decoupling from "package require" ordering.
 after idle {after 0 {register_state_change_handler Espresso Idle save_this_espresso_to_history}}
 
-proc save_this_espresso_to_history {unused_old_state unused_new_state} {
-	puts "save_this_espresso_to_history "
-	# only save shots that have at least 5 data points
-	if {!$::settings(history_saved) && [espresso_elapsed length] > 5 && [espresso_pressure length] > 5 && $::settings(should_save_history) == 1} {
+proc format_espresso_for_history {} {
 
 		#set clock [clock seconds]
 		if {[info exists ::settings(espresso_clock)] != 1} {
@@ -3105,6 +3147,17 @@ proc save_this_espresso_to_history {unused_old_state unused_new_state} {
 	    }
 	    append espresso_data "}\n"
 
+		return $espresso_data
+	
+}
+
+
+proc save_this_espresso_to_history {unused_old_state unused_new_state} {
+	puts "save_this_espresso_to_history "
+	# only save shots that have at least 5 data points
+	if {$::settings(history_saved) && [espresso_elapsed length] > 5 && [espresso_pressure length] > 5 && $::settings(should_save_history) == 1} {
+
+		set espresso_data [format_espresso_for_history]
 		set fn "[homedir]/history/[clock format $clock -format "%Y%m%dT%H%M%S"].shot"
 		write_file $fn $espresso_data
 		msg "Save this espresso to history"

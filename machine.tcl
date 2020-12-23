@@ -281,7 +281,6 @@ array set ::settings {
 	battery_very_low_trigger 30
 	battery_very_low_brightness 10
 	orientation "landscape"
-	enable_rise 0
 	grinder_dose_weight 0
 	scentone {}
 	seconds_after_espresso_stop_to_continue_weighing 8
@@ -378,7 +377,6 @@ array set ::settings {
 	display_weight_delta_line 0
 	machine_name "pretty decent"
 	enable_spoken_prompts 0
-	preinfusion_guarantee 0
 	speaking_rate 1.5
 	display_rate_espresso 1
 	temperature_target "portafilter"
@@ -429,8 +427,6 @@ if {$::android != 1} {
 	set ::settings(ghc_is_installed) 0
 }
 
-
-set ::settings(preinfusion_guarantee) 0
 
 set ::de1_device_list {}
 if { $settings(bluetooth_address) != ""} {

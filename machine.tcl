@@ -195,6 +195,7 @@ array set ::de1_command_names_to_cuuids [reverse_array ::de1_cuuids_to_command_n
 #}
 
 array set ::settings {
+	enable_rise 0
 	force_fw_update 0
 	preset_counter 1
 	screen_size_width {}
@@ -880,7 +881,9 @@ proc start_idle {} {
 	de1_send_state "go idle" $::de1_state(Idle)
 
 	# john 1/15/2020 this is a bit of a hack to work around a firmware bug in 7C24F200 that has the fan turn on during sleep, if the fan threshold is set > 0
-	set_fan_temperature_threshold $::settings(fan_threshold)
+	if {[firmware_has_fan_sleep_bug] == 1} {
+		set_fan_temperature_threshold $::settings(fan_threshold)
+	}
 
 	#after 1000 read_de1_state
 	
@@ -913,8 +916,11 @@ proc start_sleep {} {
 	#}
 
 
-	# john 1/15/2020 this is a bit of a hack to work around a firmware bug in 7C24F200 that has the fan turn on during sleep, if the fan threshold is set > 0
-	set_fan_temperature_threshold 0
+	if {[firmware_has_fan_sleep_bug] == 1} {
+		# john 1/15/2020 this is a bit of a hack to work around a firmware bug in 7C24F200 that has the fan turn on during sleep, if the fan threshold is set > 0
+		set_fan_temperature_threshold 0
+	}
+
 
     if {[ifexists ::app_updating] == 1} {
 		msg "delaying screen saver because tablet app is updating"

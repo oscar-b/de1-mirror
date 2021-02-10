@@ -969,6 +969,13 @@ proc wrapped_profile_title {} {
 		# and move the profile type up to make space
 		set newheight [rescale_y_skin 50]
 		set final [subst {[string range [string range [ifexists ::settings(profile_title)] 0 $slashpos] 0 25]\n[string range [string range [ifexists ::settings(profile_title)] $slashpos+1 end] 0 25]}]
+	} else {
+		set final [wrap_string [ifexists ::settings(profile_title)] 25]
+
+		if {[string first \n $final] != -1} {
+			set newheight [rescale_y_skin 50]
+		}
+
 	}
 
 	.can coords $::tab1_profile_label [lindex [.can coords $::tab1_profile_label] 0] $newheight
@@ -1223,6 +1230,11 @@ add_de1_text "calibrate calibrate2" 1280 290 -text [translate "Calibrate"] -font
 		add_de1_widget "calibrate" scale 1880 [expr {(3 * $calibration_row_spacing) + $calibration_labels_row}]  {} -to 170 -from 129 -background #e4d1c1 -showvalue 0 -borderwidth 1 -bigincrement 1 -resolution 1 -length [rescale_x_skin 400]  -width [rescale_y_skin 90] -variable ::settings(steam_temperature) -font Helv_15_bold -sliderlength [rescale_x_skin 100] -relief flat -command {} -foreground #FFFFFF -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0 -orient horizontal 
 		
 		set max_steam_flow_rate 250
+		if {[ifexists ::settings(machine_model)] >= 5} {
+			# the de1xxl and de1xxxl models have a higher maximum flow rate for steam because of higher powered heaters
+			set max_steam_flow_rate 400
+		}
+
 		add_de1_widget "calibrate" scale 1880 [expr {(4 * $calibration_row_spacing) + $calibration_labels_row}]  {} -to $max_steam_flow_rate -from 40 -background #e4d1c1 -showvalue 0 -borderwidth 1 -bigincrement 10 -resolution 10 -length [rescale_x_skin 400]  -width [rescale_y_skin 90] -variable ::settings(steam_flow) -font Helv_15_bold -sliderlength [rescale_x_skin 100] -relief flat -command {} -foreground #FFFFFF -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0 -orient horizontal 
 
 		add_de1_widget "calibrate" scale 1880 [expr {(5 * $calibration_row_spacing) + $calibration_labels_row}]  {} -to 5 -from 0 -background #e4d1c1 -showvalue 0 -borderwidth 1 -bigincrement .1 -resolution .1 -length [rescale_x_skin 400]  -width [rescale_y_skin 90] -variable ::settings(stop_weight_before_seconds) -font Helv_15_bold -sliderlength [rescale_x_skin 100] -relief flat -command {} -foreground #FFFFFF -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0 -orient horizontal 

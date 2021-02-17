@@ -2279,7 +2279,7 @@ proc fill_languages_listbox {} {
 	$::languages_widget yview $current
 }
 
-proc toggle_extension {} {
+proc highlight_extension {} {
 	set stepnum [$::extensions_widget curselection]
 	if {$stepnum == ""} {
 		return
@@ -2304,13 +2304,28 @@ proc toggle_extension {} {
 	}
 	.can itemconfigure $::extensions_metadata -text $description
 
+	fill_extensions_listbox
+	$::extensions_widget selection set $stepnum;
+	make_current_listbox_item_blue $::extensions_widget
+
+}
+
+proc extension_toggle {} {
+	set stepnum [$::extensions_widget curselection]
+	if {$stepnum == ""} {
+		borg toast [translate "No Extensions selected"]
+		return
+	}
+
+	set plugin [lindex [available_plugins] $stepnum]
+
 	toggle_plugin $plugin
 
 	fill_extensions_listbox
 	$::extensions_widget selection set $stepnum;
-	make_current_listbox_item_blue $::extensions_widget 
-
+	make_current_listbox_item_blue $::extensions_widget
 }
+
 
 proc fill_plugin_settings {} {
 	set stepnum [$::extensions_widget curselection]
@@ -2330,6 +2345,8 @@ proc fill_plugin_settings {} {
 proc fill_extensions_listbox {} {
 
 	set widget $::extensions_widget
+
+	set stepnum [$::extensions_widget curselection]
 
 	$widget delete 0 99999
 	set cnt 0
@@ -2355,6 +2372,11 @@ proc fill_extensions_listbox {} {
 	}
 
 	$::extensions_widget yview $current
+
+	if {$stepnum != ""} {
+		$::extensions_widget selection set $stepnum;
+		make_current_listbox_item_blue $::extensions_widget
+	}
 }
 
 proc fill_advanced_profile_steps_listbox {} {
@@ -3029,7 +3051,7 @@ proc save_settings_vars {fn varlist} {
 }
 
 proc profile_vars {} {
- 	return { advanced_shot espresso_temperature_steps_enabled author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature espresso_temperature_0 espresso_temperature_1 espresso_temperature_2 espresso_temperature_3 settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced profile_title profile_language preinfusion_stop_pressure profile_hide final_desired_shot_volume_advanced_count_start}
+ 	return { advanced_shot espresso_temperature_steps_enabled author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature espresso_temperature_0 espresso_temperature_1 espresso_temperature_2 espresso_temperature_3 settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced profile_title profile_language preinfusion_stop_pressure profile_hide final_desired_shot_volume_advanced_count_start beverage_type}
 }
 
 

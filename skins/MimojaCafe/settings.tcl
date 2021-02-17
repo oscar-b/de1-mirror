@@ -20,7 +20,7 @@ array set ::default_theme {
     button_text_light "#eee"
     button_text_dark "#CCCCCC"
 }
-
+# By Brian K
 array set ::dark_theme {
     background "#121212"
     background_highlight "#121212"
@@ -87,6 +87,29 @@ array set ::red_theme {
     button_text_dark "#CCCCCC"
 }
 
+# By Ryan Schubert
+array set ::cocoa_theme {
+    background "#1e1e1e"
+    background_highlight "#1e1e1e"
+    background_text "#FFFFFF"
+
+    primary "#18c37e"
+    primary_light "#18c37e"
+    primary_dark "#18c37e"
+
+    secondary "#4e85f4"
+    secondary_light "#4e85f4"
+
+    button "#363636"
+    button_coffee "#3d322d"
+    button_steam "#363636"
+    button_secondary "#363636"
+    button_tertiary "#363636"
+
+    button_text_light "#FFFFFF"
+    button_text_dark "#969eb1"
+}
+
 # fonts
 set ::font_tiny [get_font "Mazzard Regular" 16]
 set ::font_small [get_font "Mazzard Regular" 18]
@@ -110,6 +133,7 @@ array set ::iconik_settings {
     show_steam 0
     show_ghc_buttons 0
     steam_presets_enabled 1
+    show_grinder_settings_on_main_page 0
 
     saver_dir {/saver}
 

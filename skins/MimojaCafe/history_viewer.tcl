@@ -26,22 +26,20 @@ proc show_history_page {} {
 	set_history_scrollbar_dimensions
 }
 
-proc fill_history_listbox {} {
-	#puts "fill_history_listbox $widget"
-	set widget $::history_widget
-	$widget delete 0 99999
-	$::history_widget delete 0 99999
-	set cnt 0
-	set ::history_files {}
-
+proc get_history_shots {limit match_profile} {
+	set result {}
 	set files [lsort -dictionary -decreasing [glob -nocomplain -tails -directory "[homedir]/history/" *.shot]]
 
-    foreach shot_file $files {
-        set tailname [file tail $shot_file]
-        set newfile [file rootname $tailname]
-        set fname "history/$newfile.csv"
+	set cnt 0
 
-		if {$cnt == $::iconik_settings(max_history_items)} {
+	msg "Requesting $limit history items"
+
+	foreach shot_file $files {
+		set tailname [file tail $shot_file]
+		set newfile [file rootname $tailname]
+		set fname "history/$newfile.csv"
+
+		if {$cnt == $limit} {
 			break;
 		}
 
@@ -55,13 +53,31 @@ proc fill_history_listbox {} {
 		}
 		array set shot_settings $shot(settings)
 
-		if {$::history_match_profile == 1 && $shot_settings(profile_title) ne $::settings(profile_title)} {
+		if {$match_profile == 1 && $shot_settings(profile_title) ne $::settings(profile_title)} {
 			continue
 		} else {
-			$widget insert $cnt $newfile
+			lappend result $shot_file
 			incr cnt
-			lappend ::history_files $shot_file
 		}
+	}
+	return $result
+}
+
+proc fill_history_listbox {} {
+	#puts "fill_history_listbox $widget"
+	set widget $::history_widget
+	$widget delete 0 99999
+	$::history_widget delete 0 99999
+	set cnt 0
+	
+	set ::history_files [get_history_shots $::iconik_settings(max_history_items) $::history_match_profile ]
+
+    foreach shot_file $::history_files {
+        set tailname [file tail $shot_file]
+        set newfile [file rootname $tailname]
+        set fname "history/$newfile.csv"
+		$widget insert $cnt $newfile
+		incr cnt
 	}
 
 	set $::history_widget widget
@@ -178,5 +194,5 @@ proc set_history_scrollbar_dimensions {} {
 	set_scrollbar_dimensions $::history_scrollbar $::history_widget
 }
 
-create_button "history" 580 1440 1160 1560 [translate "Make Reference / Godshot"] $::font_tiny [theme button_tertiary] [theme button_text_light] { say [translate "settings"] $::settings(sound_button_in); god_shot_from_history; page_to_show_when_off "off" }
-create_button "history" 1210 1440 1880 1560 [translate "Done"] $::font_tiny [theme button_tertiary] [theme button_text_light] { say [translate "settings"] $::settings(sound_button_in); page_to_show_when_off "off" }
+create_button "history" 580 1440 1160 1560 $::font_tiny [theme button_tertiary] [theme button_text_light] { say [translate "settings"] $::settings(sound_button_in); god_shot_from_history; page_to_show_when_off "off" } {[translate "Make Reference / Godshot"] }
+create_button "history" 1210 1440 1880 1560 $::font_tiny [theme button_tertiary] [theme button_text_light] { say [translate "settings"] $::settings(sound_button_in); page_to_show_when_off "off" } {[translate "Done"]}

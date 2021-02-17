@@ -20,6 +20,11 @@ create_grid
 .can itemconfigure "grid" -state "hidden"
 #.can itemconfigure "grid" -state "normal"
 
+if {$::settings(grinder_setting) == {}} {
+	set ::settings(grinder_setting) 0
+}
+
+
 #dont change page on state change
 proc skins_page_change_due_to_de1_state_change { textstate } {
 	if {$textstate == "Idle"} {
@@ -57,6 +62,10 @@ proc iconik_get_status_text {} {
 		return [translate "Disconnected"]
 	}
 
+	if {$::currently_connecting_scale_handle != 0} {
+		return  [translate "Scale reconnecting"]
+	}
+
 	if {$::de1(scale_device_handle) == 0 && $::settings(scale_bluetooth_address) != ""} {
 		return [translate "Scale disconnected.\nTap here"]
 	}
@@ -69,6 +78,7 @@ proc iconik_get_status_text {} {
 			if {$::settings(scale_bluetooth_address) != ""} {
 				return [translate "Ready\nScale connected"]
 			}
+
 			return [translate "Ready"]
 		}
 		1 {
@@ -194,6 +204,14 @@ proc iconik_save_profile {slot} {
 	borg toast [translate "Saved in slot $slot"]
 }
 
+proc iconik_save_cleaning_profile {} {
+
+	set ::iconik_settings(cleanup_profile) $::settings(profile_filename)
+
+	iconik_save_settings
+	borg toast [translate "Saved in as cleaning profile"]
+}
+
 register_state_change_handler "Idle" "HotWaterRinse" timout_flush
 register_state_change_handler "Espresso" "Idle" iconik_after_espresso
 register_state_change_handler "Idle" "Espresso" iconik_before_espresso
@@ -203,6 +221,11 @@ proc iconik_show_settings {} {
 		fill_advanced_profile_steps_listbox
 	}
 	show_settings $::settings(settings_profile_type)
+}
+
+proc iconik_select_profile {} {
+	fill_profiles_listbox
+	show_settings settings_1;
 }
 
 set ::iconik_max_pressure 0
@@ -247,12 +270,24 @@ proc iconik_get_steam_time {} {
 	return "${target_steam_time}s"
 }
 
-proc iconik_get_final_weight {} {
+proc iconik_final_weight {} {
 	if {$::settings(settings_profile_type) == "settings_2c"} {
 		set target $::settings(final_desired_shot_weight_advanced)
 	} else {
 		set target $::settings(final_desired_shot_weight)
 	}
+	return $target
+}
+
+proc iconik_get_ratio_text {} {
+	set weight [iconik_final_weight]
+	set dose $::settings(grinder_dose_weight)
+
+	return 1:[round_to_one_digits [expr $weight / $dose ]]
+}
+
+proc iconik_get_final_weight_text {} {
+	set target [iconik_final_weight]
 
 	set current ""
 	if {$::de1(scale_device_handle) != 0 && $::settings(scale_bluetooth_address) != ""} {
@@ -265,7 +300,7 @@ proc iconik_get_final_weight {} {
 proc iconik_is_cleanup {} { return [ expr { $::iconik_settings(cleanup_profile) == $::settings(profile_filename) } ] }
 
 proc iconik_before_espresso { old new } {
-	if { [iconik_is_cleanup] } { iconik_before_cleanup_profile } 
+	if { [iconik_is_cleanup] } { iconik_before_cleanup_profile }
 }
 
 proc iconik_after_espresso { old new } {

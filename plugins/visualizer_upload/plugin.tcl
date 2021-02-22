@@ -12,13 +12,25 @@ set ::plugins::${plugin_name}::description "Upload your last shot to visualizer.
 # Paint settings screen
 proc ::plugins::${plugin_name}::preload {} {
 
+    # Create settings if non-existant
+    if {[array size ::plugins::visualizer_upload::settings] == 0} {
+        array set  ::plugins::visualizer_upload::settings {
+            auto_upload 1
+            visualizer_endpoint api/shots/upload
+            visualizer_password passwd
+            visualizer_url visualizer.coffee
+            visualizer_username demo@demo123
+        }
+        save_plugin_settings visualizer_upload
+    }
+
     # Unique name per page
     set page_name "plugin_visualizer_page_default"
 
     # Background image and "Done" button
     add_de1_page "$page_name" "settings_message.png" "default"
     add_de1_text $page_name 1280 1310 -text [translate "Done"] -font Helv_10_bold -fill "#fAfBff" -anchor "center"
-    add_de1_button $page_name {say [translate {Done}] $::settings(sound_button_in); save_plugin_settings visualizer_upload;  fill_extensions_listbox; page_to_show_when_off extensions; set_extensions_scrollbar_dimensions}  980 1210 1580 1410 ""
+    add_de1_button $page_name {say [translate {Done}] $::settings(sound_button_in); save_plugin_settings visualizer_upload; fill_extensions_listbox; page_to_show_when_off extensions; set_extensions_scrollbar_dimensions}  980 1210 1580 1410 ""
 
     # Headline
     add_de1_text $page_name 1280 300 -text [translate "Visualizer Upload"] -font Helv_20_bold -width 1200 -fill "#444444" -anchor "center" -justify "center"
@@ -36,7 +48,6 @@ proc ::plugins::${plugin_name}::preload {} {
     add_de1_text $page_name 280 660 -text [translate "Password"] -font Helv_8 -width 300 -fill "#444444" -anchor "nw" -justify "center"
     # The actual content. Here a list of all settings for this plugin
     add_de1_widget "$page_name" entry 280 720  {
-        set ::globals(widget_profile_name_to_save) $widget
         bind $widget <Return> { say [translate {save}] $::settings(sound_button_in); borg toast [translate "Saved"]; save_plugin_settings visualizer_upload; hide_android_keyboard}
         bind $widget <Leave> hide_android_keyboard
     } -width [expr {int(38 * $::globals(entry_length_multiplier))}] -font Helv_8  -borderwidth 1 -bg #fbfaff  -foreground #4e85f4 -textvariable ::plugins::visualizer_upload::settings(visualizer_password) -relief flat  -highlightthickness 1 -highlightcolor #000000
@@ -58,6 +69,11 @@ proc ::plugins::${plugin_name}::upload {content} {
 
     set username $::plugins::visualizer_upload::settings(visualizer_username)
     set password $::plugins::visualizer_upload::settings(visualizer_password)
+
+    if {$username eq "demo@demo123"} {
+        borg toast "Please configure your username in the settings"
+        return
+    }
 
     set auth "Basic [binary encode base64 $username:$password]"
     set boundary "--------[clock seconds]"
@@ -108,16 +124,21 @@ proc ::plugins::${plugin_name}::upload {content} {
     return $uploaded_id
 }
 
-proc ::plugins::${plugin_name}::uploadShotData {old new} {
+proc ::plugins::${plugin_name}::uploadShotData {} {
     if {[espresso_elapsed length] > 5 && [espresso_pressure length] > 5
          && $::plugins::visualizer_upload::settings(auto_upload)} {
         set espresso_data [format_espresso_for_history]
-        upload $espresso_data
+        ::plugins::visualizer_upload::upload $espresso_data
     }
 }
 
+proc ::plugins::${plugin_name}::async_dispatch {old new} {
+    after 100 ::plugins::visualizer_upload::uploadShotData
+}
+
+
 
 proc ::plugins::${plugin_name}::main {} {
-    register_state_change_handler Espresso Idle ::plugins::visualizer_upload::uploadShotData
+    register_state_change_handler Espresso Idle ::plugins::visualizer_upload::async_dispatch
 }
 

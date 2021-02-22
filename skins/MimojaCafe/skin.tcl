@@ -1,5 +1,3 @@
-# Barney's Metric skin
-package provide metric 0.5
 package require de1plus 1.0
 
 source "[homedir]/skins/default/standard_includes.tcl"
@@ -20,8 +18,12 @@ create_grid
 .can itemconfigure "grid" -state "hidden"
 #.can itemconfigure "grid" -state "normal"
 
-if {$::settings(grinder_setting) == {}} {
+if {[info exists ::settings(grinder_setting)] != 1 || $::settings(grinder_setting) == {}} {
 	set ::settings(grinder_setting) 0
+}
+
+if {[info exists ::settings(grinder_dose_weight)] != 1 || $::settings(grinder_dose_weight) == {}} {
+	set ::settings(grinder_dose_weight) 0
 }
 
 

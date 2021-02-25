@@ -1,5 +1,7 @@
 package provide de1_utils 1.0
 
+package require de1_logging 1.0
+
 # from https://developer.android.com/reference/android/view/View.html#SYSTEM_UI_FLAG_IMMERSIVE
 set SYSTEM_UI_FLAG_IMMERSIVE_STICKY 0x00001000
 set SYSTEM_UI_FLAG_FULLSCREEN 0x00000004
@@ -1503,7 +1505,11 @@ proc list_remove_element {list toremove} {
 
 proc web_browser {url} {
     msg "Browser '$url'"
-    borg activity android.intent.action.VIEW $url text/html
+	if { $::android == 1 } {
+		borg activity android.intent.action.VIEW $url text/html
+	} elseif { $::tcl_platform(platform) eq "windows" } {
+		eval exec [auto_execok start] $url
+	}	
 }
 
 proc font_width {untranslated_txt font} {

@@ -5,10 +5,11 @@
 namespace eval ::plugins::DGUI {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.01
+	variable version 1.02
 	variable name [translate "Describe GUI"]
-	variable description "A skin-independent, \"themable\", GUI \"mini framework\" for skin and plugin writters.
-Simplify page creation, auto-adapt aspect to current skin/theme, ready-made widget combos and full-page field editors."
+	variable github_repo ebengoechea/de1app_plugin_DGUI
+	variable description [translate "A skin-independent, \"themable\", GUI \"mini framework\" for skin and plugin writters.
+Simplify page creation, auto-adapt aspect to current skin/theme, ready-made widget combos and full-page field editors."]
 
 	variable pages {}
 	
@@ -23,11 +24,12 @@ Simplify page creation, auto-adapt aspect to current skin/theme, ready-made widg
 	variable button2_img {}	
 	variable button2_width 384
 	variable button2_height 192
-	# button 3 is small-size button used for the filter icon in the History Viewer
+	# button 3 is usual Ok button in Insight (245 x 65)
 	variable button3_img {}
-	variable button3_width 0
-	variable button3_height 0
+	variable button3_width 490
+	variable button3_height 120
 	variable button_font "font"
+	
 	variable button_font_fill "#ffffff"
 	variable button_fill "#c0c5e3"
 					
@@ -73,41 +75,19 @@ Simplify page creation, auto-adapt aspect to current skin/theme, ready-made widg
 	# Symbols in Fontawesome regular, see https://fontawesome.com/icons?d=gallery
 	variable symbols
 	array set symbols {
-		filter "\uf0b0"
-		people "\uf500"
-		plug "\uf1e6"
-		cup "\uf0f4"
-		eye "\uf06e"
-		sort_down "\uf0dd"
-		file_upload "\uf574"
-		file_import "\uf56f"
-		file_contract "\uf56c"
-		cloud_download_alt "\uf381"
-		plus "\uf067"	
-		eraser "\uf12d"
-		pencil "\uf303"
-		circle "\uf111"
-		circle_right "\uf138"
-		circle_left "\uf137"
-		circle_up "\uf331"
-		circle_down "\uf32d"
-		circle_times "\uf057"
-		circle_check "\uf058"
 		square "\uf0c8"
 		square_check "\uf14a"
-		paintbrush "\uf5a9"
-		db "\uf1c0"
-		sync "\uf021"
+		sort_down "\uf0dd"
 		star "\uf005"
 		half_star "\uf089"
-		bars "\uf0c9"
-		window_close "\uf410"
 		chevron_left "\uf053"
 		chevron_double_left "\uf323"
 		arrow_to_left "\uf33e"
 		chevron_right "\uf054"
 		chevron_double_right "\uf324"
 		arrow_to_right "\uf340"
+		eraser "\uf12d"
+		eye "\uf06e"
 	}
 	
 	# Used to map booleans to their checkbox representation (square/square_check) in fontawesome.
@@ -166,7 +146,7 @@ Simplify page creation, auto-adapt aspect to current skin/theme, ready-made widg
 			"" shot "" "" "" beverage_type category 0 0 0}
 	}	
 	
-	namespace export field_lookup field_names get_font value_or_default \
+	namespace export field_lookup field_names get_font set_symbols value_or_default \
 		args_add_option_if_not_exists args_remove_option args_has_option args_get_option args_get_prefixed \
 		set_previous_page enable_or_disable_widgets enable_widgets disable_widgets \
 		show_or_hide_widgets show_widgets hide_widgets add_page add_cancel_button add_button1 add_button2 \
@@ -183,7 +163,6 @@ proc ::plugins::DGUI::main {} {
 
 proc ::plugins::DGUI::preload {} {	
 	if { ![info exists ::debugging] } { set ::debugging 0 }
-	msg "Preloading the 'Describe GUI' plugin"
 	
 	set skin $::settings(skin)
 	set skin_src_fn "[plugin_directory]/DGUI/setup_${skin}.tcl"
@@ -198,8 +177,12 @@ proc ::plugins::DGUI::preload {} {
 	return ""
 }
 
-proc ::plugins::DGUI::msg { msg } {
-	::msg "::plugins::DGUI: $msg"
+proc ::plugins::DGUI::msg { {flag ""} args } {
+	if { [string range $flag 0 0] eq "-" && [llength $args] > 0 } {
+		::logging::default_logger $flag "::plugins::DGUI" {*}$args
+	} else {
+		::logging::default_logger "::plugins::DGUI" $flag {*}$args
+	}
 }
 
 # Setup the general aspect parameters (colors, fonts etc.) depending on the skin used.
@@ -240,7 +223,25 @@ proc ::plugins::DGUI::get_font { {font_name {}} {size {}} } {
 		return [::get_font $font_name $size]
 	}
 }
+
+# Define Fontawesome symbols by name. If a symbol name is already defined and the value differs, it is not changed
+#	and a warning added to the log.
+proc ::plugins::DGUI::set_symbols { args } {
+	variable symbols
 	
+	set n [expr {[llength $args]-1}]
+	for { set i 0 } { $i < $n } { incr i 2 } {
+		set sn [lindex $args $i]
+		set sv [lindex $args [expr {$i+1}]]
+		set idx [lsearch [array names symbols] $sn]
+		if { $idx == -1 } {
+			msg "add symbol $sn='$sv'"
+			set symbols($sn) $sv
+		} elseif { $symbols($sn) ne $sv } {
+			msg -WARN "symbol '$sn' already defined with a different value"
+		}
+	}
+}
 # A one-liner to return a default if a variable is undefined.
 # Similar to ifexists in updater.tcl but does not set var (only returns the new value), and assigns empty values
 proc ::plugins::DGUI::value_or_default { var default } {
@@ -795,6 +796,65 @@ proc ::plugins::DGUI::add_button2 { page widget_name x y label state_variable sy
 	return $w
 }
 
+# Adds a button3 (the standard "Ok" wide short button in DSx).
+# The button can have any of the following 3 components:
+#	* label: Main text
+#	* symbol: A fontawesome symbol shown on the left third of the button
+# Adds to the namespace widgets array <widget_name> (clickable button area, returned by the function), 
+#	<widget_name>_symbol, <widget_name>_label and <widget_name>_state.
+# New named options_
+#	-label_fill, -symbol_fill, -state_fill the font color of each element.
+proc ::plugins::DGUI::add_button3 { page widget_name x y label symbol {command {}} args } {
+	set has_ns [page_name_is_namespace $page]
+	
+	set width [args_get_option args -width $::plugins::DGUI::button3_width 1]
+	set height [args_get_option args -width $::plugins::DGUI::button3_height 1]
+	set label_fill [args_get_option args -label_fill $::plugins::DGUI::button_font_fill 1]
+	set symbol_fill [args_get_option args -symbol_fill $::plugins::DGUI::button_font_fill 1]
+	set fill [args_get_option args -state_fill $::plugins::DGUI::button_fill 1]
+	
+	if { $::settings(skin) eq "DSx" } {
+		set w [::plugins::DGUI::rounded_rectangle_outline $page $x $y [expr {$x+$width}] [expr {$y+$height}] \
+			[rescale_x_skin 60] $fill 3]
+	} else {
+		set w [::plugins::DGUI::rounded_rectangle $page $x $y [expr {$x+$width}] [expr {$y+$height}] \
+			[rescale_x_skin 40] $fill]
+	}
+	if { $has_ns } { set "${page}::widgets(${widget_name}_img)" $w } 
+
+	if { $symbol eq "" } {
+		set x_label [expr {$x+$width/2}]
+	} else {
+		set x_label [expr {$x+$width*2/3}]
+	}
+	set y_label [expr {$y+$height/2}]
+	set label_size 8
+	
+	if { $symbol ne "" } {
+		set w [::add_de1_text $page [expr {$x+$width/5}] [expr {$y+$height/2}] \
+			-text [subst \$::plugins::DGUI::symbols($symbol)] \
+			-fill $symbol_fill -font fontawesome_reg_small -justify "center" -anchor "center"]
+		if { $has_ns } { set "${page}::widgets(${widget_name}_symbol)" $w } 
+	}
+	if { $label eq "" && [info exists "${page}::data(${widget_name}_label)"] } {
+		set w [::add_de1_variable $page $x_label [expr {$y_label+3}] \
+			-font [::plugins::DGUI::get_font $::plugins::DGUI::button_font $label_size] -fill $label_fill \
+			-justify "center" -anchor "center" \
+			-textvariable "\$${page}::data(${widget_name}_label)" ]
+		if { $has_ns } { set "${page}::widgets(${widget_name}_label)" $w }
+	} else {
+		set w [::add_de1_text $page $x_label $y_label \
+			-text $label -font [::plugins::DGUI::get_font $::plugins::DGUI::button_font $label_size] -fill $label_fill \
+			-justify "center" -anchor "center"]
+		if { $has_ns } { set "${page}::widgets(${widget_name}_label)" $w }
+	}
+	
+	set w [::add_de1_button $page $command [expr {$x-14}] [expr {$y-12}] \
+		[expr {$x+$width+10}] [expr {$y+$height+10}]]
+	if { $has_ns } { set "${page}::widgets(${widget_name})" $w }
+	return $w
+}
+
 # Adapted from gui.tcl "proc add_de1_button", but allowing user-defined options like fill, outline, width etc., 
 # as there is not base proc to do that.
 # Use -label_* to pass named options to the label. 
@@ -1037,10 +1097,10 @@ proc ::plugins::DGUI::add_variable { page x y textvariable args } {
 	set anchor [args_add_option_if_not_exists args -anchor nw]
 	
 	if { $has_ns && [string is wordchar $textvariable] && [info exists "${page}::data($textvariable)"] } {
-		set textvariable "${page}::data($textvariable)"
 		if { ![args_has_option args -widget_name] } {
 			set widget_name $textvariable
-		}
+		}		
+		set textvariable "\$${page}::data($textvariable)"
 	} else {
 		set widget_name [args_get_option args -widget_name {} 1]
 	}
@@ -2590,6 +2650,7 @@ proc ::plugins::DGUI::TXT::load_page { field_name { text_variable {} } {read_onl
 	variable widgets
 	array set opts $args
 	
+msg "TXT::load_page, widgets names='[array names widgets]'"	
 	foreach fn [array names data] {
 		if { $fn ne "page_name" } { set data($fn) {} }
 	}
@@ -2628,13 +2689,13 @@ proc ::plugins::DGUI::TXT::load_page { field_name { text_variable {} } {read_onl
 		set data(value) [subst \$$text_variable]
 	}
 	
-	enable_or_disable_widgets [expr !$read_only] "value*" $ns
+	enable_or_disable_widgets [expr {!$read_only}] "value*" $ns
 }
 
 proc ::plugins::DGUI::TXT::setup_ui {} {
 	variable data
 	variable widgets
-	set page [namespace current]	
+	set page [namespace current]
 	
 	add_page $page -buttons_loc center
 	

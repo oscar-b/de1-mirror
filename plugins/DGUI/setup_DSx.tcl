@@ -4,7 +4,7 @@ proc ::plugins::DGUI::setup_aspect_DSx {} {
 	variable page_bg_image "[skin_directory_graphics]/background/$::DSx_settings(bg_name)"
 #		variable button1_img "[skin_directory_graphics]/icons/button4.png"
 #		variable button2_img "[skin_directory_graphics]/icons/button8.png"
-	variable button3_img "[skin_directory_graphics]/icons/store_button.png"
+#		variable button3_img "[skin_directory_graphics]/icons/store_button.png"
 	variable bg_color $::DSx_settings(bg_colour)
 	variable font_color $::DSx_settings(font_colour)
 	variable page_title_color $::DSx_settings(heading_colour)

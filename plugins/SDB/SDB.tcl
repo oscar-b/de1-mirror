@@ -5,9 +5,10 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.01
+	variable version 1.02
+	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
-	variable description "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."
+	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
 
 	variable db {}
 	variable updating_db 0
@@ -26,10 +27,18 @@ namespace eval ::plugins::SDB {
 		has_shot_series_data
 }
 
-proc ::plugins::SDB::main {} {
+proc ::plugins::SDB::main {} {	
 	variable settings
+	package require sqlite3
+	
 	msg "Starting the 'Shots DataBase' plugin"
 	if { ![info exists ::debugging] } { set ::debugging 0 }
+	
+	if { [plugins available DGUI] } {
+		plugins load DGUI
+	} else {
+		error [translate "Can't load SDB plugin because required plugin DGUI is not available"]
+	}
 	
 	set is_created [create]	
 	trace add execution app_exit {enter} { ::plugins::SDB::db_close }
@@ -42,18 +51,24 @@ proc ::plugins::SDB::main {} {
 	# We don't use 'register_state_change_handler' as that would not update the shot file if its metadata is 
 	#	changed in the Godshots page in Insight or DSx (though currently that does not work)
 	#register_state_change_handler Espresso Idle ::plugins::SDB::save_espresso_to_history_hook
-	trace add execution ::save_this_espresso_to_history leave ::plugins::SDB::save_espresso_to_history_hook		
+	if { [plugins enabled visualizer_upload] } {
+		plugins load visualizer_upload
+		trace add execution ::plugins::visualizer_upload::uploadShotData leave ::plugins::SDB::save_espresso_to_history_hook
+	} else {
+		trace add execution ::save_this_espresso_to_history leave ::plugins::SDB::save_espresso_to_history_hook
+	}
 }
 
 # Paint settings screen
 proc ::plugins::SDB::preload {} {
 	variable data
-	msg "Preloading the 'Shots DataBase' plugin"
-	check_settings
-	save_plugin_settings SDB
 
-	if { [plugin_available DGUI] } {
-		plugin_preload DGUI	
+	check_settings
+	plugins save_settings SDB
+
+	if { [plugins available DGUI] } {
+		plugins preload DGUI
+		::plugins::DGUI::set_symbols db "\uf1c0" sync "\uf021"
 		::plugins::SDB::CFG::setup_ui
 		return "::plugins::SDB::CFG"
 	} else {
@@ -88,8 +103,12 @@ proc ::plugins::SDB::check_settings {} {
 	}
 }
 
-proc ::plugins::SDB::msg { msg } {
-	::msg "::plugins::SDB: $msg"
+proc ::plugins::SDB::msg { {flag ""} args } {
+	if { [string range $flag 0 0] eq "-" && [llength $args] > 0 } {
+		::logging::default_logger $flag "::plugins::SDB" {*}$args
+	} else {
+		::logging::default_logger "::plugins::SDB" $flag {*}$args
+	}
 }
 
 # Logs SQL statements
@@ -125,6 +144,10 @@ proc ::plugins::SDB::string2sql { text } {
 proc ::plugins::SDB::get_shot_file_path { filename } {
 	variable filename_clock_format
 	
+	if { $filename eq "" } {
+		msg "WARNING empty filename argument in get_shot_file_path" 
+		return
+	}
 	if { [string is integer $filename] } {
 		set filename "[clock format $filename -format $filename_clock_format].shot"
 	} elseif { [string range $filename end-4 end] ne ".shot" } { append filename ".shot" }
@@ -232,6 +255,7 @@ proc ::plugins::SDB::modify_shot_file { path arr_new_settings { backup_file {} }
 	if { $backup_file eq {} } {
 		set backup_file $settings(backup_modified_shot_files)
 	}
+msg "modify_shot_file, path=$path"	
 	set path [get_shot_file_path $path]
 	
 	array set past_props [encoding convertfrom utf-8 [read_binary_file $path]] 
@@ -854,7 +878,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 		set settings(last_sync_$fn) [subst \$cnt_$fn]
 	}	
 	
-	save_plugin_settings SDB
+	plugins save_settings SDB
 	set updating_db 0
 }
 
@@ -1005,21 +1029,41 @@ proc ::plugins::SDB::update_shot_description { clock arr_new_settings } {
 	}
 }
 
-# Hook executed after save_espresso_rating_to_history
+# Hook executed after save_espresso_rating_to_history if visualizer_upload is not enabled, and after 
+# uploading to visualizer if it is.
 proc ::plugins::SDB::save_espresso_to_history_hook { args } {
-	variable settings 
+	variable settings 	
+	if { $::settings(history_saved) != 1 } return
+msg "save_espresso_to_history_hook"
 	
-	if { $::settings(history_saved) == 1 } {
-		if { $settings(db_persist_desc) == 1 || $settings(db_persist_series) == 1 } {
-			# We need the shot data in DYE::DB::persist_shot in an array that is a bit different from ::settings,
-			# e.g. "clock" is "espresso_clock" in the settings, chart series are not in ::settings but in other vars,
-			# we miss the filename and the modification time, and we need to build some variables with a priority
-			# (like dose may come from DSx vars or from base vars). So, rather than replicate everything, we just read
-			# the just-written file, which is not highly efficient but it's very straightforward.
-			#set fn "[homedir]/history/[clock format $::settings(espresso_clock) -format $::DYE::filename_clock_format].shot"
-			array set shot [load_shot $::settings(espresso_clock)]
-			persist_shot shot $settings(db_persist_desc) $settings(db_persist_series) 1
+	if { [plugins enabled visualizer_upload] &&
+			[info exists ::plugins::visualizer_upload::settings(last_upload_shot)] &&
+			$::plugins::visualizer_upload::settings(last_upload_shot) eq $::settings(espresso_clock) &&
+			$::plugins::visualizer_upload::settings(last_upload_id) ne "" } {
+		regsub "<ID>" $::plugins::visualizer_upload::settings(visualizer_browse_url) \
+			$::plugins::visualizer_upload::settings(last_upload_id) link
+		set repo_link "Visualizer $link" 
+		if { $::settings(repository_links) eq "" } { 
+			set ::settings(repository_links) $repo_link
+		} elseif { $::settings(repository_links) ne $repo_link } {
+			lappend ::settings(repository_links) $repo_link
 		}
+
+msg "save_espresso_to_history_hook - adding repository_links to shot file"
+		array set new_settings "repository_links \{$::settings(repository_links)\}"
+		modify_shot_file $::settings(espresso_clock) new_settings
+		::save_settings
+	}
+		
+	if { $settings(db_persist_desc) == 1 || $settings(db_persist_series) == 1 } {
+		# We need the shot data in DYE::DB::persist_shot in an array that is a bit different from ::settings,
+		# e.g. "clock" is "espresso_clock" in the settings, chart series are not in ::settings but in other vars,
+		# we miss the filename and the modification time, and we need to build some variables with a priority
+		# (like dose may come from DSx vars or from base vars). So, rather than replicate everything, we just read
+		# the just-written file, which is not highly efficient but it's very straightforward.
+		#set fn "[homedir]/history/[clock format $::settings(espresso_clock) -format $::DYE::filename_clock_format].shot"
+		array set shot [load_shot $::settings(espresso_clock)]
+		persist_shot shot $settings(db_persist_desc) $settings(db_persist_series) 1
 	}
 }
 
@@ -1640,7 +1684,7 @@ proc ::plugins::SDB::CFG::show_page {} {
 	set data(sql_and_schema_versions) "[translate {SQLite version}] $::plugins::SDB::sqlite_version
 [translate {Schema version}] #$::plugins::SDB::db_version"
 	
-	if { ![plugin_enabled SDB] } {
+	if { ![plugins enabled SDB] } {
 		::plugins::DGUI::disable_widgets "resync_db* rebuild_db*" [namespace current] 
 	}
 }
@@ -1720,13 +1764,13 @@ proc ::plugins::SDB::CFG::setup_ui {} {
 
 proc ::plugins::SDB::CFG::db_persist_desc_change {} {
 	#set ns [namespace current]	
-	save_plugin_settings SDB
+	plugins save_settings SDB
 }
 
 proc ::plugins::SDB::CFG::db_persist_series_change {} {
 	set ns [namespace current]
-	save_plugin_settings SDB	
-	if { ![plugin_enabled SDB] } return
+	plugins save_settings SDB	
+	if { ![plugins enabled SDB] } return
 	
 	if { $::plugins::SDB::updating_db == 1 } {
 		set ::plugins::SDB::CFG::data(db_status_msg) [translate "Database busy. Try later"]
@@ -1777,12 +1821,12 @@ proc ::plugins::SDB::CFG::db_persist_series_change {} {
 }
 
 proc ::plugins::SDB::CFG::sync_on_startup_change {} {
-	save_plugin_settings SDB
+	plugins save_settings SDB
 }
 
 proc ::plugins::SDB::CFG::rebuild_db {} {
 	say "" $::settings(sound_button_in)
-	if { ![plugin_enabled SDB] } return
+	if { ![plugins enabled SDB] } return
 	set ns [namespace current]
 	
 	if { $::plugins::SDB::updating_db == 1 } {
@@ -1825,7 +1869,7 @@ proc ::plugins::SDB::CFG::rebuild_db {} {
 
 proc ::plugins::SDB::CFG::resync_db {} {
 	say "" $::settings(sound_button_in)
-	if { ![plugin_enabled SDB] } return
+	if { ![plugins enabled SDB] } return
 	set ns [namespace current]
 	
 	if { $::plugins::SDB::updating_db == 1 } {

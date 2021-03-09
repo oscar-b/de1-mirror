@@ -2,6 +2,7 @@
 package provide de1_vars 1.0
 
 package require de1_logging 1.0
+package require de1_profile 2.0
 
 #############################
 # raw data from the DE1
@@ -2013,205 +2014,6 @@ proc fill_profiles_listbox {} {
 	unset -nocomplain ::filling_profiles 
 }
 
-proc copy_pressure_profile_to_advanced_profile {} {
-
-	if {[ifexists ::settings(espresso_temperature_steps_enabled)] == 1} {
-		set temp_bump_time_seconds $::settings(temp_bump_time_seconds)
-		set first_frame_len $temp_bump_time_seconds
-
-		set second_frame_len [expr {$::settings(preinfusion_time) - $temp_bump_time_seconds}]		
-		if {$second_frame_len < 0} { 
-			set second_frame_len 0
-		}
-	} else {
-		set first_frame_len 0
-		set second_frame_len $::settings(preinfusion_time)
-		set ::settings(espresso_temperature_0) $::settings(espresso_temperature)
-		set ::settings(espresso_temperature_1) $::settings(espresso_temperature)
-		set ::settings(espresso_temperature_2) $::settings(espresso_temperature)
-		set ::settings(espresso_temperature_3) $::settings(espresso_temperature)
-	}
-
-	msg "copy_pressure_profile_to_advanced_profile"
-	set preinfusion [list \
-		name [translate "preinfusion"] \
-		temperature $::settings(espresso_temperature) \
-		sensor "coffee" \
-		pump "flow" \
-		transition "fast" \
-		pressure 1 \
-		flow $::settings(preinfusion_flow_rate) \
-		seconds $first_frame_len \
-		volume $::settings(preinfusion_stop_volumetric) \
-		exit_if "1" \
-		exit_type "pressure_over" \
-		exit_pressure_over $::settings(preinfusion_stop_pressure) \
-		exit_pressure_under 0 \
-		exit_flow_over 6 \
-		exit_flow_under 0 \
-	]
-
-	set preinfusion2 [list \
-		name [translate "preinfusion"] \
-		temperature $::settings(espresso_temperature_1) \
-		sensor "coffee" \
-		pump "flow" \
-		transition "fast" \
-		pressure 1 \
-		flow $::settings(preinfusion_flow_rate) \
-		seconds $second_frame_len \
-		volume $::settings(preinfusion_stop_volumetric) \
-		exit_if "1" \
-		exit_type "pressure_over" \
-		exit_pressure_over $::settings(preinfusion_stop_pressure) \
-		exit_pressure_under 0 \
-		exit_flow_over 6 \
-		exit_flow_under 0 \
-	]
-
-	set hold [list \
-		name [translate "rise and hold"] \
-		temperature $::settings(espresso_temperature_2) \
-		sensor "coffee" \
-		pump "pressure" \
-		transition "fast" \
-		pressure $::settings(espresso_pressure) \
-		seconds $::settings(espresso_hold_time) \
-		volume $::settings(pressure_hold_stop_volumetric) \
-		exit_if 0 \
-		exit_pressure_over 11 \
-		exit_pressure_under 0 \
-		exit_flow_over 6 \
-		exit_flow_under 0 \
-	]
-
-	set decline [list \
-		name [translate "decline"] \
-		temperature $::settings(espresso_temperature_3) \
-		sensor "coffee" \
-		pump "pressure" \
-		transition "smooth" \
-		pressure $::settings(pressure_end) \
-		seconds $::settings(espresso_decline_time) \
-		volume $::settings(pressure_decline_stop_volumetric) \
-		exit_if 0 \
-		exit_pressure_over 11 \
-		exit_pressure_under 0 \
-		exit_flow_over 6 \
-		exit_flow_under 0 \
-	]
-
-
-	if {[ifexists ::settings(espresso_temperature_steps_enabled)] == 1} {
-		set ::settings(advanced_shot) [list $preinfusion $preinfusion2 $hold $decline]
-	} else {
-		set ::settings(advanced_shot) [list $preinfusion2 $hold $decline]
-	}
-	set ::current_step_number 0
-}
-
-
-proc copy_flow_profile_to_advanced_profile {} {
-
-
-	if {[ifexists ::settings(espresso_temperature_steps_enabled)] == 1} {
-		set temp_bump_time_seconds $::settings(temp_bump_time_seconds)
-		set first_frame_len $temp_bump_time_seconds
-
-		set second_frame_len [expr {$::settings(preinfusion_time) - $temp_bump_time_seconds}]		
-		if {$second_frame_len < 0} { 
-			set second_frame_len 0
-		}
-	} else {
-		set first_frame_len 0
-		set second_frame_len $::settings(preinfusion_time)
-		set ::settings(espresso_temperature_0) $::settings(espresso_temperature)
-		set ::settings(espresso_temperature_1) $::settings(espresso_temperature)
-		set ::settings(espresso_temperature_2) $::settings(espresso_temperature)
-		set ::settings(espresso_temperature_3) $::settings(espresso_temperature)
-	}
-
-
-	puts "copy_flow_profile_to_advanced_profile"
-	set preinfusion [list \
-		name [translate "preinfusion"] \
-		temperature $::settings(espresso_temperature) \
-		sensor "coffee" \
-		pump "flow" \
-		transition "fast" \
-		pressure 1 \
-		flow $::settings(preinfusion_flow_rate) \
-		seconds $first_frame_len \
-		volume $::settings(preinfusion_stop_volumetric) \
-		exit_if "1" \
-		exit_type "pressure_over" \
-		exit_pressure_over $::settings(preinfusion_stop_pressure) \
-		exit_pressure_under 0 \
-		exit_flow_over 6 \
-		exit_flow_under 0 \
-	]
-
-	set preinfusion2 [list \
-		name [translate "preinfusion"] \
-		temperature $::settings(espresso_temperature_1) \
-		sensor "coffee" \
-		pump "flow" \
-		transition "fast" \
-		pressure 1 \
-		flow $::settings(preinfusion_flow_rate) \
-		seconds $second_frame_len \
-		volume $::settings(preinfusion_stop_volumetric) \
-		exit_if "1" \
-		exit_type "pressure_over" \
-		exit_pressure_over $::settings(preinfusion_stop_pressure) \
-		exit_pressure_under 0 \
-		exit_flow_over 6 \
-		exit_flow_under 0 \
-	]
-
-	set hold [list \
-		name [translate "hold"] \
-		temperature $::settings(espresso_temperature_2) \
-		sensor "coffee" \
-		pump "flow" \
-		transition "fast" \
-		flow $::settings(flow_profile_hold) \
-		seconds $::settings(espresso_hold_time) \
-		volume $::settings(flow_hold_stop_volumetric) \
-		exit_if 0 \
-		exit_pressure_over 11 \
-		exit_pressure_under 0 \
-		exit_flow_over 6 \
-		exit_flow_under 0 \
-	]
-
-	set decline [list \
-		name [translate "decline"] \
-		temperature $::settings(espresso_temperature_3) \
-		sensor "coffee" \
-		pump "flow" \
-		transition "smooth" \
-		flow $::settings(flow_profile_decline) \
-		seconds $::settings(espresso_decline_time) \
-		volume $::settings(flow_decline_stop_volumetric) \
-		exit_if 0 \
-		exit_pressure_over 11 \
-		exit_pressure_under 0 \
-		exit_flow_over 6 \
-		exit_flow_under 0 \
-	]
-
-
-	if {[ifexists ::settings(espresso_temperature_steps_enabled)] == 1} {
-		set ::settings(advanced_shot) [list $preinfusion $preinfusion2 $hold $decline]
-	} else {
-		set ::settings(advanced_shot) [list $preinfusion $hold $decline]
-	}
-
-	#puts "adv: $::settings(advanced_shot)"
-	set ::current_step_number 0
-}
-
 proc fill_languages_listbox {} {
 
 	set widget $::languages_widget
@@ -2435,7 +2237,10 @@ proc load_advanced_profile_step {{force 0}} {
 	#set stepnum [current_adv_step]
 
 	unset -nocomplain ::current_adv_step
+	# max flow / max pressure are not always set, so we set it now
+	array set ::current_adv_step {max_flow_or_pressure 0 max_flow_or_pressure_range 0.6}
 	array set ::current_adv_step [lindex $::settings(advanced_shot) $stepnum]
+
 
 	make_current_listbox_item_blue $::advanced_shot_steps_widget
 
@@ -2741,6 +2546,12 @@ proc select_profile { profile } {
 	# for importing De1 profiles that don't have this feature.
 	set ::settings(preinfusion_flow_rate) 4
 
+	# Disable limits by default
+	set ::settings(maximum_pressure) 0
+	set ::settings(maximum_flow) 0
+	set ::settings(maximum_flow_range) 0.6
+	set ::settings(maximum_pressure_range) 0.6
+
 	load_settings_vars $fn
 
 	set ::settings(profile_filename) $profile
@@ -2767,6 +2578,8 @@ proc select_profile { profile } {
 
 	#puts "::settings(settings_profile_type)  $::settings(settings_profile_type)"
 	set ::settings(profile) $::settings(profile_title)
+
+	::profile::sync_from_legacy
 
 	update_onscreen_variables
 	profile_has_not_changed_set
@@ -3019,7 +2832,7 @@ proc save_settings_vars {fn varlist} {
 }
 
 proc profile_vars {} {
- 	return { advanced_shot espresso_temperature_steps_enabled author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature espresso_temperature_0 espresso_temperature_1 espresso_temperature_2 espresso_temperature_3 settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced profile_title profile_language preinfusion_stop_pressure profile_hide final_desired_shot_volume_advanced_count_start beverage_type}
+ 	return { advanced_shot espresso_temperature_steps_enabled author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature espresso_temperature_0 espresso_temperature_1 espresso_temperature_2 espresso_temperature_3 settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced profile_title profile_language preinfusion_stop_pressure profile_hide final_desired_shot_volume_advanced_count_start beverage_type maximum_pressure maximum_pressure_range maximum_flow_range maximum_pressure_range_advanced maximum_flow_range_advanced maximum_flow}
 }
 
 
@@ -3064,8 +2877,10 @@ proc save_profile {} {
 	# moves the cursor to the end of the seletion after showing the "saved" message.
 	after 1000 "set ::settings(profile_title) \{$::settings(profile_title)\}; $::globals(widget_profile_name_to_save) icursor 999"
 
+	# Save V2 of profiles in parallel
+	::profile::save "[homedir]/profiles_v2/${profile_filename}.json"
+
 	if {[save_settings_vars $fn [profile_vars]] == 1} {
-		#set ::settings(profile) $profile_name_to_save
 		set ::settings(profile) $::settings(profile_title)
 
 		fill_profiles_listbox 
@@ -3151,9 +2966,86 @@ proc format_espresso_for_history {} {
 
 		set app_version [package version de1app]
 		append espresso_data "app_version {$app_version}\n"
+		
+		::profile::sync_from_legacy
+		append espresso_data "profile [huddle jsondump $::profile::current]"
 
 		return $espresso_data
 	
+}
+
+proc format_espresso_to_json {} {
+
+		if {[info exists ::settings(espresso_clock)] != 1} {
+			# in theory, this should never occur.
+			msg "This espresso's start time was not recorded. Possibly we didn't get the bluetooth message of state change to espresso."
+			set ::settings(espresso_clock) [clock seconds]
+		}
+		
+		set clock $::settings(espresso_clock)
+		set date [clock format $clock]
+		set app_version [package version de1app]
+
+		set pressure [huddle create \
+			pressure [huddle list {*}[espresso_elapsed range 0 end]] \
+			goal [huddle list {*}[espresso_pressure_goal range 0 end]] \
+			delta [huddle list {*}[espresso_pressure_delta range 0 end]] \
+			delta_negative [huddle list {*}[espresso_flow_delta_negative range 0 end]] \
+		]
+
+		set flow [huddle create \
+			flow [huddle list {*}[espresso_flow range 0 end]] \
+			by_weight [huddle list {*}[espresso_flow_weight range 0 end]] \
+			by_weight_raw [huddle list {*}[espresso_flow_weight_raw range 0 end]] \
+			goal [huddle list {*}[espresso_flow_goal range 0 end]] \
+		]
+
+		set temperature [huddle create \
+			basket [huddle list {*}[espresso_temperature_basket range 0 end]] \
+			mix [huddle list {*}[espresso_temperature_mix range 0 end]] \
+			goal [huddle list {*}[espresso_temperature_goal range 0 end]] \
+		]
+
+		set totals [huddle create \
+			weight [huddle list {*}[espresso_weight range 0 end]] \
+			water_dispensed [huddle list {*}[espresso_water_dispensed range 0 end]] \
+		]
+
+		set resistance [huddle create \
+			resistance [huddle list {*}[espresso_resistance range 0 end]] \
+			by_weight [huddle list {*}[espresso_resistance_weight range 0 end]] \
+		]
+
+		set app_data [huddle create \
+			settings [huddle create {*}[array get ::settings]] \
+			machine_state [huddle create {*}[array get ::DE1]] \
+		]
+
+		set app_specifics [huddle create \
+			app_name "DE1App" \
+			app_version $app_version \
+			data $app_data \
+		]
+
+		::profile::sync_from_legacy
+
+		set espresso_data [huddle create \
+			version 2 \
+			date $date \
+			timestamp $clock \
+			elapsed [huddle list {*}[espresso_elapsed range 0 end]] \
+			pressure $pressure \
+			flow $flow \
+			temperature $temperature \
+			totals $totals \
+			resistance $resistance \
+			state_change [huddle list {*}[espresso_state_change range 0 end]] \
+			profile $::profile::current \
+			app $app_specifics \
+		]
+
+
+		return [huddle jsondump $espresso_data]
 }
 
 
@@ -3165,6 +3057,10 @@ proc save_this_espresso_to_history {unused_old_state unused_new_state} {
 		set espresso_data [format_espresso_for_history]
 		set fn "[homedir]/history/[clock format $::settings(espresso_clock) -format "%Y%m%dT%H%M%S"].shot"
 		write_file $fn $espresso_data
+
+		set espresso_data [format_espresso_to_json]
+		set fn "[homedir]/history_v2/[clock format $::settings(espresso_clock) -format "%Y%m%dT%H%M%S"].json"
+		#write_file $fn $espresso_data
 		msg "Save this espresso to history"
 
 		set ::settings(history_saved) 1

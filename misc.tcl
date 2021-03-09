@@ -120,7 +120,7 @@ proc make_de1_dir {srcdir destdirs} {
         vars.tcl *
         de1_comms.tcl *
         updater.tcl *
-	logging.tcl *
+        logging.tcl *
         misc.tcl *
         pkgIndex.tcl *
         de1_icon_v2.png *
@@ -135,11 +135,14 @@ proc make_de1_dir {srcdir destdirs} {
         autopair_with_de1plus.tcl *
         history_export.tcl *
         version.tcl *
+        profile.tcl *
 
         profiles_v2/readme.txt *
 
         history/info.txt *
         history/export/readme.txt *
+
+        history_v2/readme.txt *
 
         fw/bootfwupdate.dat *
         wallpaper/spy_1280x800.jpg *

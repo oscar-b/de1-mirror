@@ -363,9 +363,9 @@ proc settings2c_pressure_button {direction} {
 
 	if {[ifexists ::current_adv_step(pump)] == "pressure"} {
 		if {$direction eq "up"} {
-			set ::current_adv_step(pressure) [expr {$::current_adv_step(pressure) + 0.2}];
+			set ::current_adv_step(pressure) [expr {$::current_adv_step(pressure) + 0.1}];
 		} else {
-			set ::current_adv_step(pressure) [expr {$::current_adv_step(pressure) - 0.2}];
+			set ::current_adv_step(pressure) [expr {$::current_adv_step(pressure) - 0.1}];
 		}
 	} else { 
 		if {$direction eq "up"} {
@@ -373,6 +373,12 @@ proc settings2c_pressure_button {direction} {
 		} else {
 			set ::current_adv_step(max_flow_or_pressure) [round_to_one_digits [expr {$::current_adv_step(max_flow_or_pressure) - 0.1}]];
 		}
+	}
+	if {$::current_adv_step(max_flow_or_pressure) < 0} {
+		set ::current_adv_step(max_flow_or_pressure) 0
+	}
+	if {$::current_adv_step(pressure) < 0} {
+		set ::current_adv_step(pressure) 0
 	}
 	update_onscreen_variables
 	save_current_adv_shot_step
@@ -384,9 +390,9 @@ proc settings2c_flow_button {direction} {
 
 	if {[ifexists ::current_adv_step(pump)] == "flow"} {
 		if {$direction eq "up"} {
-			set ::current_adv_step(flow) [expr {$::current_adv_step(flow) + 0.2}];
+			set ::current_adv_step(flow) [expr {$::current_adv_step(flow) + 0.1}];
 		} else {
-			set ::current_adv_step(flow) [expr {$::current_adv_step(flow) - 0.2}];
+			set ::current_adv_step(flow) [expr {$::current_adv_step(flow) - 0.1}];
 		}
 	} else { 
 		if {$direction eq "up"} {
@@ -394,6 +400,12 @@ proc settings2c_flow_button {direction} {
 		} else {
 			set ::current_adv_step(max_flow_or_pressure) [round_to_one_digits [expr {$::current_adv_step(max_flow_or_pressure) - 0.1}]];
 		}
+	}
+	if {$::current_adv_step(max_flow_or_pressure) < 0} {
+		set ::current_adv_step(max_flow_or_pressure) 0
+	}
+	if {$::current_adv_step(flow) < 0} {
+		set ::current_adv_step(flow) 0
 	}
 	update_onscreen_variables
 	save_current_adv_shot_step
@@ -749,6 +761,11 @@ add_de1_text "settings_4" 50 220 -text [translate "Update App"] -font Helv_10_bo
 
 			add_de1_widget "measurements" checkbutton 1300 740  {} -text [translate "Make a log file"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor nw -foreground #4e85f4 -variable ::settings(log_enabled)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
 			add_de1_widget "measurements" checkbutton 950 490  {} -text [translate "clock"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor ne -foreground #4e85f4 -variable ::settings(display_time_in_screen_saver)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
+
+			if {$::android == 1} {
+				# for tablets, allow "finger down" to be a "tap" instead of the default "mousedown" OS-defined action
+				add_de1_widget "measurements" checkbutton 1300 800  {} -text [translate "Fast tap mode"] -indicatoron true  -font $optionfont -bg #FFFFFF -anchor ne -foreground #4e85f4 -variable ::settings(use_finger_down_for_tap)  -borderwidth 0 -selectcolor #FFFFFF -highlightthickness 0 -activebackground #FFFFFF -bd 0 -activeforeground #4e85f4  -relief flat 
+			}
 
 		add_de1_text "measurements" 1300 900 -text [translate "Font size"] -font Helv_10_bold -fill "#7f879a" -justify "left" -anchor "nw"
 			add_de1_widget "measurements" scale 1300 960 {} -from 0.1 -to 2 -background #e4d1c1 -borderwidth 1 -bigincrement 0.05 -showvalue 0 -resolution 0.05 -length [rescale_x_skin 800] -width [rescale_y_skin 100] -variable ::settings(default_font_calibration) -font Helv_10_bold -sliderlength [rescale_x_skin 125] -relief flat -orient horizontal -foreground #FFFFFF -troughcolor $slider_trough_color -borderwidth 0  -highlightthickness 0 
@@ -1143,7 +1160,7 @@ add_de1_text "settings_1 settings_2 settings_2a settings_2b settings_2c settings
 				set_fan_temperature_threshold $::settings(fan_threshold)
 				de1_enable_water_level_notifications
 			}
-			if {[array_item_difference ::settings ::settings_backup "enable_fahrenheit saver_brightness log_enabled hot_water_idle_temp espresso_warmup_timeout scale_bluetooth_address language skin waterlevel_indicator_on default_font_calibration waterlevel_indicator_blink display_rate_espresso display_espresso_water_delta_number display_group_head_delta_number display_pressure_delta_line display_flow_delta_line display_weight_delta_line allow_unheated_water display_time_in_screen_saver enabled_plugins plugin_tabs"] == 1  || [ifexists ::app_has_updated] == 1} {
+			if {[array_item_difference ::settings ::settings_backup "enable_fahrenheit saver_brightness use_finger_down_for_tap log_enabled hot_water_idle_temp espresso_warmup_timeout scale_bluetooth_address language skin waterlevel_indicator_on default_font_calibration waterlevel_indicator_blink display_rate_espresso display_espresso_water_delta_number display_group_head_delta_number display_pressure_delta_line display_flow_delta_line display_weight_delta_line allow_unheated_water display_time_in_screen_saver enabled_plugins plugin_tabs"] == 1  || [ifexists ::app_has_updated] == 1} {
 				# changes that effect the skin require an app restart
 				.can itemconfigure $::message_label -text [translate "Please quit and restart this app to apply your changes."]
 				.can itemconfigure $::message_button_label -text [translate "Wait"]

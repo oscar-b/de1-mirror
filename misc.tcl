@@ -525,16 +525,41 @@ proc make_de1_dir {srcdir destdirs} {
 
         skins/MimojaCafe/1280x800/icon.jpg *
         skins/MimojaCafe/2560x1600/icon.jpg *
+        skins/MimojaCafe/fonts/Font\ Awesome\ 5\ Free-Solid-900.otf *
         skins/MimojaCafe/fonts/Mazzard\ Light.otf *
         skins/MimojaCafe/fonts/Mazzard\ Medium.otf *
         skins/MimojaCafe/fonts/Mazzard\ Regular.otf *
         skins/MimojaCafe/fonts/Mazzard\ SemiBold.otf *
         skins/MimojaCafe/framework.tcl *
-        skins/MimojaCafe/settings.tcl *
-	skins/MimojaCafe/settings_screen.tcl *
-        skins/MimojaCafe/skin.tcl *
         skins/MimojaCafe/history_viewer.tcl *
-        skins/MimojaCafe/ui.tcl *
+        skins/MimojaCafe/interfaces/default_settings_screen.tcl *
+        skins/MimojaCafe/interfaces/default_ui.tcl *
+        skins/MimojaCafe/interfaces/magadan_settings_screen.tcl *
+        skins/MimojaCafe/interfaces/magadan_ui.tcl *
+        skins/MimojaCafe/settings.tcl *
+        skins/MimojaCafe/skin.tcl *
+
+        skins/metric/1280x800/icon.jpg *
+        skins/metric/2560x1600/icon.jpg *
+        skins/metric/fonts/Mazzard\ Light.otf *
+        skins/metric/fonts/Mazzard\ Medium.otf *
+        skins/metric/fonts/Mazzard\ Regular.otf *
+        skins/metric/fonts/Mazzard\ SemiBold.otf *
+        skins/metric/packages/constants.tcl *
+        skins/metric/packages/framework.tcl *
+        skins/metric/packages/functions.tcl *
+        skins/metric/packages/meter.tcl *
+        skins/metric/packages/settings.tcl *
+        skins/metric/packages/statusbar.tcl *
+        skins/metric/pages/debug.tcl *
+        skins/metric/pages/espresso.tcl *
+        skins/metric/pages/espresso_done.tcl *
+        skins/metric/pages/flush.tcl *
+        skins/metric/pages/home.tcl *
+        skins/metric/pages/steam.tcl *
+        skins/metric/pages/water.tcl *
+        skins/metric/README.md *
+        skins/metric/skin.tcl *
 
         saver/1280x800/black_saver.jpg *
         saver/1280x800/Black\ Steel.jpg *

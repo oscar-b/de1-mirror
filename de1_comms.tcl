@@ -1,4 +1,4 @@
-package provide de1_comms 1.0
+package provide de1_comms 1.1
 
 package require de1_bluetooth
 package require de1_logging 1.0
@@ -279,7 +279,10 @@ proc de1_connect_handler { handle address name} {
 	}
 }
 
-proc de1_event_handler { command_name value } {
+proc de1_event_handler { command_name value {update_received 0}} {
+
+	if { $update_received == 0 } { set update_received [expr {[clock milliseconds] / 1000.0}] }
+
 	set previous_wrote 0
 	set previous_wrote [ifexists ::de1(wrote)]
 
@@ -293,8 +296,7 @@ proc de1_event_handler { command_name value } {
 
 	if {$command_name eq "ShotSample"} {
 		set ::de1(last_ping) [clock seconds]
-		set results [update_de1_shotvalue $value]
-		#msg "Shotvalue received: $results"
+		::de1::state::update::from_shotvalue $value $update_received
 		#set ::de1(wrote) 0
 		#run_next_userdata_cmd
 		set do_this 0
@@ -1101,9 +1103,19 @@ proc get_fan_threshold {} {
 	mmr_read "get_fan_threshold" "803808" "00"
 }
 
+proc get_calibration_flow_multiplier {} {
+	msg "Reading calibraton flow multiplier"
+	mmr_read "get_calibration_flow_multiplier" "80383C" "00"
+}
+
 proc set_fan_temperature_threshold {temp} {
 	msg "Setting fan temperature to '$temp'"
 	mmr_write "set_fan_temperature_threshold" "803808" "04" [zero_pad [int_to_hex $temp] 2]
+}
+
+proc set_calibration_flow_multiplier {m} {
+	msg "Setting calibration flow multiplier to '$m'"
+	mmr_write "set_calibration_flow_multiplier" "80383C" "04" [zero_pad [long_to_little_endian_hex [expr {int(1000 * $m)}] ] 2]
 }
 
 proc get_tank_temperature_threshold {} {

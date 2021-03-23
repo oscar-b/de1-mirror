@@ -1,4 +1,4 @@
-package provide de1_utils 1.0
+package provide de1_utils 1.1
 
 package require de1_logging 1.0
 
@@ -430,23 +430,48 @@ proc stackprocs {} {
     return $stack
 }
 
-proc stacktrace {} {
-    set stack "Stack trace:\n"
-    for {set i 1} {$i < [info level]} {incr i} {
-        set lvl [info level -$i]
-        set pname [lindex $lvl 0]
-        append stack [string repeat " " $i]$pname
-        foreach value [lrange $lvl 1 end] arg [info args $pname] {
-            catch {
-                if {$value eq ""} {
-                    info default $pname $arg value
-                }
-                append stack " $arg='$value'"
-            }
-        }
-        append stack \n
-    }
-    return $stack
+proc stacktrace {args} {
+
+	set label_args [expr { "-label_args" in $args }]
+
+	# Original code apparently from https://wiki.tcl-lang.org/page/List+the+call+stack
+	# Notes there suggest that there are also problems with namespaces with the implementation
+	# (This concern is not resolved at this time)
+
+	set stack "Stack trace:\n"
+
+	for {set i 1} {$i < [info level]} {incr i} {
+
+		set level [info level -$i]
+		set frame [info frame -$i]
+
+		append stack [string repeat " " $i]
+
+		if { ! $label_args } {
+
+			append stack $level
+
+		} else {
+			set pname [lindex $lvl 0]
+			if { [info proc $pname] } {
+				append stack $pname
+				foreach value [lrange $lvl 1 end] arg [info args $pname] {
+					catch {
+						if {$value eq ""} {
+							info default $pname $arg value
+						}
+						append stack " $arg='$value'"
+					}
+				}
+
+			} else {
+
+				append stack $lvl
+			}
+		}
+		append stack \n
+	}
+	return $stack
 }
 
 proc random_saver_file {} {
@@ -2159,7 +2184,9 @@ proc wrapped_profile_string_part {input threshold partnumber} {
             return [subst {[string range [string range $input $slashpos+1 end] 0 $threshold]}]
         }
     } 
-    return [wrapped_string_part $input $threshold $partnumber]
+    set w [wrapped_string_part $input $threshold $partnumber]
+    #msg "Wrapped part $partnumber for threshold $threshold from '$input' = '$w'"
+    return $w
 }
 
 proc wrapped_string_part {input threshold partnumber} {
@@ -2168,8 +2195,8 @@ proc wrapped_string_part {input threshold partnumber} {
         # work around that by adding a space when needed.
         append input " "
     }
-    #msg "wrapped_string_part $input ([string length $input]) $threshold"
     set l [wrap_string $input $threshold 1]
+    #msg "wrapped_string_part '$input' ([string length $input]) t=$threshold = '$l'"
     return [lindex $l $partnumber]
 }
 
@@ -2203,8 +2230,8 @@ proc wrap_string {input {threshold 75} {returnlist 0}} {
     # john there's a bug in this proc, which I borrowed from the tcl wiki and did not write.  
     # A string of length theshold+1 gets truncated by 1 character
     # this "if" statement is a work around, where we simply accept a +1 overage on the threshold, instead of wrapping it
-    if {[expr {-1 + [string length $input]}] <= $threshold} {
-        return $input
+    if {([string length $input] - 1) <= $threshold} {
+        #return $input
     }
 
     while 1 {

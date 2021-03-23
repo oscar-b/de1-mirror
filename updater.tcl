@@ -3,7 +3,7 @@
 # for the DE1 software updater to run. 
 # the idea is to minimize the liklihood of breaking the updater
 
-package provide de1_updater 1.0
+package provide de1_updater 1.1
 
 package require de1_logging 1.0
 
@@ -316,6 +316,8 @@ proc check_timestamp_for_app_update_available { {check_only 0} } {
     set progname "de1plus"
     if {[ifexists ::settings(app_updates_beta_enabled)] == 1} {
         set progname "de1beta"
+    } elseif {[ifexists ::settings(app_updates_beta_enabled)] == 2} {
+        set progname "de1nightly"
     }
     puts "update timestanp endpoint: '$progname'"
 
@@ -433,6 +435,8 @@ proc start_app_update {} {
     set progname "de1plus"
     if {[ifexists ::settings(app_updates_beta_enabled)] == 1} {
         set progname "de1beta"
+    } elseif {[ifexists ::settings(app_updates_beta_enabled)] == 2} {
+        set progname "de1nightly"
     }
 
     puts "update download endpoint: '$progname'"

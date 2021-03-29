@@ -16,15 +16,6 @@ add_de1_variable $status_meter_contexts -100 -100 -text "" -textvariable {[$::te
 
 # Function bar
 set status_function_contexts "off espresso_menu_profile espresso_menu_beans espresso_menu_grind espresso_menu_dose espresso_menu_ratio espresso_menu_yield espresso_menu_temperature espresso_done"
-# proc create_symbol_button {contexts x y width height symbol label action} {
-# 	set font_symbol [get_font "Mazzard SemiBold" 64]
-# 	set font_label [get_font "Mazzard Regular" 14]
-# 	set button_id [add_de1_text $contexts [expr $x + ($width / 2.0)] [expr $y + ($height / 2) - 40] -text $symbol -font $font_symbol -fill $::color_text -anchor "center" -state "hidden"]
-
-# 	add_de1_text $contexts [expr $x + ($width / 2.0)] [expr $y + $height - 40] -text $label -font $font_label -fill $::color_text -anchor "s" -state "hidden"
-# 	add_de1_button $contexts $action $x $y [expr $x + $width] [expr $y + $height]
-# 	return $button_id
-# }
 
 proc create_symbol_button {contexts x y label symbol color action} {
 	set button_id [create_symbol_box $contexts $x $y $label $symbol $color]
@@ -45,6 +36,12 @@ create_symbol_button $status_function_contexts 2300 40 [translate "sleep"] $::sy
 
 
 proc update_function_buttons {} {
+	if { [can_start_espresso] } {
+		.can itemconfigure $::espresso_button_id -fill $::color_text
+	} else {
+		.can itemconfigure $::espresso_button_id -fill $::color_grey_text
+	}
+
 	if { [can_start_water] } {
 		.can itemconfigure $::water_button_id -fill $::color_text
 	} else {

@@ -95,6 +95,7 @@ proc do_start_steam {} {
 		borg toast [translate "Machine is not ready"]
 		return
 	}
+	update_button_color $::steam_stop_button_id $::color_action_button_stop
 	start_steam
 }
 

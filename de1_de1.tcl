@@ -6,7 +6,7 @@
 # These are not in machine.tcl due to apparent assumptions on inclusion order
 #
 
-package provide de1_de1 1.1
+package provide de1_de1 1.3
 
 package require lambda
 
@@ -49,7 +49,7 @@ namespace eval ::de1::event::listener {
 
 	#
 	# after_flow_complete will trigger for ::de1::is_flow_state after
-	# $::settings(seconds_after_espresso_stop_to_continue_weighing)
+	# $::settings(after_flow_complete_delay) seconds
 	#     after transition to ending, but not before leaving a flow state
 	#     after transition out of a flow state, if not already pending or triggered
 	#
@@ -131,32 +131,36 @@ namespace eval ::de1::event::apply {
 	}
 
 
-	proc after_flow_is_pending {} {
+	proc after_flow_complete_is_pending {} {
 
 		variable _after_flow_complete_after_id
 		variable _after_flow_complete_holding_for_idle
 
-		expr { $_after_flow_complete_after_id != "" }
+		expr { $_after_flow_complete_after_id != "" \
+			       || $_after_flow_complete_holding_for_idle }
 	}
 
 	# It's not clear that these always should be cancelled on the start of a new flow cycle
 	# Though saving the shot history is one use case (which gets reset on a new Espresso cycle)
 	# there may be others that should be allowed to run to completion
 
-	# after_flow_cancel_pending provided should there be a "good" use case for it in the future
+	# after_flow_complete_cancel_pending provided should there be a "good" use case for it in the future
 
-	proc after_flow_cancel_pending {} {
+	proc after_flow_complete_cancel_pending {} {
 
 		variable _after_flow_complete_after_id
 		variable _after_flow_complete_holding_for_idle
 
-		if { [after_flow_is_pending] } {
+		if { [::de1::after_flow_complete_is_pending] } {
+
 			after cancel $_after_flow_complete_after_id
 			set _after_flow_complete_after_id ""
 
+			set _after_flow_complete_holding_for_idle False
+
 			msg -WARNING "Cancelled after_flow_complete callbacks. " \
 				[format "Second flow started before %g seconds?" \
-					 $::settings(seconds_after_espresso_stop_to_continue_weighing)]
+					 $::settings(after_flow_complete_delay)]
 		}
 	}
 
@@ -172,7 +176,7 @@ namespace eval ::de1::event::apply {
 
 		if { ! [::de1::state::is_flow_state [::de1::state::current_state]] } {
 
-			set $::de1::event::apply::_after_flow_complete_holding_for_idle false
+			set ::de1::event::apply::_after_flow_complete_holding_for_idle False
 
 			::de1::event::apply::after_flow_complete_callbacks {*}${args}
 
@@ -182,7 +186,7 @@ namespace eval ::de1::event::apply {
 
 		} else {
 
-			set $::de1::event::apply::_after_flow_complete_holding_for_idle true
+			set ::de1::event::apply::_after_flow_complete_holding_for_idle True
 
 			msg -DEBUG [format "after_flow_complete: Deferred for non-flow during %s,%s by apply::_maybe_after..." \
 					    [::de1::state::current_state] [::de1::state::current_substate]]
@@ -540,7 +544,7 @@ namespace eval ::de1::state::update {
 
 			set dhc [expr { $ShotSample(SampleTime) \
 						- $::de1::_previous_shotsample_update_time }]
-			if { $dhc < 0 } { set dhc [expr { $dhc - 65536 }] }
+			if { $dhc < 0 } { set dhc [expr { $dhc + 65536 }] }
 			set intersample_time [expr { $dhc / ( 2.0 * [::de1::line_frequency_nom] ) }]
 
 		} else {
@@ -578,27 +582,39 @@ namespace eval ::de1::state::update {
 		# TODO: Are there any ill effects of capturing flow for other states???
 		#       If not, do so (and probably share active states with SAW)
 
-		# keep track of water volume during espresso, but not steam
+		if { [::de1::sav::is_tracking_state $this_state] } {
 
-		if {$this_state == "Espresso"} {
+			switch -exact -- $this_state {
 
-			switch -- $this_substate {
+				Espresso {
 
-				preinfusion {
-					set ::de1(preinfusion_volume) \
-						[expr {$::de1(preinfusion_volume) \
-							       + $water_volume_dispensed_since_last_update}]
+					switch -- $this_substate {
+
+						preinfusion {
+							set ::de1(preinfusion_volume) \
+								[expr {$::de1(preinfusion_volume) \
+									       + $water_volume_dispensed_since_last_update}]
+						}
+
+						pouring {
+							set ::de1(pour_volume) \
+								[expr {$::de1(pour_volume) \
+									       + $water_volume_dispensed_since_last_update}]
+						}
+					}
 				}
 
-				pouring {
+				default {
+
 					set ::de1(pour_volume) \
 						[expr {$::de1(pour_volume) \
 							       + $water_volume_dispensed_since_last_update}]
 				}
 			}
-		}
 
-		::de1::sav::check_for_sav
+			::de1::sav::check_for_sav
+
+		}
 
 
 		set event_dict [dict create \
@@ -869,6 +885,26 @@ namespace eval ::de1::sav {
 		::de1::sav::on_flow_change
 
 
+	# Beta testing revealed challenges with "basic" profiles
+	# triggering early due to unrealistically low SAV levels
+	# and a cumbersome UX for changing those levels at this time,
+	# requiring "deleting" the scale and multiple app restarts.
+
+	# Disabing in-app SAV for basic profiles:
+	#   settings_2a -- basic pressure
+	#   settings_2b -- basic flow
+	# when a scale is expected to be present
+	# (should preserve ability to use with HotWater)
+
+	# ::de1::sav::skip_sav_check can be overriden by skins or extensions
+
+	proc skip_sav_check {} {
+
+		expr { $::settings(settings_profile_type) in {{settings_2a} {settings_2b}} \
+			       && [::device::scale::expecting_present] }
+	}
+
+
 	proc check_for_sav {} {
 
 		# Previous logic only enabled SAV for "non-advanced" profiles
@@ -882,16 +918,17 @@ namespace eval ::de1::sav {
 		variable _target
 
 		if {[::de1::sav::is_tracking_state] && $_target > 0 \
-		    && ! $::de1(app_autostop_triggered) } {
+			    && ! [::de1::sav::skip_sav_check] \
+			    && ! $::de1(app_autostop_triggered) } {
 
 			if { $::de1(pour_volume) >= $_target } {
 
 				start_idle
 				set ::de1(app_autostop_triggered) True
 
-				msg -INFO "Water volume based Espresso stop was triggered at:" \
-					"$::de1(pour_volume) ml >" \
-					"$::settings(final_desired_shot_volume_advanced) ml"
+				msg -INFO "Volume based stop was triggered at:" \
+					"${::de1(pour_volume)} ml for" \
+					"${_target} ml target"
 
 				::gui::notify::de1_event sav_stop
 			}

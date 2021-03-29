@@ -39,10 +39,17 @@ proc metric_copy_yield_from_settings {} {
 }
 
 proc metric_copy_yield_to_settings {} {
-    set ::settings(final_desired_shot_weight_advanced) $::metric_yield
-	set ::settings(final_desired_shot_volume_advanced) $::metric_yield
-    set ::settings(final_desired_shot_weight) $::metric_yield
-	set ::settings(final_desired_shot_volume) $::metric_yield
+	if {[::device::scale::expecting_present]} {
+		set ::settings(final_desired_shot_weight_advanced) $::metric_yield
+		set ::settings(final_desired_shot_volume_advanced) 0
+		set ::settings(final_desired_shot_weight) $::metric_yield
+		set ::settings(final_desired_shot_volume) 0
+	} else {
+		set ::settings(final_desired_shot_weight_advanced) $::metric_yield
+		set ::settings(final_desired_shot_volume_advanced) $::metric_yield
+		set ::settings(final_desired_shot_weight) $::metric_yield
+		set ::settings(final_desired_shot_volume) $::metric_yield
+	}
 }
 
 proc save_profile_async { } {

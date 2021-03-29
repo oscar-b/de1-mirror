@@ -431,9 +431,9 @@ array set ::settings {
 	enabled_plugins {}
 
 	maximum_flow 0
-	maximum_flow_range 0.6
+	maximum_flow_range_default 1.0
 	maximum_pressure 0
-	maximum_pressure_range 0.6
+	maximum_pressure_range_default 0.9
 
 	maximum_flow_range_advanced 0.6
 	maximum_pressure_range_advanced 0.6
@@ -508,6 +508,7 @@ array set ::de1_num_state {
   18 Clean
   19 InBootLoader
   20 AirPurge
+  21 SchedIdle
 }
 
 
@@ -525,7 +526,18 @@ array set ::de1_substate_types {
 	4	"preinfusion"
 	5	"pouring"
 	6	"ending"
+	7	"Steaming"
+	8	"DescaleInit"
+	9	"DescaleFillGroup"
+	10	"DescaleReturn"
+	11	"DescaleGroup"
+	12	"DescaleSteam"
+	13	"CleanInit"
+	14	"CleanFillGroup"
+	15	"CleanSoak"
+	16	"CleanGroup"
 	17  "refill"
+	18	"PausedSteam"
 }
 array set ::de1_substate_types_reversed [reverse_array ::de1_substate_types]
 
@@ -811,6 +823,7 @@ proc start_espresso {} {
 proc reset_gui_starting_hotwater {} {
 	set ::de1(timer) 0
 	set ::de1(volume) 0
+	set ::de1(pour_volume) 0
 	incr ::settings(water_count)
 
 	save_settings

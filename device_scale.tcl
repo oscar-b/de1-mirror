@@ -1,4 +1,4 @@
-package provide de1_device_scale 1.2
+package provide de1_device_scale 1.3
 
 package require de1_de1 1.1
 package require de1_event 1.0
@@ -85,6 +85,7 @@ namespace eval ::device::scale {
 	variable tare_threshold 0.04
 
 	# Consider scale "lost" if no weight update within (seconds)
+	# Impacts ::device::scale::is_reporting
 
 	variable warn_if_no_updates_within 1.0
 
@@ -141,6 +142,15 @@ namespace eval ::device::scale {
 	proc expecting_present {} {
 		expr { [::device::scale::bluetooth_address] != "" }
 	}
+
+	proc is_reporting {} {
+
+		set last_update_ago [expr { ( ([clock milliseconds] / 1000.0) \
+						- [::device::scale::last_weight_update_time] ) }]
+
+		return [expr {$last_update_ago < $::device::scale::warn_if_no_updates_within}]
+	}
+
 
 	proc type {}  {
 		expr { $::settings(scale_type) }
@@ -591,6 +601,10 @@ namespace eval ::device::scale::history {
 			::device::scale::history::weight_median
 		}
 	}
+
+	# Make sure there is always some defined mapping
+	setup_default_estimation_mapping
+
 
 	proc setup_median_estimation_mapping {args} {
 
@@ -1135,6 +1149,10 @@ namespace eval ::device::scale::saw {
 		}
 	}
 
+	# Make sure there is always some defined mapping
+	setup_default_estimation_mapping
+
+
 	proc setup_median_estimation_mapping {args} {
 
 		proc ::device::scale::saw::weight_now {} {
@@ -1301,17 +1319,16 @@ namespace eval ::device::scale::saw {
 
 	proc warn_if_scale_not_reporting {args} {
 
-		set last_update_ago [expr { ( ([clock milliseconds] / 1000.0) \
-						      - [::device::scale::last_weight_update_time] ) }]
-
-		if { $last_update_ago > $::device::scale::warn_if_no_updates_within \
+		if { ! [::device::scale::is_reporting]
 			     &&  [::device::scale::expecting_present] } {
 
-			msg -NOTICE "::device::scale::saw::warn_if_scale_not_reporting last at $last_update_ago seconds ago"
+			msg -NOTICE [format "%s last reported at %.3f" \
+					     "::device::scale::saw::warn_if_scale_not_reporting" \
+					     [::device::scale::last_weight_update_time] ]
 			::gui::notify::scale_event no_updates
 		}
-
 	}
+
 
 } ;# ::device::scale::saw
 
@@ -1326,10 +1343,31 @@ namespace eval ::device::scale::callbacks {
 
 	proc on_major_state_change {event_dict} {
 
+		# Right now, nothing to do if not connected
+
+		if { ! [::device::scale::is_connected] } { return }
+
 		set this_state [dict get $event_dict this_state]
 
-		if { [::de1::state::is_flow_state $this_state] && $::device::scale::run_timer } {
+		if { [::de1::state::is_flow_state $this_state] \
+			     && $::device::scale::run_timer } {
+
 			scale_timer_reset
+		}
+
+		# The DE1 can go directly from Idle to Hotwater
+		# without going through the heating substates
+		# As a result, the scale may not zero.
+		# Honor auto-tare states and don't "beep" scales if unnecessary
+
+		if { $this_state == "HotWater" \
+			     && [::device::scale::is_autotare_state $this_state] } {
+
+			if { abs([::device::scale::history::weight]) \
+				     > $::device::scale::tare_threshold } {
+
+				::device::scale::tare
+			}
 		}
 	}
 

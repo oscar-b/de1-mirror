@@ -18,6 +18,11 @@ IDEAS
 
 Release notes
 
+v2.3
+ - Fix stop at volume error for bluetooth scales
+ - Stop page flicker on stop buttons for flush, steam and water
+ - Grey out espresso button for visual consistency
+
 v2.2
  - Rearrange function buttons
  - Show when function buttons are disabled

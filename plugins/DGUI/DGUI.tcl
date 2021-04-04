@@ -144,6 +144,8 @@ Simplify page creation, auto-adapt aspect to current skin/theme, ready-made widg
 			"" shot "" "" "" skin category 0 0 0}
 		beverage_type {"Beverage type" "Beverage types" "Bev type" "Bev types" \
 			"" shot "" "" "" beverage_type category 0 0 0}
+		repository_links {"Repository link" "Repository links" "Repo link" "Repo links" \
+			"" "" "" "" "" repository_links "array" 0 0 0}
 	}	
 	
 	namespace export field_lookup field_names get_font set_symbols value_or_default \
@@ -151,8 +153,8 @@ Simplify page creation, auto-adapt aspect to current skin/theme, ready-made widg
 		set_previous_page enable_or_disable_widgets enable_widgets disable_widgets \
 		show_or_hide_widgets show_widgets hide_widgets add_page add_cancel_button add_button1 add_button2 \
 		add_button add_text add_symbol add_variable add_entry add_select_entry add_multiline_entry \
-		relocate_dropdown_arrows set_scrollbars_dims relocate_text_wrt add_listbox listbox_get_sellection \
-		listbox_set_sellection add_checkbox add_rating draw_rating horizontal
+		relocate_dropdown_arrows set_scrollbars_dims relocate_text_wrt ensure_size \
+		add_listbox listbox_get_sellection listbox_set_sellection add_checkbox add_rating draw_rating horizontal
 }
 
 proc ::plugins::DGUI::main {} {
@@ -1562,6 +1564,42 @@ proc ::plugins::DGUI::relocate_text_wrt { widget wrt { pos w } { xoffset 0 } { y
 	return "$newx $newy"
 }
 
+# Ensures a minimum or maximum size of a widget in pixels. This is normally useful for text base entries like 
+#	entry or listbox whose width & height on creation have to be defined in number of characters, so may be too
+#	small or too big depending on the actual font in use.
+proc ::plugins::DGUI::ensure_size { widgets args } {
+	array set opts $args
+	foreach w $widgets {
+		lassign [.can bbox $w ] x0 y0 x1 y1
+		set width [rescale_x_skin [expr {$x1-$x0}]]
+		set height [rescale_y_skin [expr {$y1-$y0}]]
+		
+		set target_width 0
+		if { [info exists opts(-width)] } {
+			set target_width [rescale_x_skin $opts(-width)]
+		} elseif { [info exists opts(-max_width)] && $width > [rescale_x_skin $opts(-max_width)]} {
+			set target_width [rescale_x_skin $opts(-max_width)] 
+		} elseif { [info exists opts(-min_width)] && $width < [rescale_x_skin $opts(-min_width)]} {
+			set target_width [rescale_x_skin $opts(-min_width)]
+		}
+		if { $target_width > 0 } {
+			.can itemconfigure $w -width $target_width
+		}
+		
+		set target_height 0
+		if { [info exists opts(-height)] } {
+			set target_height [rescale_y_skin $opts(-height)]
+		} elseif { [info exists opts(-max_height)] && $height > [rescale_y_skin $opts(-max_height)]} {
+			set target_height [rescale_y_skin $opts(-max_width)] 
+		} elseif { [info exists opts(-min_height)] && $height < [rescale_y_skin $opts(-min_height)]} {
+			set target_height [rescale_y_skin $opts(-min_height)]
+		}
+		if { $target_height > 0 } {
+			.can itemconfigure $w -height $target_height
+		}
+	}
+}
+
 # Adds a listbox widget, its (optional) label and its scrollbar, using DYE GUI standards. New widgets
 # 	<widget_name>, <widget_name_label>, <widget_name_scrollbar> and <widget_name_slider> are added to the namespace
 # 	widgets array.
@@ -1617,16 +1655,18 @@ proc ::plugins::DGUI::add_listbox { page widget_name x_label y_label x_widget y_
 	
 	set widget [::add_de1_widget $page listbox $x_widget $y_widget {} \
 		-height $height -width [expr {int($width * $::globals(entry_length_multiplier))}] \
-		-yscrollcommand "scale_scroll ${page}::widgets(${widget_name}_slider)" -exportselection 1 {*}$args ] 
+		-yscrollcommand "scale_scroll_new \$${page}::widgets(${widget_name}) ${page}::widgets(${widget_name}_slider)" \
+		-exportselection 1 {*}$args ] 
+	
 	if { $has_ns } { set "${page}::widgets($widget_name)" $widget }
 	
 	# Draw the scrollbar off screen so that it gets resized and moved to the right place on the first draw
 	if { $has_ns } { set "${page}::widgets(${widget_name}_slider)" 0 }
-	
+
 	set w [::add_de1_widget $page scale [expr {$x_widget+10*$width}] $y_widget {} \
-		-from 0 -to .50 -bigincrement 0.2 -borderwidth 1 -showvalue 0 -resolution .01 \
+		-from 0 -to 1.0 -bigincrement 0.2 -borderwidth 1 -showvalue 0 -resolution .01 \
 		-length $scrollbar_height -width $scrollbar_width -sliderlength $sliderlength \
-		-variable "${page}::widgets(advsteps_$widget_name)" \
+		-variable "${page}::widgets(${widget_name}_slider)" \
 		-command " listbox_moveto \$${page}::widgets($widget_name) \$${page}::widgets(${widget_name}_slider) " \
 		-background $::plugins::DGUI::scrollbar_bg -foreground $::plugins::DGUI::scrollbar_fg \
 		-troughcolor $::plugins::DGUI::scrollbar_troughcolor -relief $::plugins::DGUI::scrollbar_relief \
@@ -1703,12 +1743,10 @@ proc ::plugins::DGUI::set_scrollbars_dims { page widget_names } {
 	foreach wn $widget_names {
 		set listbox_widget [subst \$${page}::widgets($wn)]
 		set scrollbar_widget [subst \$${page}::widgets(${wn}_scrollbar)]
-				
-		# set the height of the scrollbar to be the same as the listbox
-		$scrollbar_widget configure -length [winfo height $listbox_widget]
-		set coords [.can coords $listbox_widget]
-		set newx [expr {[winfo width $listbox_widget] + [lindex $coords 0]}]
-		.can coords $scrollbar_widget "$newx [lindex $coords 1]"
+		
+		lassign [.can bbox $listbox_widget] x0 y0 x1 y1
+		$scrollbar_widget configure -length [expr {$y1-$y0}]
+		.can coords $scrollbar_widget "$x1 $y0"
 	}
 }
 
@@ -1980,6 +2018,7 @@ namespace eval ::plugins::DGUI::IS {
 	variable data
 	array set data {
 		page_name "::plugins::DGUI::IS"
+		page_painted 0
 		previous_page {}
 		callback_cmd {}
 		page_title {}
@@ -2034,7 +2073,7 @@ proc ::plugins::DGUI::IS::load_page { item_type item_variable items args } {
 	set data(item_variable) $item_variable
 	set selected [ifexists opts(-selected) ""]
 	if { $item_variable ne "" && $selected eq "" && [subst "\$$item_variable"] ne "" } {
-		set selected [subst "\$$data(item_variable)"] 
+		set selected [subst "\$$data(item_variable)"]
 	}	
 	# Add the current/selected value if not included in the list of available items
 	set data(item_ids) [value_or_default opts(-item_ids) ""]
@@ -2065,8 +2104,13 @@ proc ::plugins::DGUI::IS::load_page { item_type item_variable items args } {
 
 	set_previous_page $ns
 	page_to_show_when_off $ns
-	set_scrollbars_dims $ns "items"	
 	
+	if { ![ifexists data(page_painted) 0] } {
+		ensure_size "$widgets(items) $widgets(filter_string) $widgets(modified_value)" -width 1775 
+		ensure_size $widgets(items) -height 1000
+		set_scrollbars_dims $ns "items"
+		set data(page_painted) 1
+	}
 
 	if { $selected ne "" } {		
 		set idx [lsearch -exact $items $selected]
@@ -2633,6 +2677,7 @@ namespace eval ::plugins::DGUI::TXT {
 	variable data
 	array set data {
 		page_name "::plugins::DGUI::TXT"
+		page_painted 0
 		previous_page {}
 		callback_cmd {}
 		read_only 0
@@ -2650,9 +2695,8 @@ proc ::plugins::DGUI::TXT::load_page { field_name { text_variable {} } {read_onl
 	variable widgets
 	array set opts $args
 	
-msg "TXT::load_page, widgets names='[array names widgets]'"	
 	foreach fn [array names data] {
-		if { $fn ne "page_name" } { set data($fn) {} }
+		if { $fn ne "page_name" && $fn ne "page_painted" } { set data($fn) {} }
 	}
 	
 	# If the field name is found in the data dictionary, use its metadata unless they are provided in the proc call
@@ -2683,7 +2727,12 @@ msg "TXT::load_page, widgets names='[array names widgets]'"
 	set ns [namespace current]
 	set_previous_page $ns
 	page_to_show_when_off $ns	
-#	::plugins::DGUI::set_scrollbars_dims $ns "value"
+
+	if { ![ifexists data(page_painted) 0] } {
+		ensure_size $widgets(value) -width 2300 -height 1100
+		#	set_scrollbars_dims $ns "value"
+		set data(page_painted) 1
+	}
 
 	if { $text_variable ne "" && [subst \$$text_variable] ne "" } {
 		set data(value) [subst \$$text_variable]

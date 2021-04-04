@@ -18,6 +18,10 @@ IDEAS
 
 Release notes
 
+v2.4
+ - Added button to make another espresso to the results page
+ - Separate status messages for connection, low water and heating
+
 v2.3
  - Fix stop at volume error for bluetooth scales
  - Stop page flicker on stop buttons for flush, steam and water

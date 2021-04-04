@@ -2,7 +2,7 @@ package provide de1_gui 1.2
 
 package require de1_de1 1.1
 package require de1_event 1.0
-package require de1_logging 1.0
+package require de1_logging 1.1
 package require de1_plugins 1.0
 
 ###
@@ -20,7 +20,8 @@ proc load_skin {} {
 
 	if {[catch {
 		source "[skin_directory]/skin.tcl"
-	} err] != 0} {
+	} err opts_dict ] != 0} {
+		::logging::log_error_result_opts_dict $err $opts_dict
 		catch {
 			# reset the skin back to default, if their skin failed to load correctly
 			# but don't do so if ::debugging flag is enabled
@@ -2085,6 +2086,13 @@ proc ui_startup {} {
 	plugins init
 	.can itemconfigure splash -state hidden
 
+	set app_version [package version de1app]
+
+	if {$::settings(last_version) != $app_version && [ifexists ::changelog_link] != "" && [ifexists ::settings(app_updates_beta_enabled)] < 2} {
+		version_page "Version updated from $::settings(last_version) to $app_version.\n Tap here to open the changelog" [translate "Ok"]
+		set ::settings(last_version) $app_version
+		save_settings
+	}
 
 	#after $::settings(timer_interval) 
 	update_onscreen_variables
@@ -2429,13 +2437,13 @@ proc calibration_gui_init {} {
 
 		after 1000 de1_read_calibration "temperature"
 		after 2000 de1_read_calibration "pressure"
-		after 3000 de1_read_calibration "flow"
+		after 3000 get_calibration_flow_multiplier
+		#after 3000 de1_read_calibration "flow"
 
 		after 4000 de1_read_calibration "temperature" "factory"
 		after 5000 de1_read_calibration "pressure" "factory"
-		after 6000 de1_read_calibration "flow" "factory"
+		#after 6000 de1_read_calibration "flow" "factory"
 
-		after 7000 get_calibration_flow_multiplier
 
 	}
 }

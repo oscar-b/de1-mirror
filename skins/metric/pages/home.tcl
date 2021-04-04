@@ -196,7 +196,7 @@ create_2value_button $espresso_setting_contexts $x [expr $y -90] 400 [translate 
 add_de1_button "espresso_menu_temperature" {say [translate "close"] $::settings(sound_button_in); metric_jump_to_no_history "off"} $x [expr $y - 90] [expr $x + 400] [expr $y + 90]
 
 
-set ::espresso_action_button_id [create_action_button $espresso_setting_contexts 1280 1380 [translate "start"] $::font_action_label $::color_text $::symbol_espresso $::font_action_button $::color_action_button_start $::color_action_button_text {say [translate {start}] $::settings(sound_button_in); do_start_espresso} ""]
+set ::espresso_action_button_id [create_action_button $espresso_setting_contexts 1280 1340 [translate "start"] $::font_action_label $::color_text $::symbol_espresso $::font_action_button $::color_action_button_start $::color_action_button_text {say [translate {start}] $::settings(sound_button_in); do_start_espresso} ""]
 
 proc update_espresso_button {} {
 	if { [can_start_espresso] } {

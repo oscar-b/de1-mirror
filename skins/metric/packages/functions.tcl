@@ -135,6 +135,14 @@ proc do_start_flush {} {
 	start_hot_water_rinse
 }
 
+proc metric_load_current_profile { } {
+	if {[info exists ::settings(profile_filename)] == 0} {
+		metric_load_profile $::settings(profile)
+	} else {
+		metric_load_profile $::settings(profile_filename)
+	}
+}
+
 proc metric_load_profile { profile_filename } {
 	select_profile $profile_filename
 	metric_copy_yield_from_settings

@@ -71,24 +71,24 @@ set ::temperature_message_text_id  [add_de1_text $status_message_contexts 200 11
 set ::water_message_text_id  [add_de1_text $status_message_contexts 2360 1180 -text "" -font $::font_setting_heading -fill $::color_water -anchor "center" ]
 
 proc set_status_message_visibility {} {
-	# if {![is_connected]} {
-	# 	.can itemconfigure $::connection_message_text_id -text [translate "not connected"]
-	# 	.can itemconfigure $::water_message_text_id -text ""
-	# 	.can itemconfigure $::temperature_message_text_id -text ""
-	# } else {
+	if {![is_connected]} {
+		.can itemconfigure $::connection_message_text_id -text [translate "not connected"]
+		.can itemconfigure $::water_message_text_id -text ""
+		.can itemconfigure $::temperature_message_text_id -text ""
+	} else {
 		.can itemconfigure $::connection_message_text_id -text ""
 
-		# if {![has_water]} {
+		if {![has_water]} {
 			.can itemconfigure $::water_message_text_id -text [translate "refill water"]
-		# } else {
-		# 	.can itemconfigure $::water_message_text_id -text ""
-		# }
+		} else {
+			.can itemconfigure $::water_message_text_id -text ""
+		}
 
-		# if {[is_heating]} {
+		if {[is_heating]} {
 			.can itemconfigure $::temperature_message_text_id -text [translate "heating"]
-		# } else {
-		# 	.can itemconfigure $::temperature_message_text_id -text ""
-		# }
+		} else {
+			.can itemconfigure $::temperature_message_text_id -text ""
+		}
 	}
 }
 add_de1_variable $status_message_contexts -100 -100 -text "" -textvariable {[set_status_message_visibility]}

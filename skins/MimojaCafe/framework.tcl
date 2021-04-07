@@ -2,7 +2,7 @@
 # Functions for creating the Metric menu framework
 
 proc add_background { contexts } {
-	set background_id [.can create rect 0 0 [rescale_x_skin 2560] [rescale_y_skin 1600] -fill [theme background] -width 0 -state "hidden"]
+	set background_id [.can create rect 0 0 [rescale_x_skin 2560] [rescale_y_skin 1600] -fill [::theme background] -width 0 -state "hidden"]
 	add_visual_items_to_contexts $contexts $background_id
 }
 
@@ -21,6 +21,18 @@ proc create_settings_button { contexts x1 y1 x2 y2 font backcolor textcolor acti
 	add_de1_variable "$contexts" [expr ($x1 + $x2) / 2.0 ] [expr ($y1 + $y2) / 2.0 ] -width [expr ($x2 - $x1) - 80]  -text "" -font $font -fill $textcolor -anchor "center" -justify "center" -state "hidden" -textvariable $variable
 	add_de1_button $contexts $action_down $x1 $y1 [expr ($x1 + $x2) / 2.0 ] $y2
 	add_de1_button $contexts $action_up   [expr ($x1 + $x2) / 2.0 ] $y1 $x2 $y2
+}
+
+proc create_triple_button { contexts x1 y1 x2 y2 font backcolor textcolor action_down action_middle action_up variable} {
+	rounded_rectangle $contexts  $x1 $y1 $x2 $y2 [rescale_x_skin 80] $backcolor
+
+	add_de1_text $contexts [expr ($x1 + 40)] [expr ($y1 + $y2) / 2.0 ] -text "-" -font $font -fill $textcolor -anchor "center" -state "hidden"
+	add_de1_text $contexts [expr ($x2 - 40) ] [expr ($y1 + $y2) / 2.0 ] -text "+" -font $font -fill $textcolor -anchor "center" -state "hidden"
+	add_de1_variable "$contexts" [expr ($x1 + $x2) / 2.0 ] [expr ($y1 + $y2) / 2.0 ] -width [expr ($x2 - $x1) - 80]  -text "" -font $font -fill $textcolor -anchor "center" -justify "center" -state "hidden" -textvariable $variable
+	set one_third_width {($x2 - $x1) / 3.0}
+	add_de1_button $contexts $action_down $x1 $y1 [expr $x1 + $one_third_width] $y2
+	add_de1_button $contexts $action_middle [expr $x1 + $one_third_width] $y1 [expr $x2 - $one_third_width] $y2
+	add_de1_button $contexts $action_up [expr $x2 - $one_third_width] $y1 $x2 $y2
 }
 
 # Extra buttons
@@ -87,4 +99,8 @@ proc create_grid { } {
 		.can create line [rescale_x_skin 0] [rescale_y_skin $y] [rescale_x_skin 2560] [rescale_y_skin $y] -width 1 -fill  "#000" -tags "grid" -state "hidden"
 		.can create text 0 [rescale_y_skin $y] -text $y -font [get_font "Mazzard Regular" 12] -fill "#000" -anchor "nw" -tag "grid" -state "hidden"
 	}
+}
+
+proc create_active_marker { context x1 y1 x2 y2 textvariable } {
+	add_de1_variable $context [expr ($x1 + $x2) / 2.0 ] [expr (($y1 + $y2) / 2.0) + 80 ] -width [rescale_x_skin [expr ($x2 - $x1) - 20]]  -text "" -font $::font_tiny -fill [::theme button_text_light] -anchor "center" -justify "center" -state "hidden" -textvariable $textvariable
 }

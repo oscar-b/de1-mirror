@@ -326,16 +326,12 @@ proc stop_espresso_timers {} {
 	#msg "stop_timers"
 	set ::timer_running 0
 	set ::timers(espresso_stop) [clock milliseconds]
-
-	scale_timer_stop
 }
 
 proc start_espresso_timers {} {
 	clear_espresso_timers
 	set ::timer_running 1
 	set ::timers(espresso_start) [clock milliseconds]
-
-	scale_timer_start
 }
 
 proc clear_espresso_timers {} {
@@ -3211,19 +3207,6 @@ proc preinfusion_seconds_text {num} {
 		return [subst {< $num [translate "seconds"]}]
 	}
 }
-
-proc seconds_text {num} {
-	if {$num == 0} {
-		return [translate "off"]
-	} elseif {$num == 1} {
-		return [subst {$num [translate "second"]}]
-	} elseif {$num == 60} {
-		return [translate "1 minute"]
-	} else {
-		return [subst {$num [translate "seconds"]}]
-	}
-}
-
 
 proc seconds_text {num} {
 	if {$num == 0} {

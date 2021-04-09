@@ -33,7 +33,7 @@ set ::water_button_id [create_symbol_button $status_function_contexts 1590 1400 
 set ::flush_button_id [create_symbol_button $status_function_contexts 1840 1400 [translate "flush"] $::symbol_flush $::color_menu_background {say [translate "flush"] $::settings(sound_button_in); do_start_flush}]
 
 create_symbol_button $status_function_contexts 2080 40 [translate "settings"] $::symbol_settings $::color_menu_background { say [translate "settings"] $::settings(sound_button_in); show_settings; metric_load_current_profile }
-create_symbol_button $status_function_contexts 2300 40 [translate "sleep"] $::symbol_power $::color_menu_background { say [translate "sleep"] $::settings(sound_button_in); start_sleep; metric_jump_home }
+create_symbol_button $status_function_contexts 2300 40 [translate "sleep"] $::symbol_power $::color_menu_background { say [translate "sleep"] $::settings(sound_button_in); metric_jump_home ; start_sleep}
 
 
 proc update_function_buttons {} {

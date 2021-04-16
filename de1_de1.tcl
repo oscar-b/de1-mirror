@@ -230,7 +230,11 @@ namespace eval ::de1 {
 
 	proc line_voltage_nom {} {
 
-		if {[info exists ::settings(heater_voltage)]} {
+		# string is double "" returns 1, expr {double("")} is an error
+
+		if {[info exists ::settings(heater_voltage)] \
+			    && [string is double $::settings(heater_voltage)] \
+			    && $::settings(heater_voltage) != "" } {
 			return [expr { double($::settings(heater_voltage)) }]
 		} else {
 			return False
@@ -940,3 +944,14 @@ namespace eval ::de1::sav {
 	::de1::sav::init
 
 } ;# ::de1::sav
+
+#
+# As the DE1 events aren't available when logging is enabled,
+# set up a log flush on Sleep here
+#
+
+::de1::event::listener::on_major_state_change_add [lambda {event_dict} {
+	if { [dict get $event_dict this_state] == "Sleep" } {
+		after idle ::logging::flush_log
+	}
+}]

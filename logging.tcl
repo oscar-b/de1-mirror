@@ -8,19 +8,19 @@ proc msg {args} {
 	::logging::default_logger {*}$args
 }
 
-# Originally in updater.tcl
-proc log_to_debug_file {args} {
-	::logging::default_logger {*}$args
-}
-
-
 # TODO: Persist and restore the "settings"
 
 namespace eval ::logging {
 
 	variable severity_limit_logfile 7
 	variable severity_limit_console 7
-	variable severity_limit_window  7
+
+	# NB: Android default limit is Info. See commit message or
+	#     https://developer.android.com/studio/command-line/logcat
+
+	variable severity_limit_android 7
+
+	variable android_logger_tag DE1
 
 	variable severity_default 6
 
@@ -51,9 +51,30 @@ namespace eval ::logging {
 	}
 	variable severity_max [tcl::mathfunc::max {*}[array names severity_to_string]]
 
-	variable recent_log_lines [list]
+
+	# See https://www.androwish.org/home/wiki?name=Android+facilities
+	#     https://developer.android.com/reference/android/util/Log
+	#     The Android "verbose" level is not used at this time
+
+	variable severity_to_borg_log_priority
+	array set severity_to_borg_log_priority {
+		0 fatal
+		1 fatal
+		2 error
+		3 error
+		4 warn
+		5 info
+		6 info
+		7 debug
+	}
 
 	variable _log_fh ""
+
+	# To disable logging, set to Boolean True externally,
+	# prior to any `package require` of de1app code
+	#   namespace eval ::logging { variable disable_logging_for_build True }
+
+	variable disable_logging_for_build
 
 	proc safe_get {var_name} {
 
@@ -94,10 +115,15 @@ namespace eval ::logging {
 		# Conditional and log-file open from vars.tcl:proc msg
 		#
 
-		set formatted_output [format "%s.%03u %s: %s" \
-					      [clock format $secs -format "%Y-%m-%d %H:%M:%S"] $msecs \
-					      $::logging::severity_to_string($severity) \
-					      $message ]
+		set formatted_output ""
+
+		foreach line [split $message "\n"] {
+			append formatted_output [format "%s.%03u %s: %s" \
+						      [clock format $secs -format "%Y-%m-%d %H:%M:%S"] $msecs \
+						      $::logging::severity_to_string($severity) \
+							 $line ] "\n"
+		}
+		set formatted_output [string trimright $formatted_output]
 
 		if { $severity <= $::logging::severity_limit_logfile } {
 			catch {
@@ -111,27 +137,25 @@ namespace eval ::logging {
 			}
 		}
 
-		if { $severity <= $::logging::severity_limit_window \
-			     && [safe_get ::debugging] == 1 } {
-
-			if {[info exists ::settings(debugging_window_size)]} {
-				set last_line_index \
-					[expr { max(0, [safe_get ::settings(debugging_window_size] - 2]) } ]
-			} else {
-				set last_line_index 98
+		if { $severity <= $::logging::severity_limit_android } {
+			catch {
+				borg log $::logging::severity_to_borg_log_priority($severity) \
+					$::logging::android_logger_tag \
+					$message
 			}
-
-			set ::logging::recent_log_lines \
-				[list $formatted_output \
-					 {*}[lrange $::logging::recent_log_lines 0 $last_line_index]]
-
-			set ::debuglog [join $::logging::recent_log_lines "\n"]
 		}
 	}
 
 	# TODO: catch log-rotation and file-open errors and somehow report them
 
 	proc init {} {
+
+		# Set the default limit to INFO for Stable builds
+
+		if { [regexp {^[0-9]+\.[0.9]+$} [package version de1app]] } {
+
+			set ::logging::severity_limit_logfile 6
+		}
 
 		set de1root [file normalize [file dirname [info script]]]
 
@@ -146,11 +170,7 @@ namespace eval ::logging {
 			array set tmp_settings [list]
 		}
 
-		if { [info exists tmp_settings(log_enabled)] } {
-			set ::settings(log_enabled) $tmp_settings(log_enabled)
-		} else {
-			set ::settings(log_enabled) 1
-		}
+		# Starting with v1.35, logging is always enabled
 
 		if { [info exists tmp_settings(logfile)] } {
 			set ::settings(logfile) $tmp_settings(logfile)
@@ -160,7 +180,7 @@ namespace eval ::logging {
 
 		# Try log rotation
 
-		set to_rotate {{log.txt}}
+		set to_rotate [list $::settings(logfile)]
 		set retain 10
 
 		foreach f $to_rotate {
@@ -181,27 +201,55 @@ namespace eval ::logging {
 			}
 		}
 
-		# https://3.basecamp.com/3671212/buckets/7351439/messages/3033510129#__recording_3039704280
-		# logging is always fast now, with only line level buffering
-		#
-		# https://3.basecamp.com/3671212/buckets/7351439/messages/3033510129#__recording_3037579684
-		# Michael argues that there's no need to go nonblocking
-		# if you have a write buffer defined.
-		# so disabling for now, to see if he's right.
+		# Open the log, set to 64 kB buffering due to flash-wear concerns
 
 		catch {
 			set ::logging::_log_fh [open "${de1root}/$::settings(logfile)" w]
-
-			set ::settings(log_fast) 1
-			if {[safe_get ::settings(log_fast)] == "1"} {
-				fconfigure $::logging::_log_fh -blocking 0 -buffering line
-				# Avoid reentrant call
-				after idle [list msg -INFO "fast log file: "]
-			} else {
-				fconfigure $::logging::_log_fh -buffersize 65536
-			}
+			fconfigure $::logging::_log_fh -buffersize 65536
 		}
 	}
+
+
+	proc close_logfiles {} {
+
+		msg -NOTICE "::logging::close_logfiles"
+		catch { close $::logging::_log_fh }
+	}
+
+	# flush_log should only be called when required
+	# such as just prior to an upload of the logs
+	#
+	# Use of Android logging via logcat
+	# is suggested for real-time monitoring
+
+	proc flush_log {} {
+
+		if { $::logging::_log_fh != "" } {
+			if { [catch {::flush $::logging::_log_fh} result opts_dict] != 0 } {
+				msg -ERROR "::logging::flush failed: $result $opts_dict"
+			} else {
+				msg -NOTICE "::logging::flush_log"
+			}
+		} else {
+				msg -NOTICE "::logging::flush_log: No filehandle to flush"
+		}
+	}
+
+
+
+
+	if { [info exists ::logging::disable_logging_for_build] \
+		     && $::logging::disable_logging_for_build } {
+
+		proc default_logger {args} {
+			# pass
+		}
+
+		proc init {args} {
+			# pass
+		}
+	}
+
 
 	::logging::init
 
@@ -255,7 +303,6 @@ namespace eval ::logging {
 	}
 
 
-	# should not display a debug message on package load, only as procs run
 	msg -INFO "Overriding existing bgerror handler ${_previous_bgerror}"
 
 	interp bgerror {} ::logging::_logging_bgerror

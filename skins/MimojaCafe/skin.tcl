@@ -56,7 +56,6 @@ if {$::iconik_settings(cleanup_use_profile) == 1} {
 # Skin settings buttons
 create_button "settings_1 settings_2 settings_2a settings_2b settings_2c settings_2c2 settings_3 settings_4" 1080 1460 1480 1580 $::font_tiny [::theme button] [::theme button_text_light] { page_to_show_when_off "iconik_settings"} "Skin Settings" 
 
-iconik_wakeup
 
 create_grid
 .can itemconfigure "grid" -state "hidden"
@@ -166,6 +165,27 @@ proc iconik_status_tap {} {
 	if {$::de1(scale_device_handle) == 0 && $::settings(scale_bluetooth_address) != ""} {
 		ble_connect_to_scale
 	}
+}
+
+proc ghc_text_or_stop {text} {
+	if { $::de1(substate) == 1} {
+		return [translate "Please wait"]
+	}
+	if { $::de1(substate) > 1} {
+		return [translate Stop]
+	}
+	return $text
+}
+
+proc ghc_action_or_stop {action} {
+	if { $::de1(substate) == 1} {
+		return
+	}
+	if { $::de1(substate) > 1} {
+		start_idle
+		return
+	}
+	$action
 }
 
 proc iconic_steam_tap {up} {
@@ -350,12 +370,20 @@ proc iconik_get_steam_time {} {
 }
 
 proc iconik_final_weight {} {
-	if {$::settings(settings_profile_type) == "settings_2c"} {
-		set target $::settings(final_desired_shot_weight_advanced)
-	} else {
-		set target $::settings(final_desired_shot_weight)
+	#SAW
+	if {[::device::scale::expecting_present]} {
+		if {$::settings(settings_profile_type) == "settings_2c"} {
+			return $::settings(final_desired_shot_weight_advanced)
+		} else {
+			return $::settings(final_desired_shot_weight)
+		}
 	}
-	return $target
+	# SAV
+	if {$::settings(settings_profile_type) == "settings_2c"} {
+		return $::settings(final_desired_shot_volume_advanced)
+	} else {
+		return $::settings(final_desired_shot_volume)
+	}
 }
 
 proc iconik_get_ratio_text {} {
@@ -375,6 +403,78 @@ proc iconik_get_final_weight_text {} {
 
 	return $current
 }
+
+proc iconik_weight_change {direction} {
+
+	set change 0
+	if {$direction == "up"} {
+		set change 1
+	} else {
+		set change -1
+	}
+
+	#SAW
+	if {[::device::scale::expecting_present]} {
+		if {$::settings(settings_profile_type) == "settings_2c"} {
+			set ::settings(final_desired_shot_weight_advanced) [expr {$::settings(final_desired_shot_weight_advanced) + $change}]
+			set ::settings(final_desired_shot_weight) 0
+		} else {
+			set ::settings(final_desired_shot_weight) [expr {$::settings(final_desired_shot_weight) + $change}]
+			set ::settings(final_desired_shot_weight_advanced) 0
+		}
+		set ::settings(final_desired_shot_volume) 0
+		set ::settings(final_desired_shot_volume_advanced) 0
+	} else {
+	# SAV
+		if {$::settings(settings_profile_type) == "settings_2c"} {
+			set ::settings(final_desired_shot_volume_advanced) [expr {$::settings(final_desired_shot_volume_advanced) + $change}]
+			set ::settings(final_desired_shot_volume) 0
+		} else {
+			set ::settings(final_desired_shot_volume) [expr {$::settings(final_desired_shot_volume) + $change}]
+			set ::settings(final_desired_shot_volume_advanced) 0
+		}
+		set ::settings(final_desired_shot_weight) 0
+		set ::settings(final_desired_shot_weight_advanced) 0
+	}
+
+	profile_has_changed_set
+	save_profile
+	save_settings_to_de1
+	save_settings
+}
+
+proc iconik_set_weight {target} {
+	#SAW
+	if {[::device::scale::expecting_present]} {
+		if {$::settings(settings_profile_type) == "settings_2c"} {
+			set ::settings(final_desired_shot_weight_advanced) $target
+			set ::settings(final_desired_shot_weight) 0
+		} else {
+			set ::settings(final_desired_shot_weight) $target
+			set ::settings(final_desired_shot_weight_advanced) 0
+
+		}
+		set ::settings(final_desired_shot_volume) 0
+		set ::settings(final_desired_shot_volume_advanced) 0
+	} else {
+	# SAV
+		if {$::settings(settings_profile_type) == "settings_2c"} {
+			set ::settings(final_desired_shot_volume_advanced) $target
+			set ::settings(final_desired_shot_volume) 0
+		} else {
+			set ::settings(final_desired_shot_volume) $target
+			set ::settings(final_desired_shot_volume_advanced) 0
+		}
+		set ::settings(final_desired_shot_weight) 0
+		set ::settings(final_desired_shot_weight_advanced) 0
+	}
+
+	profile_has_changed_set
+	save_profile
+	save_settings_to_de1
+	save_settings
+}
+
 
 proc iconik_is_cleanup {} { return [ expr { $::iconik_settings(cleanup_profile) == $::settings(profile_filename) } ] }
 
@@ -399,3 +499,5 @@ proc iconik_after_cleanup_profile {} {
 		select_profile $::iconik_settings(tmp_profile_to_restore_after_cleanup)
 	}
 }
+
+iconik_wakeup

@@ -122,11 +122,6 @@ add_de1_button "preheat_2 steam steam_zoom espresso espresso_3" {say [translate 
 # espresso charts
 
 set charts_width 1990
-if {$::debugging == 1} {
-	set charts_width 400
-	add_de1_variable "off espresso espresso_3" 450 220 -text "" -font Helv_6 -fill "#5a5d75" -anchor "nw" -justify left -width [rescale_y_skin 1560] -textvariable {$::debuglog}
-	add_de1_variable "steam steam_1 steam_3 preheat_1 preheat_2 preheat_3 preheat_4 water water_1 water_3" 50 220 -text "" -font Helv_6 -fill "#5a5d75" -anchor "nw" -justify left -width [rescale_y_skin 1560] -textvariable {$::debuglog}
-}
 
 	
 	# not yet ready to be used, still needs some work
@@ -479,7 +474,9 @@ add_de1_button "off_zoomed_temperature espresso_zoomed_temperature espresso_3_zo
 } 1 1 2012 1600
 
 # the "go to sleep" button and the whole-screen button for coming back awake
-add_de1_button "saver sleep descaling cleaning" {say [translate {awake}] $::settings(sound_button_in); set_next_page off off; page_show off; start_idle; de1_send_waterlevel_settings; } 0 0 2560 1600
+#
+# using a buttonnativepress so that if running on Android, we can use the OS based filtering on spurious taps
+add_de1_button "saver sleep descaling cleaning" {say [translate {awake}] $::settings(sound_button_in); set_next_page off off; page_show off; start_idle; de1_send_waterlevel_settings; } 0 0 2560 1600 "buttonnativepress"
 
 
 if {$::debugging == 1} {

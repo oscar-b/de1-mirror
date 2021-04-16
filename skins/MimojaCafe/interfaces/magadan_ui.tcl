@@ -116,9 +116,9 @@ if {$::iconik_settings(create_profile_backups) == 0} {
 }
 
 ## Espresso Target Weight - 0,1
-create_button "magadan_off" $l_btn_left [expr {$l_btn_top + 0 * ($l_btn_height + $l_btn_spacer)}] 220 [expr {$l_btn_top + 0 * ($l_btn_height + $l_btn_spacer) + $l_btn_height}] $::font_tiny_icon [::theme button_secondary] [::theme button_text_light] {set ::settings(final_desired_shot_weight) $::iconik_settings(small_mug_setting);set ::settings(final_desired_shot_weight_advanced) $::iconik_settings(small_mug_setting); profile_has_changed_set; save_profile; save_settings_to_de1; save_settings} {\uf7b6}
-create_button "magadan_off" 260 [expr {$l_btn_top + 0 * ($l_btn_height + $l_btn_spacer)}] [expr {$l_btn_left + $l_btn_width}] [expr {$l_btn_top + 0 * ($l_btn_height + $l_btn_spacer) + $l_btn_height}] $::font_big_icon [::theme button_secondary] [::theme button_text_light] {set ::settings(final_desired_shot_weight) $::iconik_settings(large_mug_setting);set ::settings(final_desired_shot_weight_advanced) $::iconik_settings(large_mug_setting); profile_has_changed_set; save_profile; save_settings_to_de1; save_settings} {\uf7b6}
-create_settings_button "magadan_off" $l_btn_left [expr {$l_btn_top + 1 * ($l_btn_height + $l_btn_spacer)}] [expr {$l_btn_left + $l_btn_width}] [expr {$l_btn_top + 1 * ($l_btn_height + $l_btn_spacer) + $l_btn_height}] $::font_tiny [::theme button_secondary] [::theme button_text_light] {set ::settings(final_desired_shot_weight) [expr {$::settings(final_desired_shot_weight) - 1}];set ::settings(final_desired_shot_weight_advanced) [expr {$::settings(final_desired_shot_weight_advanced) - 1}]; profile_has_changed_set; save_profile; save_settings_to_de1; save_settings} { set ::settings(final_desired_shot_weight) [expr {$::settings(final_desired_shot_weight) + 1}];set ::settings(final_desired_shot_weight_advanced) [expr {$::settings(final_desired_shot_weight_advanced) + 1}]; profile_has_changed_set; save_profile; save_settings_to_de1; save_settings} {Bev. weight:\n [iconik_get_final_weight_text]g}
+create_button "magadan_off" $l_btn_left [expr {$l_btn_top + 0 * ($l_btn_height + $l_btn_spacer)}] 220 [expr {$l_btn_top + 0 * ($l_btn_height + $l_btn_spacer) + $l_btn_height}] $::font_tiny_icon [::theme button_secondary] [::theme button_text_light] {iconik_set_weight $::iconik_settings(small_mug_setting)} {\uf7b6}
+create_button "magadan_off" 260 [expr {$l_btn_top + 0 * ($l_btn_height + $l_btn_spacer)}] [expr {$l_btn_left + $l_btn_width}] [expr {$l_btn_top + 0 * ($l_btn_height + $l_btn_spacer) + $l_btn_height}] $::font_big_icon [::theme button_secondary] [::theme button_text_light] {iconik_set_weight $::iconik_settings(large_mug_setting)} {\uf7b6}
+create_settings_button "magadan_off" $l_btn_left [expr {$l_btn_top + 1 * ($l_btn_height + $l_btn_spacer)}] [expr {$l_btn_left + $l_btn_width}] [expr {$l_btn_top + 1 * ($l_btn_height + $l_btn_spacer) + $l_btn_height}] $::font_tiny [::theme button_secondary] [::theme button_text_light] {iconik_weight_change down} {iconik_weight_change up} {Bev. weight:\n [iconik_get_final_weight_text]g}
 
 ## Steam - 7,8
 create_button "magadan_off" $l_btn_left [expr {$l_btn_top + 7 * ($l_btn_height + $l_btn_spacer)}] 220 [expr {$l_btn_top + 7 * ($l_btn_height + $l_btn_spacer) + $l_btn_height}] $::font_tiny_icon [::theme button_secondary] [::theme button_text_light] {iconik_toggle_steam_settings 1} {\uf72e}
@@ -161,7 +161,7 @@ if {$::iconik_settings(always_show_temperatures) == 1} {
 	add_de1_text "magadan_off" $column3_pos [expr {$pos_top + (0 * $spacer)}] -justify left -anchor "nw" -text [translate "Temperature"] -font $::font_tiny -fill  [::theme background_text] -width [rescale_x_skin 520]
 	add_de1_variable "magadan_off" $column3_pos [expr {$pos_top + (1 * $spacer)}] -justify left -anchor "nw" -text "" -font $::font_tiny  -fill  [::theme background_text]  -width [rescale_x_skin 520] -textvariable {[translate Group] [group_head_heater_temperature_text]}
 	add_de1_variable "magadan_off" $column3_pos [expr {$pos_top + (2 * $spacer)}] -justify left -anchor "nw" -text "" -font $::font_tiny  -fill  [::theme background_text]  -width [rescale_x_skin 520] -textvariable {[translate Steam] [steamtemp_text]}
-	add_de1_variable "magadan_off" $column3_pos [expr {$pos_top + (3 * $spacer)}] -justify left -anchor "nw" -text "" -font $::font_tiny -fill  [::theme background_text]  -width [rescale_x_skin 520] -textvariable {[translate {Tank preheat}] [return_temperature_setting_or_magadan_off $::settings(tank_desired_water_temperature)]}
+	add_de1_variable "magadan_off" $column3_pos [expr {$pos_top + (3 * $spacer)}] -justify left -anchor "nw" -text "" -font $::font_tiny -fill  [::theme background_text]  -width [rescale_x_skin 520] -textvariable {[translate {Tank preheat}] [return_temperature_setting_or_off $::settings(tank_desired_water_temperature)]}
 } else {
 	# Max pressure, min flow
 	add_de1_text "magadan_off" $column3_pos [expr {$pos_top + (0 * $spacer)}] -justify left -anchor "nw" -text [translate "Pressure"] -font $::font_tiny -fill  [::theme background_text] -width [rescale_x_skin 520]
@@ -212,22 +212,6 @@ create_button "magadan_off" [expr {$b_btn_hpos_r - 1 * ($b_btn_width_tiny + $b_b
 # Sleep
 create_button "magadan_off" [expr {$b_btn_hpos_r - 0 * ($b_btn_width_tiny + $b_btn_spacer) - $b_btn_width_tiny}] $b_btn_vpos [expr {$b_btn_hpos_r - 0 * ($b_btn_width_tiny + $b_btn_spacer)}] [expr {$b_btn_vpos + $b_btn_height}] $::font_big_icon [::theme button_tertiary] [::theme button_text_light] { say [translate "settings"] $::settings(sound_button_in); start_sleep } {\uf186}
 
-
-proc ghc_text_or_stop {text} {
-	if { $::de1(substate) >= 1} {
-		return [translate Stop]
-	}
-	return $text
-}
-
-proc ghc_action_or_stop {action} {
-	if { $::de1(substate) >= 1} {
-		start_idle
-		return
-	}
-	$action
-}
-
 ## GHC buttons
 if {$::iconik_settings(show_ghc_buttons) == 1} {
 	create_button "magadan_off" 2180 210 2480 390  $::font_tiny [::theme button_tertiary] [::theme button_text_light] { ghc_action_or_stop start_espresso } {[ghc_text_or_stop "Espresso"]}
@@ -255,7 +239,7 @@ add_de1_widget "magadan_off" graph 510 280 {
 
 	# configure axes
 	$widget axis configure x -color [::theme background_text] -tickfont Helv_6;
-	$widget axis configure y -color [::theme background_text] -tickfont Helv_6 -min 0.0 -max $::settings(zoomed_y_axis_scale) -subdivisions 5 -majorticks {0 1 2 3 4 5 6 7 8 9 10 11 12} -hide 0;
+	$widget axis configure y -color [::theme background_text] -tickfont Helv_6 -min 0.0 -max $::iconik_settings(y_axis_scale) -subdivisions 5 -majorticks {0 1 2 3 4 5 6 7 8 9 10 11 12} -hide 0;
 	
 	if {$::iconik_settings(show_grid_lines) != 1} {
 		$widget grid configure -hide yes
@@ -266,7 +250,7 @@ add_de1_widget "magadan_off" graph 510 280 {
 	$widget element create line2_espresso_pressure -xdata espresso_elapsed -ydata espresso_pressure -symbol none -label "" -linewidth [rescale_x_skin 12] -color [::theme primary]  -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_pressure);
 	set flow_axis y
 	if {$::iconik_settings(seperate_flow_axis)} {
-		$widget axis configure y2 -color [::theme secondary] -tickfont Helv_6 -min 0.0 -max [expr {$::settings(zoomed_y_axis_scale) / 3 * 2}] -subdivisions 0 -majorticks {0 0.5 1 1.5 2 2.5 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8} -title [translate {Flow [ml/s]}] -titlecolor [::theme secondary] -hide 0;
+		$widget axis configure y2 -color [::theme secondary] -tickfont Helv_6 -min 0.0 -max [expr {$::iconik_settings(y_axis_scale) / 3 * 2}] -subdivisions 0 -majorticks {0 0.5 1 1.5 2 2.5 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8} -title [translate {Flow [ml/s]}] -titlecolor [::theme secondary] -hide 0;
 		set flow_axis y2
 	}
 
@@ -276,7 +260,7 @@ add_de1_widget "magadan_off" graph 510 280 {
 
 	if {$::iconik_settings(always_show_temperatures)} {
 		$widget axis create temp
-		$widget axis configure temp -color [::theme background_text] -min 0.0 -max [expr {$::settings(zoomed_y_axis_scale) * 10}]
+		$widget axis configure temp -color [::theme background_text] -min 0.0 -max [expr {$::iconik_settings(y_axis_scale) * 10}]
 		
 		$widget element create line_espresso_temperature_goal -xdata espresso_elapsed -ydata espresso_temperature_goal -mapy temp  -symbol none -label ""  -linewidth [rescale_x_skin 8] -color #ffa5a6 -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes {5 5}; 
 		$widget element create line_espresso_temperature_basket -xdata espresso_elapsed -ydata espresso_temperature_basket -mapy temp -symbol none -label ""  -linewidth [rescale_x_skin 12] -color #e73249 -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_temperature);  
@@ -293,10 +277,6 @@ add_de1_widget "magadan_off" graph 510 280 {
 		$widget element create line_espresso_total_flow  -xdata espresso_elapsed -ydata espresso_water_dispensed -symbol none -label "" -linewidth [rescale_x_skin 6] -color #98c5ff -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_espresso_weight);
 	}
 
-	if {$::settings(display_flow_delta_line) == 1} {
-		$widget element create line_espresso_flow_delta_1  -xdata espresso_elapsed -ydata espresso_flow_delta -symbol none -label "" -linewidth [rescale_x_skin 2] -color #98c5ff -pixels 0 -smooth $::settings(live_graph_smoothing_technique)
-	}
-
 	if {$::settings(scale_bluetooth_address) != ""} {
 		$widget element create line_espresso_flow_weight  -xdata espresso_elapsed -ydata espresso_flow_weight -mapy $flow_axis -symbol none -label "" -linewidth [rescale_x_skin 8] -color #a2693d -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
 		$widget element create line_espresso_flow_weight_raw  -xdata espresso_elapsed -ydata espresso_flow_weight_raw -mapy $flow_axis -symbol none -label "" -linewidth [rescale_x_skin 2] -color #f8b888 -smooth $::settings(live_graph_smoothing_technique) -pixels 0 ;
@@ -306,22 +286,16 @@ add_de1_widget "magadan_off" graph 510 280 {
 			$widget element create line_espresso_weight  -xdata espresso_elapsed -ydata espresso_weight_chartable -symbol none -label "" -linewidth [rescale_x_skin 6] -color #f8b888 -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_espresso_weight);
 		}
 
-		# when using Resistance calculated from the flowmeter, use a solid line to indicate it is well measured
-		$widget element create line_espresso_resistance  -xdata espresso_elapsed -ydata espresso_resistance_weight -symbol none -label "" -linewidth [rescale_x_skin 4] -color #e5e500 -smooth $::settings(live_graph_smoothing_technique) -pixels 0
-
 	}
-
-	$widget element create line_espresso_resistance_dashed  -xdata espresso_elapsed -ydata espresso_resistance -symbol none -label "" -linewidth [rescale_x_skin 4] -color #e5e500 -smooth $::settings(live_graph_smoothing_technique) -pixels 0  -dashes {6 2};
 
 	$widget element create god_line2_espresso_pressure -xdata espresso_elapsed -ydata god_espresso_pressure -symbol none -label "" -linewidth [rescale_x_skin 24] -color #c5ffe7  -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
 	$widget element create line_espresso_state_change_1 -xdata espresso_elapsed -ydata espresso_state_change -label "" -linewidth [rescale_x_skin 6] -color #AAAAAA  -pixels 0 ;
-	
 	
 	# show the explanation for pressure
 	$widget element create line_espresso_de1_explanation_chart_pressurec -xdata espresso_de1_explanation_chart_elapsed -ydata espresso_de1_explanation_chart_pressure  -label "" -linewidth [rescale_x_skin 16] -color [::theme primary]  -smooth $::settings(preview_graph_smoothing_technique) -pixels 0;
 	
 	# show the explanation for flow
-	$widget element create line_espresso_de1_explanation_chart_flowc -xdata espresso_de1_explanation_chart_elapsed -ydata espresso_de1_explanation_chart_flow -mapy y2  -label "" -linewidth [rescale_x_skin 18] -color [::theme secondary]  -smooth $::settings(preview_graph_smoothing_technique) -pixels 0;
+	$widget element create line_espresso_de1_explanation_chart_flowc -xdata espresso_de1_explanation_chart_elapsed -ydata espresso_de1_explanation_chart_flow -mapy $flow_axis  -label "" -linewidth [rescale_x_skin 18] -color [::theme secondary]  -smooth $::settings(preview_graph_smoothing_technique) -pixels 0;
 	
 } -plotbackground [::theme background] -width [rescale_x_skin $espresso_graph_width] -height [rescale_y_skin $espresso_graph_height] -borderwidth 1 -background [::theme background] -plotrelief flat -plotpady 0 -plotpadx 10
 

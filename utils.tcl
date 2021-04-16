@@ -13,7 +13,6 @@ set SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN 0x00000400
 set ::android_full_screen_flags [expr {$SYSTEM_UI_FLAG_LAYOUT_STABLE | $SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | $SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | $SYSTEM_UI_FLAG_HIDE_NAVIGATION | $SYSTEM_UI_FLAG_FULLSCREEN | $SYSTEM_UI_FLAG_IMMERSIVE}]
 
 proc setup_environment {} {
-    #puts "setup_environment"
     global screen_size_width
     global screen_size_height
     global fontm
@@ -37,7 +36,7 @@ proc setup_environment {} {
         wm title . "Decent"
 
         # force the screen into landscape if it isn't yet
-        msg "orientation: [borg screenorientation]"
+        msg -DEBUG "orientation: [borg screenorientation]"
         if {[borg screenorientation] != "landscape" && [borg screenorientation] != "reverselandscape"} {
             borg screenorientation $::settings(orientation)
         }
@@ -127,7 +126,6 @@ proc setup_environment {} {
         global helvetica_bold_font
         global helvetica_font
         set global_font_size 18
-        #puts "setting up fonts for language [language]"
         if {[language] == "th"} {
             set helvetica_font [sdltk addfont "fonts/sarabun.ttf"]
             set helvetica_bold_font [sdltk addfont "fonts/sarabunbold.ttf"]
@@ -330,7 +328,6 @@ proc setup_environment {} {
 }
 
 proc check_if_battery_low_and_give_message {} {
-    #msg "check_if_battery_low_and_give_message [battery_percent]"
     if {[battery_percent] < 10 && $::android == 1} {
         info_page [subst {[translate "We noticed that your battery power is very low."]\n\n[translate "Maybe you are turning your DE1 off using the power switch on the back?"]\n\n[translate "If so, that prevents the tablet from charging."]\n\n[translate "Instead, put the DE1 to sleep by tapping the power icon in the App."]}] [translate "Ok"]
     }
@@ -343,8 +340,6 @@ proc battery_percent {} {
     if {$percent == ""} {
         set percent 100
     }
-
-    #msg "battery_percent: $percent"
 
     return $percent
 }
@@ -362,11 +357,10 @@ proc check_battery_low {brightness_to_use} {
     #return 100
     set percent [battery_percent]
 
-    #puts "check_battery_low: $brightness_to_use / borg brightness = [borg brightness] / powerinfo(percent) = [ifexists powerinfo(percent)]"
     if {$percent < $::settings(battery_very_low_trigger)} {
         if {$current_brightness > $::settings(battery_very_low_brightness)} {
             get_set_tablet_brightness $::settings(battery_very_low_brightness)
-            msg "Battery is very low ($percent < $::settings(battery_very_low_trigger)) so lowering screen to $::settings(battery_very_low_brightness)"
+            msg -WARNING "Battery is very low ($percent < $::settings(battery_very_low_trigger)) so lowering screen to $::settings(battery_very_low_brightness)"
         }
         if {$brightness_to_use > $::settings(battery_very_low_brightness)} {
             return $::settings(battery_very_low_brightness)
@@ -374,7 +368,7 @@ proc check_battery_low {brightness_to_use} {
     } elseif {$percent < $::settings(battery_low_trigger)} {
         if {$current_brightness > $::settings(battery_low_brightness)} {
             get_set_tablet_brightness $::settings(battery_low_brightness)
-            msg "Battery is low ($percent < $::settings(battery_low_trigger)) so lowering screen to $::settings(battery_low_brightness)"
+            msg -WARNING "Battery is low ($percent < $::settings(battery_low_trigger)) so lowering screen to $::settings(battery_low_brightness)"
         }
         if {$brightness_to_use > $::settings(battery_low_brightness)} {
             return $::settings(battery_low_brightness)
@@ -383,7 +377,7 @@ proc check_battery_low {brightness_to_use} {
     } elseif {$percent < $::settings(battery_medium_trigger)} {
         if {$current_brightness > $::settings(battery_medium_brightness)} {
             get_set_tablet_brightness $::settings(battery_medium_brightness)
-            msg "Battery is medium ($percent < $::settings(battery_medium_trigger)) so lowering screen to $::settings(battery_medium_brightness)"
+            msg -NOTICE "Battery is medium ($percent < $::settings(battery_medium_trigger)) so lowering screen to $::settings(battery_medium_brightness)"
         }
         if {$brightness_to_use > $::settings(battery_medium_brightness)} {
             return $::settings(battery_medium_brightness)
@@ -478,7 +472,6 @@ proc random_saver_file {} {
 
 
     if {[info exists ::saver_files_cache] != 1} {
-        #puts "building saver_files_cache"
         set ::saver_files_cache {}
  
         set savers {}
@@ -498,12 +491,12 @@ proc random_saver_file {} {
             foreach fn [glob -nocomplain "[saver_directory]/2560x1600/*.jpg"] {
                 borg toast [subst {[translate "Resizing image"]\n\n[file tail $fn]}]
                 borg spinner on
-                msg "random_saver_file image create photo saver -file $fn"
+                msg -DEBUG "random_saver_file image create photo saver -file $fn"
                 image create photo saver -file $fn
                 photoscale saver $rescale_images_y_ratio $rescale_images_x_ratio
 
                 set resized_filename "[saver_directory]/${::screen_size_width}x${::screen_size_height}/[file tail $fn]"
-                puts "saving resized image to: $resized_filename"
+                msg -DEBUG  "saving resized image to: $resized_filename"
                 borg spinner off
 
                 saver write $resized_filename   -format {jpeg -quality 50}
@@ -536,7 +529,7 @@ proc tcl_introspection {} {
             set acnt 0
             foreach a [after info] {
                 incr acnt
-                append txt "$acnt - " [after info $a]\n"
+                append txt "$acnt -  [after info $a]\n"
             }
         }
 
@@ -589,7 +582,7 @@ proc tcl_introspection {} {
         append txt "TOTAL global variable memory used: $total bytes\n\n"
 
 
-        msg $txt
+        msg -DEBUG $txt
     }
 
     after [expr {60 * 60 * 1000}] tcl_introspection
@@ -599,7 +592,6 @@ proc tcl_introspection {} {
 proc random_splash_file {} {
     if {[info exists ::splash_files_cache] != 1} {
 
-        #puts "building splash_files_cache"
         set ::splash_files_cache {}
  
         set savers {}
@@ -617,12 +609,12 @@ proc random_splash_file {} {
             foreach fn [glob -nocomplain "[splash_directory]/2560x1600/*.jpg"] {
                 borg toast [subst {[translate "Resizing image"]\n\n[file tail $fn]}]
                 borg spinner on
-                msg "random_splash_file image create photo saver -file $fn"
+                msg -DEBUG "random_splash_file image create photo saver -file $fn"
                 image create photo saver -file $fn
                 photoscale saver $rescale_images_y_ratio $rescale_images_x_ratio
 
                 set resized_filename "[splash_directory]/${::screen_size_width}x${::screen_size_height}/[file tail $fn]"
-                puts "saving resized image to: $resized_filename"
+                msg -DEBUG "saving resized image to: $resized_filename"
                 borg spinner off
                 saver write $resized_filename   -format {jpeg -quality 50}
             }
@@ -637,7 +629,7 @@ proc random_splash_file {} {
 
 proc random_splash_file_obs {} {
     if {[info exists ::splash_files_cache] != 1} {
-        puts "building splash_files_cache"
+	msg -DEBUG "building splash_files_cache"
         set ::splash_files_cache {}
         if {[file exists "[splash_directory]/${::screen_size_width}x${::screen_size_height}/"] == 1} {
             set files [glob -nocomplain "[splash_directory]/${::screen_size_width}x${::screen_size_height}/*.jpg"]
@@ -652,7 +644,7 @@ proc random_splash_file_obs {} {
             }
         }
         borg spinner off
-        puts "savers: $::splash_files_cache"
+        msg -INFO "savers: $::splash_files_cache"
 
     }
 
@@ -753,8 +745,6 @@ proc translate {english} {
         return $english
     }
 
-    #puts "lang: '[language]'"
-
     global translation
 
     if {[info exists translation($english)] == 1} {
@@ -762,13 +752,9 @@ proc translate {english} {
         array set available $translation($english)
         if {[info exists available([language])] == 1} {
             # this word has been translated into the desired non-english language
-            #puts "$available([language])"
 
-            #puts "translate: '[encoding convertfrom $available([language])]'"
             if {[ifexists available([language])] != ""} {
                 # if the translated version of the English is NOT blank, return it
-                #log_to_debug_file [encoding names]
-                #log_to_debug_file "English: '$available([language])'"
                 if {[language] == "ar" && ($::android == 1 || $::undroid == 1)} {
                     # use the "arb" column on Android/Undroid because they do not correctly right-to-left text like OSX does
                     if {[ifexists available(arb)] != ""} {
@@ -800,8 +786,7 @@ proc translate {english} {
                 append t [subst {$l "$english" }]
             }
             append t "\}"
-            puts "Appending new phrase: $english"
-            msg [stacktrace]
+            msg -NOTICE "Appending new phrase: $english"
             append_file "[homedir]/translation.tcl" $t
             set ::already_shown_trans($english) 1
         }
@@ -821,7 +806,6 @@ proc skin_directory {} {
         #set skindir "skinscreator"
     #}
 
-    #puts "skind: $skindir"
     #set dir "[file dirname [info script]]/$skindir/default/${screen_size_width}x${screen_size_height}"
     set dir "[homedir]/$skindir/$::settings(skin)"
     return $dir
@@ -829,18 +813,16 @@ proc skin_directory {} {
 
 proc android_specific_stubs {} {
 
-    proc ble {args} { msg "ble $args"; return 1 }
+    proc ble {args} { msg -DEBUG "ble $args"; return 1 }
     
     if {$::android != 1 && $::undroid != 1} {
         proc sdltk {args} {
             if {[lindex $args 0] == "powerinfo"} {
-                #msg "sdltk powerinfo"
                 return [list "percent" 75]
             } elseif {[lindex $args 0] == "textinput"} {
-                #msg "sdltk textinput"
                 return 0
             } else {
-                msg "unknown sdktk comment: '$args'"
+                msg -ERROR "unknown sdktk comment: '$args'"
             }
         }
     }
@@ -859,16 +841,16 @@ proc android_specific_stubs {} {
         } elseif {[lindex $args 0] == "spinner"} {
             # do nothing
         } elseif {[lindex $args 0] == "toast"} {
-            puts "screen popup message: '$args'"
+            msg -NOTICE "screen popup message: '$args'"
         } elseif {[lindex $args 0] == "brightness"} {
             if {[lindex $args 1] == ""} {
                 return 70
             } else {
-                msg "borg $args"
+                msg -DEBUG "borg $args"
             }
 
         } else {
-            puts "unknown 'borg $args'"
+            msg -ERROR "unknown 'borg $args'"
         }
     }
 }
@@ -918,13 +900,11 @@ proc skin_directory_graphics {} {
     #    set skindir "[homedir]/skinscreator"
     #}
 
-    #puts "skind: $skindir"
     set dir "$skindir/$::settings(skin)/${screen_size_width}x${screen_size_height}"
 
     if {[info exists ::rescale_images_x_ratio] == 1} {
         set dir "$skindir/$::settings(skin)/2560x1600"
     }
-    #puts "skindir '$skindir'"
     #set dir "[file dirname [info script]]/$skindir/default"
     return $dir
 }
@@ -944,13 +924,11 @@ proc defaultskin_directory_graphics {} {
     #    set skindir "[homedir]/skinscreator"
     #}
 
-    #puts "skind: $skindir"
     set dir "$skindir/default/${screen_size_width}x${screen_size_height}"
     
     if {[info exists ::rescale_images_x_ratio] == 1} {
         set dir "$skindir/default/2560x1600"
     }
-    #puts "skindir '$skindir'"
     #set dir "[file dirname [info script]]/$skindir/default"
     return $dir
 }
@@ -1003,7 +981,6 @@ proc accelerometer_data_read {} {
     #   set xvalue [lindex [lindex $a 11] 0]
     #   lappend reads $xvalue
     #}
-    #msg "reads: $reads"
 
     #set a [borg sensor get 0]
     #set a 
@@ -1013,7 +990,6 @@ proc accelerometer_data_read {} {
     mean_accelbuffer
     set xvalue $::ACCEL(e3)
 
-    #msg "xvalue : $xvalue $::ACCEL(e1) $::ACCEL(e2) $::ACCEL(e3)"
 
     return $xvalue;
 
@@ -1069,7 +1045,6 @@ proc accelerometer_check {} {
             set ::settings(flying) 0
             start_idle
         }
-        #msg "accelerometer angle: $angle"
     }
     after 200 accelerometer_check
 }
@@ -1107,12 +1082,15 @@ proc append_file {filename data} {
     set success 0
     set errcode [catch {
         set fn [open $filename a]
-        puts $fn $data 
+	#
+	# DISABLING this as it can print arbitrary binary to the logs
+	#
+	# puts $fn $data
         close $fn
         set success 1
     }]
     if {$errcode != 0} {
-        msg "append_file $::errorInfo"
+        msg -ERROR "append_file $::errorInfo"
     }
     return $success
 }
@@ -1163,12 +1141,12 @@ proc save_settings {} {
 
             set sv [ifexists ::settings_saved($k)]
             if {$sv != $v} {
-                msg "New setting: '$k' = '$v' (was '$sv')"
+                msg -DEBUG "New setting: '$k' = '$v' (was '$sv')"
             }
         }
     }
 
-    msg "saving settings: [stacktrace]"
+    msg -INFO "saving settings"
     save_array_to_file ::settings [settings_filename]
 
     catch {
@@ -1181,8 +1159,6 @@ proc save_settings {} {
 
 proc load_settings {} {
 
-
-    #puts "loading settings XXXXXXX"
 
     set osbuildinfo_string [borg osbuildinfo]
 
@@ -1203,7 +1179,7 @@ proc load_settings {} {
     } else {
         array set ::settings $settings_file_contents
 
-        msg "OS build info: $osbuildinfo_string"
+        msg -NOTICE "OS build info: $osbuildinfo_string"
 
     }
 
@@ -1244,6 +1220,13 @@ proc load_settings {} {
         set ::settings(stop_weight_before_seconds) 0.15
     }
 
+    # Starting with v1.35, logging is always enabled
+    # Variable may be accessed by skins, retain at this time
+    # Variable is a placebo, there is no check in ::logging
+
+    set ::settings(log_enabled) True
+
+
     blt::vector create espresso_elapsed god_espresso_elapsed god_espresso_pressure steam_pressure steam_temperature steam_flow steam_elapsed espresso_pressure espresso_flow god_espresso_flow espresso_flow_weight god_espresso_flow_weight espresso_flow_weight_2x god_espresso_flow_weight_2x espresso_flow_2x god_espresso_flow_2x espresso_flow_delta espresso_pressure_delta espresso_temperature_mix espresso_temperature_basket god_espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_weight espresso_weight_chartable espresso_resistance_weight espresso_resistance
     blt::vector create espresso_de1_explanation_chart_pressure espresso_de1_explanation_chart_flow espresso_de1_explanation_chart_elapsed espresso_de1_explanation_chart_elapsed_flow espresso_water_dispensed espresso_flow_weight_raw espresso_de1_explanation_chart_temperature  espresso_de1_explanation_chart_temperature_10 espresso_de1_explanation_chart_selected_step
     blt::vector create espresso_de1_explanation_chart_flow_1 espresso_de1_explanation_chart_elapsed_flow_1 espresso_de1_explanation_chart_flow_2 espresso_de1_explanation_chart_elapsed_flow_2 espresso_de1_explanation_chart_flow_3 espresso_de1_explanation_chart_elapsed_flow_3
@@ -1271,7 +1254,6 @@ proc skin_yscale_factor {} {
 }
 
 proc rescale_x_skin {in} {
-    #puts "rescale_x_skin $in / [skin_xscale_factor]"
     return [expr {int($in / [skin_xscale_factor])}]
 }
 
@@ -1294,13 +1276,12 @@ proc skin_convert_all {} {
 }
 
 proc skin_convert {indir} {
-    #puts "skin_convert: $indir"
     set pwd [pwd]
     cd $indir
     set skinfiles [concat [glob -nocomplain "*.png"] [glob -nocomplain  "*.jpg"]]
 
     if {$skinfiles == ""} {
-        puts "No jpg files found in '$indir'"
+        msg -DEBUG "No jpg files found in '$indir'"
         return
     }
 
@@ -1320,14 +1301,12 @@ proc skin_convert {indir} {
 
     # convert all the skin PNG files
     foreach {dir xdivisor ydivisor} $dirs {
-        #puts -nonewline "Making $dir skin $xdivisor / $ydivisor"
         set started 0
 
 
         foreach skinfile $skinfiles {
             if {[file exists "../$dir/$skinfile"] == 1} {
                 if {[file mtime $skinfile] < [file mtime "../$dir/$skinfile"]} {
-                    #puts "skipping $skinfile [file exists "../$dir/$skinfile"]"
                     # skip files that have not been modified.
                     continue
                 }
@@ -1335,12 +1314,12 @@ proc skin_convert {indir} {
 
             if {$started == 0} {
                 set started 1
-                puts -nonewline "Making $dir skin $indir"
+                msg -DEBUG "skin_convert: Making $dir skin $indir"
             }
 
             file mkdir ../$dir
 
-            puts -nonewline "/$skinfile"
+            msg -DEBUG "skin_convert: /$skinfile"
             flush stdout
             if {[file extension $skinfile] == ".png"} {
                 catch {
@@ -1348,7 +1327,7 @@ proc skin_convert {indir} {
                     exec convert $skinfile -strip -resize $dir!   ../$dir/$skinfile 
                     
                     # additional optional PNG compression step 
-                    puts "zopflipng: $skinfile"
+		    msg -DEBUG "skin_convert:" "zopflipng: $skinfile"
                     #exec zopflipng -q --iterations=1 -y   ../$dir/$skinfile   ../$dir/$skinfile 
                     exec zopflipng -m --iterations=1 -y   ../$dir/$skinfile   ../$dir/$skinfile 
 
@@ -1359,7 +1338,7 @@ proc skin_convert {indir} {
 
                 catch {
                     exec convert $skinfile -resize $dir!  -quality 90 ../$dir/$skinfile 
-                    puts "\nconvert $skinfile -resize $dir!  -quality 90 ../$dir/$skinfile "
+                    msg -DEBUG "skin_convert:" "convert $skinfile -resize $dir!  -quality 90 ../$dir/$skinfile "
                 }
                 if {$skinfile == "icon.jpg"} {
                     # icon files are reduced to 25% of the screen resolution
@@ -1369,16 +1348,9 @@ proc skin_convert {indir} {
                 }
             }
         }
-
-
-        if {$started != 0} {
-            puts "";
-        }
-
     }
 
     cd $pwd
-
 }
 
 
@@ -1423,21 +1395,21 @@ proc load_font {name fn pcsize {androidsize {}} } {
         }
 
         if {$familyname == ""} {
-            msg "Unable to get familyname from 'sdltk addfont $fn'"
+            msg -ERROR "Unable to get familyname from 'sdltk addfont $fn'"
         } else {
             lappend ::loaded_fonts $fn $familyname
         }
     }
 
     if {[info exists familyname] != 1 || $familyname == ""} {
-        msg "Font familyname not available; using name '$name'."
+        msg -WARNING "Font familyname not available; using name '$name'."
         set familyname $name
     }
 
     catch {
         font create $name -family $familyname -size $platform_font_size
     }
-    msg "added font name: \"$name\" family: \"$familyname\" size: $platform_font_size filename: \"$fn\""
+    msg -DEBUG "added font name: \"$name\" family: \"$familyname\" size: $platform_font_size filename: \"$fn\""
 }
 
 # Barney writes: https://3.basecamp.com/3671212/buckets/7351439/documents/2208672342#__recording_2349428596
@@ -1462,7 +1434,7 @@ proc get_font { font_name size } {
             load_font $font_key "[skin_directory]/fonts/$font_name.ttf" $size
             lappend ::skin_fonts $font_key
         } else {
-            msg "Unable to load font '$font_key'"
+            msg -ERROR "Unable to load font '$font_key'"
         }
     }
 
@@ -1470,11 +1442,14 @@ proc get_font { font_name size } {
 }
 
 proc load_font_obsolete {name fn pcsize {androidsize {}} } {
+
+	msg -WARNING "Unexpected use of load_font_obsolete [stacktrace]"
+
     if {$androidsize == ""} {
         set androidsize $pcsize
     }
 
-    puts "loadfont: [language]"
+    msg -DEBUG "loadfont: [language]"
  
     if {[language] == "zh-hant" || [language] == "zh-hans"} {
 
@@ -1482,7 +1457,6 @@ proc load_font_obsolete {name fn pcsize {androidsize {}} } {
             font create $name -family $::helvetica_font -size [expr {int(1.0 * $::fontm * $androidsize)}]
         } else {
             font create "$name" -family $::helvetica_font -size [expr {int(1.0 * $pcsize * $::fontm)}]
-            #puts "created font $name in $::helvetica_font"
         }
         return
     } elseif {[language] == "th"} {
@@ -1495,20 +1469,17 @@ proc load_font_obsolete {name fn pcsize {androidsize {}} } {
             font create $name -family $::thai_fontname -size [expr {int(1.0 * $::fontm * $androidsize)}]
         } else {
             font create "$name" -family "sarabun" -size [expr {int(1.0 * $pcsize * $::fontm)}]
-            #puts "created font $name in sarabun"
         }
         return
     } else {
-        #puts "$::android load_font $name '$fn' $size : fontm: $::fontm"
         if {$::android == 1 || $::undroid == 1} {
-            #puts "sdltk addfont '$fn'"
             set result ""
             catch {
                 set result [sdltk addfont $fn]
             }
-            msg "addfont of '$fn' finished with fonts added: '$result'"
+            msg -DEBUG "addfont of '$fn' finished with fonts added: '$result'"
             if {$name != $result} {
-                puts "Warning, font name used does not equal Android font name added: '$name' != '$result'"
+                msg -WARNING "font name used does not equal Android font name added: '$name' != '$result'"
             }
             catch {
                 font create $name -family $name -size [expr {int(1.0 * $::fontm * $androidsize)}]
@@ -1516,7 +1487,7 @@ proc load_font_obsolete {name fn pcsize {androidsize {}} } {
             
         } else {
             font create "$name" -family "$name" -size [expr {int(1.0 * $pcsize * $::fontm)}]
-            msg "font create \"$name\" -family \"$name\" -size [expr {int(1.0 * $pcsize * $::fontm)}]"
+            msg -DEBUG "font create \"$name\" -family \"$name\" -size [expr {int(1.0 * $pcsize * $::fontm)}]"
         }
 
     }
@@ -1525,14 +1496,11 @@ proc load_font_obsolete {name fn pcsize {androidsize {}} } {
 
 proc list_remove_element {list toremove} {
     set newlist [lsearch -all -inline -not -exact $list $toremove]
-    #puts "remove  :'$toremove'"
-    #puts "oldlist  :$list"
-    #puts "newlist: '$newlist'"
     return $newlist
 }
 
 proc web_browser {url} {
-    msg "Browser '$url'"
+    msg -INFO "Browser '$url'"
 	if { $::android == 1 } {
 		borg activity android.intent.action.VIEW $url text/html
 	} elseif { $::tcl_platform(platform) eq "windows" } {
@@ -1566,7 +1534,6 @@ proc array_keyvalue_sorted_by_val_limited {arrname {sort_order -increasing} {lim
     foreach k [array names arr] {
         set k2 "$arr($k) $k"
         #set k2 "[format {"%0.12i"} $arr($k)] $k"
-        #puts "k2: $k2"
         set t($k2) $k
     }
     
@@ -1579,7 +1546,6 @@ proc array_keyvalue_sorted_by_val_limited {arrname {sort_order -increasing} {lim
         if {$limit != -1 && [llength $toreturn] >= $limit} {
             break
         }
-        #msg "$k"
     }
     return $toreturn
 }
@@ -1589,7 +1555,6 @@ proc shot_history_count_profile_use {} {
 
     set dirs [lsort -dictionary [glob -nocomplain -tails -directory "[homedir]/history/" *.shot]]
     set dd {}
-    #puts -nonewline "Exporting"
     foreach d $dirs {
         unset -nocomplain arr
         unset -nocomplain sett
@@ -1598,11 +1563,10 @@ proc shot_history_count_profile_use {} {
             array set sett [ifexists arr(settings)]
         }
             if {[array size arr] == 0} {
-                msg "Corrupted shot history item during count: 'history/$d'"
+                msg -ERROR "Corrupted shot history item during count: 'history/$d'"
                 continue
             }
 
-        #puts [array get sett]
         #return
         set profile [ifexists sett(profile)]
         if {$profile != ""} {
@@ -1610,9 +1574,6 @@ proc shot_history_count_profile_use {} {
             incr profile_all_shot_count($profile)
         }
     }
-
-    #msg "Count of shots by espresso profile: [array get profile_all_shot_count]"
-    #msg "array_kv_keys_sorted_by_val: [array_keyvalue_sorted_by_val_limited profile_all_shot_count -decreasing 10]"
 
     # only keep the top 5 profiles in this global array, which will be marked with a heart symbol to indicate that they are the user's favrite profiles
     array set ::profile_shot_count [array_keyvalue_sorted_by_val_limited profile_all_shot_count -decreasing 6]
@@ -1655,10 +1616,10 @@ proc shot_history_export {} {
                 array set arr [read_file "history/$d"]
             }
             if {[array size arr] == 0} {
-                msg "Corrupted shot history item: 'history/$d'"
+                msg -ERROR "Corrupted shot history item: 'history/$d'"
                 continue
             }
-            msg "Exporting history item: $fname"
+            msg -INFO "Exporting history item: $fname"
             export_csv arr $fname
         }
 
@@ -1674,10 +1635,10 @@ proc shot_history_export {} {
 
                 }
                 if {[array size arr] == 0} {
-                    msg "Corrupted shot history item: 'history/$d'"
+                    msg -ERROR "Corrupted shot history item: 'history/$d'"
                     continue
                 }
-                msg "Exporting history item to JSON: $jsonfname"
+                msg -INFO "Exporting history item to JSON: $jsonfname"
                 export_json $ftxt $jsonfname
             }
         }
@@ -1704,14 +1665,13 @@ proc export_csv {arrname fn} {
         } err
 
         if {$failed == 1} {
-            puts "$err: '$fn'"
+            msg -ERROR "export_csv:" "$err: '$fn'"
         }
 
     }
 
     #set newfile "[file rootname $rootname].csv"
-    #puts "$rootname, $newfile"
-    puts -nonewline "."
+    msg -DEBUG "export_csv about to write"
     #write_file "history/$newfile" $lines
     write_file $fn $lines
 
@@ -1734,7 +1694,7 @@ proc export_json {ftxt fn} {
     }
     set v [dict2json $d]
 
-    puts -nonewline "."
+    msg -DEBUG "export_json about to write"
     write_file "$fn" $v
 }
 # Export one shot from memory, to an EEX format file
@@ -1788,8 +1748,7 @@ meta,,,,,,,,,Export version,1.1.0,
     }
 
     #set newfile "[file rootname $rootname].csv"
-    #puts "$rootname, $newfile"
-    puts -nonewline "."
+    msg -DEBUG "export_csv_common_format about to write"
     #write_file "history/$newfile" $lines
     write_file $fn $lines
 
@@ -1810,7 +1769,7 @@ set length [string length $arabic_string]
             string range $arabic_string $start_of_ascii $end_of_ascii]] ==  1
             && $i<$length}  {
           
-                puts [
+                msg -DEBUG "list_of_all_ascii_parts_a_unicode_string:" [
                     string range $arabic_string $start_of_ascii $end_of_ascii]
                 incr i
                 incr end_of_ascii 
@@ -1928,9 +1887,8 @@ proc render_arabic args {
         #find the character before the last.
         
         set before_last_char [string index $word end-1]
-        
+
         #for debugging purposes just print the character before the last.
-        ## puts $before_last_char
         
         #and try to see if  the character before the last is a word in the list
         #$initials defined in the previous line.
@@ -1944,11 +1902,9 @@ proc render_arabic args {
             set last_character [string index $word end]
             
             #print it for debugging purposes
-            ##puts $last_character
             
             #just to make sure that we we are matching correctly print the unicode
             #index number of the character
-            ##puts [scan $last_character %c]
             if {[string is ascii $last_character]} {
                 set before_last_char [render_arabic $before_last_char]
             }
@@ -1978,7 +1934,7 @@ proc render_arabic args {
                 \u062c {
                     #jeem
                     set word [string replace $word end end \ufe9e]
-                    puts $word
+                    msg -DEBUG "render_arabic \\u062B:" $word
                 }
                 \u062d {
                     #7aa2
@@ -2097,14 +2053,16 @@ proc render_arabic args {
         #screen
 
         set failed 1
-        #puts stderr $arabic_string
         catch {
             set arabic_string [regsub -all "\\m$original_word\\M" $arabic_string $word]
             set failed 0
         } err
 
         if {$failed == 1} {
-            puts "$err: '$arabic_string'"
+	    #
+	    # Here have to hope that the string is "printable"
+	    #
+            msg -ERROR "render_arabic failed: $err: '$arabic_string'"
         }
 
         #add and replace the corrected/conversion-of word with malformed one. in
@@ -2119,7 +2077,6 @@ proc render_arabic args {
     #The following 2 line is left for you to see the final result. just remove
     #the comment sign (#)
     #tk_messageBox -message $words
-    #puts "before return: $arabic_string \n is_messageBox=$is_messageBox"
     
     #reverse the whole string
     set arabic_string [string reverse $arabic_string]
@@ -2155,11 +2112,11 @@ proc iso8601stringparse {in} {
     set time ""
     regexp {([0-9-]+)T([0-9:]+)\.?[0-9]+?Z} $in discard date time
     if {$date == ""} {
-        puts "No date found in: '$in'"
+        msg -ERROR "No date found in: '$in'"
         return 0
     }
     if {$time == ""} {
-        puts "No time found in: '$in'"
+        msg -ERROR "No time found in: '$in'"
         return 0
     }
     set timestring "$date $time UTC"
@@ -2188,7 +2145,6 @@ proc wrapped_profile_string_part {input threshold partnumber} {
         }
     } 
     set w [wrapped_string_part $input $threshold $partnumber]
-    #msg "Wrapped part $partnumber for threshold $threshold from '$input' = '$w'"
     return $w
 }
 
@@ -2199,7 +2155,6 @@ proc wrapped_string_part {input threshold partnumber} {
         append input " "
     }
     set l [wrap_string $input $threshold 1]
-    #msg "wrapped_string_part '$input' ([string length $input]) t=$threshold = '$l'"
     return [lindex $l $partnumber]
 }
 

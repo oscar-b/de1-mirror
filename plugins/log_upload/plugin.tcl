@@ -47,7 +47,7 @@ namespace eval ::plugins::${plugin_name} {
     }
 
     # Paint settings screen
-    proc preload {} {
+    proc create_ui {} {
 
         # Create settings if non-existant
         if {[array size ::plugins::log_upload::settings] == 0} {
@@ -157,13 +157,15 @@ namespace eval ::plugins::${plugin_name} {
     proc uploadLogfiles {} {
         variable settings
         set settings(last_upload_result) ""
-        set settings(last_upload_log) ""
+	set settings(last_upload_log) ""
 
-        if {$::settings(log_enabled) != 1} {
-            set log_file_contents "Logging Disabled!"
+	set _logfile_name "[homedir]/$::settings(logfile)"
+
+        if {[file readable $_logfile_name]} {
+            ::logging::flush_log
+            set log_file_contents [read_binary_file $_logfile_name]
         } else {
-            flush $::logging::_log_fh
-            set log_file_contents [read_binary_file "[homedir]/$::settings(logfile)"]
+            set log_file_contents "Unable to read $_logfile_name"
         }
 
         set shotfiles [lsort -dictionary -decreasing [glob -nocomplain -tails -directory "[homedir]/history/" *.shot]]
@@ -189,6 +191,7 @@ namespace eval ::plugins::${plugin_name} {
     }
     
     proc main {} {
+        plugins gui log_upload [create_ui]
     }
 
 }

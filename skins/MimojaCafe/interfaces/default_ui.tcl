@@ -131,7 +131,7 @@ if {$::iconik_settings(show_grinder_settings_on_main_page) == 0} {
 
 # Recipe
 rounded_rectangle "default_off" 80 210 480 1110 [rescale_x_skin 80] [::theme button]
-add_de1_variable "default_off" [expr (80 + 480) / 2.0 ] [expr (240 + 240) / 2.0 ] -width [rescale_x_skin 380]  -text "" -font $::font_big -fill [::theme button_text_light] -anchor "n" -justify "center" -state "hidden" -textvariable {[string range $::settings(profile_title) 0 28]}
+add_de1_variable "default_off" [expr (80 + 480) / 2.0 ] [expr (240 + 240) / 2.0 ] -width [rescale_x_skin 380]  -text "" -font $::font_small -fill [::theme button_text_light] -anchor "n" -justify "center" -state "hidden" -textvariable {[string range $::settings(profile_title) 0 28]}
 add_de1_button "default_off" { say [translate "settings"] $::settings(sound_button_in); iconik_show_settings} 80 240 480 360
 
 ### TIME
@@ -172,7 +172,7 @@ if {$::iconik_settings(always_show_temperatures) == 1} {
 	add_de1_text "default_off" $column1_pos [expr {$pos_top + (12 * $spacer)}] -justify left -anchor "nw" -text [translate "Pressure"] -font $::font_tiny -fill  [::theme button_text_light] -width [rescale_x_skin 520]
 	add_de1_variable "default_off" $column1_pos [expr {$pos_top + (13 * $spacer)}] -justify left -anchor "nw" -text "" -font $::font_tiny  -fill  [::theme button_text_dark]  -width [rescale_x_skin 520] -textvariable {[round_to_one_digits $::de1(pressure)] bar ([iconik_get_max_pressure] peak)}
 	add_de1_text "default_off" $column1_pos [expr {$pos_top + (14 * $spacer)}] -justify left -anchor "nw" -text [translate Flow] -font $::font_tiny -fill  [::theme button_text_light] -width [rescale_x_skin 520]
-	add_de1_variable "default_off" $column1_pos [expr {$pos_top + (15 * $spacer)}] -justify left -anchor "nw" -text "" -font $::font_tiny  -fill  [::theme button_text_dark]  -width [rescale_x_skin 520] -textvariable {[round_to_one_digits $::de1(flow)] ml/s ([iconik_get_min_flow] min)}
+	add_de1_variable "default_off" $column1_pos [expr {$pos_top + (15 * $spacer)}] -justify left -anchor "nw" -text "" -font $::font_tiny  -fill  [::theme button_text_dark]  -width [rescale_x_skin 520] -textvariable {[round_to_one_digits $::de1(flow)] mL/s ([iconik_get_min_flow] min)}
 }
 
 # water refill
@@ -254,7 +254,7 @@ add_de1_widget "default_off" graph 580 230 {
 	set flow_axis y
 
 	if {$::iconik_settings(seperate_flow_axis)} {
-		$widget axis configure y2 -color [::theme secondary] -tickfont Helv_6 -min 0.0 -max [expr {$::iconik_settings(y_axis_scale) / 3 * 2}] -subdivisions 0 -majorticks {0 0.5 1 1.5 2 2.5 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8} -title [translate {Flow [ml/s]}] -titlecolor [::theme secondary] -hide 0;
+		$widget axis configure y2 -color [::theme secondary] -tickfont Helv_6 -min 0.0 -max [expr {$::iconik_settings(y_axis_scale) / 3 * 2}] -subdivisions 0 -majorticks {0 0.5 1 1.5 2 2.5 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8} -title [translate {Flow [mL/s]}] -titlecolor [::theme secondary] -hide 0;
 		set flow_axis y2
 	}
 

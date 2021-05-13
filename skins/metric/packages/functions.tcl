@@ -17,7 +17,8 @@ proc get_machine_temperature {} {
 		#TODO: watertemp works in simulator
 		return [group_head_heater_temperature]
 }
-proc get_min_machine_temperature {} {return $::settings(minimum_water_temperature)}
+proc get_min_machine_temperature {} {return $::de1(goal_temperature)}
+
 
 
 proc get_status_text {} {
@@ -62,6 +63,10 @@ proc get_status_text {} {
 # for the main functions (espresso, steam, water, flush), each has can_start_action and do_start_action functions
 proc can_start_espresso {} { return [expr [is_connected] && ($::de1(substate) == 0) && [has_water]] }
 proc do_start_espresso {} {
+	if { [expr ![is_connected]] } {
+		borg toast [translate "DE1 not connected"]
+		return
+	}
 	update_de1_async 1
 	if {[is_heating]} { 
 		borg toast [translate "Please wait for heating"]
@@ -76,13 +81,14 @@ proc do_start_espresso {} {
 		return
 	}
 	start_espresso
-	# TODO: only execute following lines if start_espresso is successful
-	set_next_page "off" "espresso_done"
-	metric_history_push "espresso_done"
 }
 
 proc can_start_steam {} { return [expr [is_connected] && ($::de1(substate) == 0) && [has_water]] }
 proc do_start_steam {} {
+	if {[expr ![is_connected]]} {
+		borg toast [translate "DE1 not connected"]
+		return
+	}
 	if {[is_heating]} { 
 		borg toast [translate "Please wait for heating"]
 		return
@@ -101,6 +107,10 @@ proc do_start_steam {} {
 
 proc can_start_water {} { return [expr [is_connected] && ($::de1(substate) == 0) && [has_water]] }
 proc do_start_water {} {
+	if {[expr ![is_connected]]} {
+		borg toast [translate "DE1 not connected"]
+		return
+	}
 	if {[is_heating]} { 
 		borg toast [translate "Please wait for heating"]
 		return
@@ -118,6 +128,10 @@ proc do_start_water {} {
 
 proc can_start_flush {} { return [expr [is_connected] && ($::de1(substate) == 0) && [has_water]] }
 proc do_start_flush {} {
+	if {[expr ![is_connected]]} {
+		borg toast [translate "DE1 not connected"]
+		return
+	}
 	if {[is_heating]} { 
 		borg toast [translate "Please wait for heating"]
 		return
@@ -133,6 +147,15 @@ proc do_start_flush {} {
 	set ::settings(preheat_temperature) 90
 	set_next_page hotwaterrinse flush
 	start_hot_water_rinse
+}
+
+proc can_show_last_shot {} { return [expr {$::timers(espresso_stop) > $::timers(espresso_start)}] }
+proc do_show_last_shot {} {
+	if {[expr ![can_show_last_shot]]} {
+		borg toast [translate "No shot data available"]
+		return
+	}
+	metric_jump_to "espresso_done"
 }
 
 proc metric_load_current_profile { } {

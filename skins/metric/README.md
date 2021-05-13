@@ -4,19 +4,25 @@ Metric skin for Decent Espresso
 Standing on the shoulders of giants: thanks to John (Insight), Damian (DSV), Sheldon (SWDark)
 
 TODO
-- Sleep button
 - Test support for Bluetooth scale
 - Test functionality of GHC somehow
 - Test translations
 - Test Fahrenheit temperatures
-- bug: Head temperature reading in status bar reads 100+ when DE1 is starting
 
 IDEAS
 - Option to choose your grinder to set the range of values for grid size (and also save which grinder to the results file)
 - Smart up/down arrows which change increment for larger numbers (eg yield delta is 1.0/0.1 when under <=20, 5.0/0.5 when 21..99, 10/1 for >=100)
-- Add button to post-shot page to show chart full screen
 
 Release notes
+
+v2.6
+ - Raise function bar away from bottom of screen and increase button size.
+
+v2.5
+ - Display current step name during shot.
+ - Changed workflow to jump home after shot completed.
+ - Added button to view previous shot chart.
+ - Fixed target temperature stuck at zero.
 
 v2.4
  - Added button to make another espresso to the results page

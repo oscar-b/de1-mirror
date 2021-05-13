@@ -44,11 +44,14 @@ add_de1_variable "espresso" -100 -100 -text "" -textvariable {[$::espresso_weigh
 
 create_action_button "espresso" 1280 1340 [translate "stop"] $::font_action_label $::color_text $::symbol_hand $::font_action_button $::color_action_button_stop $::color_action_button_text {say [translate "stop"] $::settings(sound_button_in); start_idle } "fullscreen"
 
-# timer on stop button
 # TODO: rounded ends (need to draw a circle at each endpoint)
-# TODO: create a reusable function (or add as an option to create_action_button?)
-add_de1_variable "espresso" 1300 1000 -text "" -font $::font_setting_heading -fill $::color_action_button_text -anchor "ne" -textvariable {[espresso_elapsed_timer]}
-add_de1_text "espresso" 1310 1000 -text [translate "s"] -font $::font_setting_heading -fill $::color_action_button_text -anchor "nw"
+
+add_de1_variable "espresso" 1280 1000 -text "" -font $::font_setting_heading -fill $::color_action_button_text -anchor "ne" -textvariable {[espresso_elapsed_timer]}
+add_de1_text "espresso" 1290 1000 -text [translate "s"] -font $::font_setting_heading -fill $::color_action_button_text -anchor "nw"
+
+add_de1_variable "espresso" 1280 1075 -anchor "n" -text "" -font $::font_setting_heading -fill $::color_action_button_text -textvariable {$::settings(current_frame_description)} 
+
+
 .can create arc [rescale_x_skin 1100] [rescale_y_skin 1160] [rescale_x_skin 1460] [rescale_y_skin 1520] -start 90 -extent 0 -style arc -width [rescale_x_skin 15] -outline $::color_action_button_text -tag "espresso_timer"
 add_visual_items_to_contexts "espresso" "espresso_timer"
 

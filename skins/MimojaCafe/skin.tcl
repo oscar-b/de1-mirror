@@ -1,4 +1,5 @@
 package require de1plus 1.0
+package require de1_plugins
 
 source "[homedir]/skins/default/standard_includes.tcl"
 
@@ -13,7 +14,7 @@ source "[skin_directory]/settings.tcl"
 iconik_load_settings
 iconik_save_settings
 
-set ::version_string "Version 1.6-$::iconik_settings(ui)"
+set ::version_string "Version 1.6.1-$::iconik_settings(ui)"
 
 source "[skin_directory]/framework.tcl"
 
@@ -23,12 +24,15 @@ proc iconik_wakeup {} {
 	start_idle
 }
 
+proc iconik_DYE_supported {} {
+	return [plugins enabled "DYE"]
+}
 
 source "[skin_directory]/interfaces/default_ui.tcl"
 source "[skin_directory]/interfaces/magadan_ui.tcl"
 
-# History Page
-source "[skin_directory]/history_viewer.tcl"
+source "[skin_directory]/theme.tcl"
+init_MimojaCafe_dui_theme
 
 # Settings Page
 source "[skin_directory]/interfaces/default_settings_screen.tcl"
@@ -75,6 +79,7 @@ if {[info exists ::settings(grinder_setting)] != 1 || $::settings(grinder_settin
 if {[info exists ::settings(grinder_dose_weight)] != 1 || $::settings(grinder_dose_weight) == {}} {
 	set ::settings(grinder_dose_weight) 0
 }
+
 
 #dont change page on state change
 proc skins_page_change_due_to_de1_state_change { textstate } {
@@ -141,9 +146,15 @@ proc iconik_get_status_text {} {
 			return [translate "Stabilising"]
 		}
 		4 {
+			if {$::iconik_settings(enable_next_step_tap) == 1} {
+				return [translate "Preinfusion\nTap to move on"]
+			}
 			return [translate "Preinfusion"]
 		}
 		5 {
+			if {$::iconik_settings(enable_next_step_tap) == 1} {
+				return [translate "Pouring\nTap to move on"]
+			}
 			return [translate "Pouring"]
 		}
 		6 {
@@ -161,9 +172,17 @@ proc iconik_get_status_text {} {
 
 }
 
+proc show_DYE_page {} {
+	dui page load DYE current
+}
+
 proc iconik_status_tap {} {
 	if {$::de1(scale_device_handle) == 0 && $::settings(scale_bluetooth_address) != ""} {
 		ble_connect_to_scale
+	}
+
+	if {$::de1_num_state($::de1(state)) == "Espresso" && $::iconik_settings(enable_next_step_tap) == 1} {
+		start_next_step
 	}
 }
 

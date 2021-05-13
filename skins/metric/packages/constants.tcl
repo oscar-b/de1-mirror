@@ -28,6 +28,7 @@ set ::symbol_wifi "\uE019"
 set ::symbol_usb "\uE01A"
 set ::symbol_settings "\uE01B"
 set ::symbol_power "\uE01C"
+set ::symbol_chart "\uE01D"
 
 # colours
 set ::color_text "#eee"
@@ -60,7 +61,7 @@ set ::font_setting [get_font "Mazzard Regular" 36]
 set ::font_button [get_font "Mazzard Regular" 24]
 set ::font_list [get_font "Mazzard Regular" 24]
 set ::font_action_button [get_font "Mazzard Regular" 80]
-set ::font_action_label [get_font "Mazzard Regular" 30]
+set ::font_action_label [get_font "Mazzard Regular" 28]
 set ::font_main_menu [get_font "Mazzard SemiBold" 48]
 
 # settings 

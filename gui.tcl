@@ -4,6 +4,8 @@ package require de1_de1 1.1
 package require de1_event 1.0
 package require de1_logging 1.1
 package require de1_plugins 1.0
+package require de1_dui 1.0
+package require de1_history_viewer 1.1
 
 ###
 ### ::gui namespace defined after globals
@@ -649,15 +651,16 @@ proc install_de1plus_app_icon {} {
 }
 
 proc platform_button_press {} {
-	global android 
-	global undroid
-	#return {<Motion>}
-	if {$android == 1 && $::settings(use_finger_down_for_tap) == 1} {
-		return {<<FingerDown>>}
-		#return {<ButtonPress-1>}
-	}
-	#return {<Motion>}
-	return {<ButtonPress-1>}
+	return [dui platform button_press]
+#	global android 
+#	global undroid
+#	#return {<Motion>}
+#	if {$android == 1 && $::settings(use_finger_down_for_tap) == 1} {
+#		return {<<FingerDown>>}
+#		#return {<ButtonPress-1>}
+#	}
+#	#return {<Motion>}
+#	return {<ButtonPress-1>}
 }
 
 proc platform_button_native_press {} {
@@ -666,117 +669,125 @@ proc platform_button_native_press {} {
 
 
 proc platform_button_long_press {} {
-	global android 
-	if {$android == 1} {
-		# button 3 on Androwish is a long press
-		return {<ButtonPress-3>}
-	}
-
-	# no "long press concept" on Tcl/Tk. Button-3 is the 3rd mouse button, which is a very different concept, so just accept a normal mouse click
-	return {<ButtonPress-1>}
+	return [dui platform button_long_press]
+#	global android 
+#	if {$android == 1} {
+#		#return {<<FingerUp>>}
+#		return {<ButtonPress-3>}
+#	}
+#	return {<ButtonPress-3>}
 }
 
 proc platform_finger_down {} {
-	global android 
-	if {$android == 1 && $::settings(use_finger_down_for_tap) == 1} {
-		return {<<FingerDown>>}
-	}
-	return {<ButtonPress-1>}
+	return [dui platform finger_down]
+#	global android 
+#	if {$android == 1 && $::settings(use_finger_down_for_tap) == 1} {
+#		return {<<FingerDown>>}
+#	}
+#	return {<ButtonPress-1>}
 }
 
 proc platform_button_unpress {} {
-	global android 
-	if {$android == 1} {
-		return {<<FingerUp>>}
-	}
-	return {<ButtonRelease-1>}
+	return [dui platform button_unpress]
+#	global android 
+#	if {$android == 1} {
+#		return {<<FingerUp>>}
+#	}
+#	return {<ButtonRelease-1>}
 }
 
 
 proc add_variable_item_to_context {context label_name varcmd} {
-	global variable_labels
-	#if {[info exists variable_labels($context)] != 1} {
-	#	set variable_labels($context) [list $label_name $varcmd]
-	#} else {
-		lappend variable_labels($context) [list $label_name $varcmd]
-	#}
+	msg -WARN "add_variable_item_to_context is OBSOLETE, please use DUI instead"
+	# This may or may not work as dui::page::add_variable takes canvas IDs instead of labels.
+	dui::page::add_variable $context $label_name $varcmd
+	
+#	#puts "varcmd: '$varcmd'"
+#	global variable_labels
+#	#if {[info exists variable_labels($context)] != 1} {
+#	#	set variable_labels($context) [list $label_name $varcmd]
+#	#} else {
+#		lappend variable_labels($context) [list $label_name $varcmd]
+#	#}
 }
 
 
 proc add_visual_item_to_context {context label_name} {
-	global existing_labels
-	set existing_text_labels [ifexists existing_labels($context)]
-	lappend existing_text_labels $label_name
-	set existing_labels($context) $existing_text_labels
+	dui page add_items $context $label_name
+	
+#	global existing_labels
+#	set existing_text_labels [ifexists existing_labels($context)]
+#	lappend existing_text_labels $label_name
+#	set existing_labels($context) $existing_text_labels
 }
 
-set button_cnt 0
+#set button_cnt 0
 proc add_de1_action {context tclcmd} {
-	global actions
-	if {[info exists actions(context)] == 1} {
-		lappend actions($context) $tclcmd
-	} else {
-		set actions($context) $tclcmd
-	}
+	dui page add_action $context show $tclcmd
+	
+#	global actions
+#	if {[info exists actions(context)] == 1} {
+#		lappend actions($context) $tclcmd
+#	} else {
+#		set actions($context) $tclcmd
+#	}
 }
 
 proc add_de1_button {displaycontexts tclcode x0 y0 x1 y1 {options {}}} {
-	global button_cnt
-
-	incr button_cnt
-	set btn_name ".btn_$button_cnt"
-	#set btn_name $bname
-	global skindebug
-	set width 0
-	if {[info exists skindebug] == 1} {
-		if {$skindebug == 1} {
-			set width 1
-		}
-	}
-	set rx0 [rescale_x_skin $x0]
-	set rx1 [rescale_x_skin $x1]
-	set ry0 [rescale_y_skin $y0]
-	set ry1 [rescale_y_skin $y1]
-	.can create rect $rx0 $ry0 $rx1 $ry1 -fill {} -outline black -width 0 -tag $btn_name -state hidden
-	if {[info exists skindebug] == 1} {
-		if {$skindebug == 1} {
-			.can create rect $rx0 $ry0 $rx1 $ry1 -fill {} -outline black -width 1 -tag ${btn_name}_lines -state hidden 
-			#add_visual_item_to_context $displaycontext ${btn_name}_lines
-		}
-	}
-
-
-	#set tclcode [list page_display_change $displaycontext $newcontext]
-
-	regsub {%x0} $tclcode $rx0 tclcode
-	regsub {%x1} $tclcode $rx1 tclcode
-	regsub {%y0} $tclcode $ry0 tclcode
-	regsub {%y1} $tclcode $ry1 tclcode
-
-	if {[string first buttonlongpress $options] != -1} {
-		.can bind $btn_name [platform_button_long_press] $tclcode
-	} elseif {[string first buttonnativepress $options] != -1} {
-		.can bind $btn_name [platform_button_native_press] $tclcode
-	} else {
-		.can bind $btn_name [platform_button_press] $tclcode
-	}
+	dui add dbutton $displaycontexts $x0 $y0 $x1 $y1 -command $tclcode -theme none 
 	
-#	if {$::settings(disable_long_press) != 1 } {
-#		.can bind $btn_name [platform_button_long_press] $tclcode
+#	global button_cnt
+#
+#	incr button_cnt
+#	set btn_name ".btn_$button_cnt"
+#	#set btn_name $bname
+#	global skindebug
+#	set width 0
+#	if {[info exists skindebug] == 1} {
+#		if {$skindebug == 1} {
+#			set width 1
+#		}
 #	}
-
-#	if {[string first mousemove $options] != -1} {
-#		.can bind $btn_name [platform_finger_down] $tclcode
+#	set rx0 [rescale_x_skin $x0]
+#	set rx1 [rescale_x_skin $x1]
+#	set ry0 [rescale_y_skin $y0]
+#	set ry1 [rescale_y_skin $y1]
+#	.can create rect $rx0 $ry0 $rx1 $ry1 -fill {} -outline black -width 0 -tag $btn_name -state hidden
+#	if {[info exists skindebug] == 1} {
+#		if {$skindebug == 1} {
+#			.can create rect $rx0 $ry0 $rx1 $ry1 -fill {} -outline black -width 1 -tag ${btn_name}_lines -state hidden 
+#			#add_visual_item_to_context $displaycontext ${btn_name}_lines
+#		}
 #	}
-
-	foreach displaycontext $displaycontexts {
-		add_visual_item_to_context $displaycontext $btn_name
-		if {[ifexists skindebug] == 1} {
-			add_visual_item_to_context $displaycontext ${btn_name}_lines
-		}
-
-	}
-	return $btn_name
+#
+#	#puts "binding $btn_name to switch to new context: '$newcontext'"
+#
+#	#set tclcode [list page_display_change $displaycontext $newcontext]
+#
+#	regsub {%x0} $tclcode $rx0 tclcode
+#	regsub {%x1} $tclcode $rx1 tclcode
+#	regsub {%y0} $tclcode $ry0 tclcode
+#	regsub {%y1} $tclcode $ry1 tclcode
+#
+#	.can bind $btn_name [platform_button_press] $tclcode
+#	
+##	if {$::settings(disable_long_press) != 1 } {
+##		.can bind $btn_name [platform_button_long_press] $tclcode
+##	}
+#
+##	if {[string first mousemove $options] != -1} {
+#		#puts "mousemove detected"
+##		.can bind $btn_name [platform_finger_down] $tclcode
+##	}
+#
+#	foreach displaycontext $displaycontexts {
+#		add_visual_item_to_context $displaycontext $btn_name
+#		if {[ifexists skindebug] == 1} {
+#			add_visual_item_to_context $displaycontext ${btn_name}_lines
+#		}
+#
+#	}
+#	return $btn_name
 }
 
 # truncates strings that are too long to display and add a ...message on the end.
@@ -788,133 +799,146 @@ proc maxstring {in maxlength {optmsg {}} } {
 	return $in
 }
 
-set text_cnt 0
+#set text_cnt 0
 proc add_de1_text {args} {
-	global text_cnt
-	incr text_cnt
-	set contexts [lindex $args 0]
-	set label_name "text_$text_cnt"
-	# keep track of what labels are displayed in what contexts
-	set x [rescale_x_skin [lindex $args 1]]
-	set y [rescale_y_skin [lindex $args 2]]
-	set torun [concat [list .can create text] $x $y [lrange $args 3 end] -tag $label_name -state hidden]
-	eval $torun
-
-	foreach context $contexts {
-		add_visual_item_to_context $context $label_name
-	}
-	return $label_name
+	return [dui add text [lindex $args 0] [lindex $args 1] [lindex $args 2] -compatibility_mode 1 {*}[lrange $args 3 end]]
+	
+#	global text_cnt
+#	incr text_cnt
+#	set contexts [lindex $args 0]
+#	set label_name "text_$text_cnt"
+#	# keep track of what labels are displayed in what contexts
+#	set x [rescale_x_skin [lindex $args 1]]
+#	set y [rescale_y_skin [lindex $args 2]]
+#	set torun [concat [list .can create text] $x $y [lrange $args 3 end] -tag $label_name -state hidden]
+#	eval $torun
+#
+#	foreach context $contexts {
+#		add_visual_item_to_context $context $label_name
+#	}
+#	return $label_name
 }
 
-set image_cnt 0
+#set image_cnt 0
 proc add_de1_image {args} {
-
-	global image_cnt
-	incr image_cnt
-	set contexts [lindex $args 0]
-	set label_name "image_$image_cnt"
-	# keep track of what labels are displayed in what contexts
-	set x [rescale_x_skin [lindex $args 1]]
-	set y [rescale_y_skin [lindex $args 2]]
-	set fn [lindex $args 3]
-
-	image create photo $label_name -file $fn
-	.can create image [list $x $y] -anchor nw -image $label_name -tag $label_name -state hidden 
-
-	foreach context $contexts {
-		add_visual_item_to_context $context $label_name
-	}
-
-	return $label_name
+	return [dui add image [lindex $args 0] [lindex $args 1] [lindex $args 2] [lindex $args 3] -theme none]
+	
+#	msg "add_de1_image $args"
+#	global image_cnt
+#	incr image_cnt
+#	set contexts [lindex $args 0]
+#	set label_name "image_$image_cnt"
+#	# keep track of what labels are displayed in what contexts
+#	set x [rescale_x_skin [lindex $args 1]]
+#	set y [rescale_y_skin [lindex $args 2]]
+#	set fn [lindex $args 3]
+#
+#	image create photo $label_name -file $fn
+#	.can create image [list $x $y] -anchor nw -image $label_name -tag $label_name -state hidden 
+#
+#	foreach context $contexts {
+#		add_visual_item_to_context $context $label_name
+#	}
+#
+#	return $label_name
 }
 
 
 # derivced from sample code at http://wiki.tcl.tk/17067
-set widget_cnt 0
+#set widget_cnt 0
 proc add_de1_widget {args} {
-	global widget_cnt
-	set contexts [lindex $args 0]
+	return [dui add widget [lindex $args 1] [lindex $args 0] [lindex $args 2] [lindex $args 3] -tclcode [lindex $args 4] \
+		-theme none {*}[lrange $args 5 end]]
 
-	incr widget_cnt
-	set widgettype [lindex $args 1]
-
-	set widget ".can.w_${widgettype}_$widget_cnt"
-
-	set errcode 0
-	set torun [concat [list $widgettype $widget] [lrange $args 5 end] ]
-	#set errcode [catch { 
-		eval $torun
-	#} err]
-
-	if {$errcode == 1} {
-		msg -ERROR "add_de1_widget: $err" \
-			"while running" \
-			$torun
-	}
-
-	# BLT on android has non standard defaults, so we overrride them here, sending them back to documented defaults
-	if {$widgettype == "graph" && ($::android == 1 || $::undroid == 1)} {
-		$widget grid configure -dashes "" -color #DDDDDD -hide 0 -minor 1 
-		$widget configure -borderwidth 0
-		#$widget grid configure -hide 0
-	}
-
-	# the 4th parameter gives additional code to run when creating this widget, such as chart configuration instructions
-	set errcode [catch { 
-		eval [lindex $args 4]
-	} err]
-
-	if {$errcode == 1} {
-		msg -ERROR "add_de1_widget: $err" \
-			"while running" \
-			[lindex $args 4]
-	}
-	#.can create window [lindex $args 2] [lindex $args 3] -window $widget  -anchor nw -tag $widget -state normal
-	#set windowname [.can create window  [lindex $args 2] [lindex $args 3] -window $widget  -anchor nw -tag $widget -state hidden]
-	set x [rescale_x_skin [lindex $args 2]]
-	set y [rescale_y_skin [lindex $args 3]]
-
-	if {$widgettype == "scrollbar"} {
-		set windowname [.can create window  $x $y -window $widget  -anchor nw -tag $widget -state hidden -height 245]
-	} else {
-		set windowname [.can create window  $x $y -window $widget  -anchor nw -tag $widget -state hidden]
-	}
-	#.can bind $windowname [platform_button_press] "msg click"
-	
-
-		
-	set ::tclwindows($widget) [lrange $args 2 3]
-
-	foreach context $contexts {
-		add_visual_item_to_context $context $widget
-	}
-	return $widget 
+#	global widget_cnt
+#	set contexts [lindex $args 0]
+#
+#	incr widget_cnt
+#	set widgettype [lindex $args 1]
+#
+#	set widget ".can.w_${widgettype}_$widget_cnt"
+#
+#	set errcode 0
+#	set torun [concat [list $widgettype $widget] [lrange $args 5 end] ]
+#	#msg $torun
+#	#set errcode [catch { 
+#		eval $torun
+#	#} err]
+#
+#	if {$errcode == 1} {
+#		puts $err
+#		puts "while running" 
+#		puts $torun
+#	}
+#
+#	# BLT on android has non standard defaults, so we overrride them here, sending them back to documented defaults
+#	if {$widgettype == "graph" && ($::android == 1 || $::undroid == 1)} {
+#		$widget grid configure -dashes "" -color #DDDDDD -hide 0 -minor 1 
+#		$widget configure -borderwidth 0
+#		#$widget grid configure -hide 0
+#	}
+#
+#	# the 4th parameter gives additional code to run when creating this widget, such as chart configuration instructions
+#	set errcode [catch { 
+#		eval [lindex $args 4]
+#	} err]
+#
+#	if {$errcode == 1} {
+#		puts $err
+#		puts "while running" 
+#		puts [lindex $args 4]
+#	}
+#	#.can create window [lindex $args 2] [lindex $args 3] -window $widget  -anchor nw -tag $widget -state normal
+#	#set windowname [.can create window  [lindex $args 2] [lindex $args 3] -window $widget  -anchor nw -tag $widget -state hidden]
+#	set x [rescale_x_skin [lindex $args 2]]
+#	set y [rescale_y_skin [lindex $args 3]]
+#
+#	if {$widgettype == "scrollbar"} {
+#		set windowname [.can create window  $x $y -window $widget  -anchor nw -tag $widget -state hidden -height 245]
+#	} else {
+#		set windowname [.can create window  $x $y -window $widget  -anchor nw -tag $widget -state hidden]
+#	}
+#	#puts "winfo: [winfo children .can]"
+#	#.can bind $windowname [platform_button_press] "msg click"
+#	
+#
+#		
+#	set ::tclwindows($widget) [lrange $args 2 3]
+#
+#	foreach context $contexts {
+#		#puts "add_visual_item_to_context $context '$widget'"
+#		add_visual_item_to_context $context $widget
+#	}
+#	return $widget 
 }
 
 
 proc add_de1_variable {args} {
-
 	set varcmd [lindex [unshift args] 0]
 	set lastcmd [unshift args]
 	if {$lastcmd != "-textvariable"} {
-		msg -WARNING "last -command needs to be -textvariable on a add_de1_variable line. You entered: '$lastcmd'"
+		msg -WARN add_de1_variable "last -command needs to be -textvariable on a add_de1_variable line. You entered: '$lastcmd'"
 		return
 	}
-	set contexts [lindex $args 0]
-	set label_name [eval add_de1_text $args]
-
-	# john 24-1-20 now unneeded code https://3.basecamp.com/3671212/buckets/7351439/messages/2360038011
-	#set x [rescale_x_skin [lindex $args 1]]
-	#set y [rescale_y_skin [lindex $args 2]]
-	#set torun [concat [list .can create text] $x $y [lrange $args 3 end] -tag $label_name -state hidden]
-	#eval $torun
-	#incr ::text_cnt
-
-	foreach context $contexts {
-		# keep track of what labels are displayed in what contexts
-		add_variable_item_to_context $context $label_name $varcmd
-	}
-	return $label_name
+	
+	return [dui add variable [lindex $args 0] [lindex $args 1] [lindex $args 2] -compatibility_mode 1 \
+		-textvariable $varcmd {*}[lrange $args 3 end]]
+	
+#	set contexts [lindex $args 0]
+#	set label_name [eval add_de1_text $args]
+#
+#	# john 24-1-20 now unneeded code https://3.basecamp.com/3671212/buckets/7351439/messages/2360038011
+#	#set x [rescale_x_skin [lindex $args 1]]
+#	#set y [rescale_y_skin [lindex $args 2]]
+#	#set torun [concat [list .can create text] $x $y [lrange $args 3 end] -tag $label_name -state hidden]
+#	#eval $torun
+#	#incr ::text_cnt
+#
+#	foreach context $contexts {
+#		# keep track of what labels are displayed in what contexts
+#		add_variable_item_to_context $context $label_name $varcmd
+#	}
+#	return $label_name
 }
 
 proc stop_screen_saver_timer {} {
@@ -1174,110 +1198,113 @@ if {$::android == 0} {
 
 set _last_st 0
 
+# TODO (EB): Move the first part of this proc to a parametrized action run from 'dui page update_onscreen_variables'
 proc update_onscreen_variables { {state {}} } {
-
-	#update_chart
-
-	#save_settings
-
-	#set since_last_ping [expr {[clock seconds] - $::de1(last_ping)}]
-	#if {$since_last_ping > 3} {
-		#set ::de1(last_ping) [clock seconds]
-		#if {$::android == 1} {
-			#set ::de1(found) 0
-			#ble_find_de1s
-			#ble_connect_to_de1
-		#}
-
-	#}
-
-	if {$::android == 0} {
-
-		if {[expr {int(rand() * 100)}] > 96} {
-			set ::gui::state::_state_change_chart_value \
-				[expr {$::gui::state::_state_change_chart_value * -1}]
-
-			if {[expr {rand()}] > 0.5} {
-				set ::settings(current_frame_description) [translate "pouring"]
-			} else {
-				set ::settings(current_frame_description) [translate "preinfusion"]
-			}
-		}
-
-		if {$::de1(state) == 2} {
-			# idle
-			if {$::de1(substate) == 0} {
-				if {[expr {int(rand() * 100)}] > 92} {
-					# occasionally set the de1 to heating mode
-					#set ::de1(substate) 1
-					#update_de1_state "$::de1_state(Idle)\x1"
-				}
-			} else {
-				if {[expr {int(rand() * 100)}] > 90} {
-					# occasionally set the de1 to heating mode
-					update_de1_state "$::de1_state(Idle)\x0"
-				}
-			}
-		} elseif {$::de1(state) == 4} {
-			# espresso
-			if {$::de1(substate) == 0} {
-			} elseif {$::de1(substate) < 4} {
-				if {[expr {int(rand() * 100)}] > 80} {
-					# occasionally set the de1 to heating mode
-					#set ::de1(substate) 4
-					update_de1_state "$::de1_state(Espresso)\x4"
-				}
-			} elseif {$::de1(substate) == 4} {
-				if {[expr {int(rand() * 100)}] > 80} {
-					# occasionally set the de1 to heating mode
-					#set ::de1(substate) 5
-					update_de1_state "$::de1_state(Espresso)\x5"
-				}
-			} 
-		}
-
-        #set timerkey "$::de1(state)-$::de1(substate)"
-        #set ::timers($timerkey) [clock milliseconds]
-
-		#if {$::de1(substate) > 6} {
-		#	set ::de1(substate) 0
-		#}
-
-		# JB's GUI driver needs an event_dict
-
-		# NB: This seems to be getting called at a 10 Hz rate
-		#     which is faster than the DE1's 25/(2 * line frequency)
-
-		set _now [expr {[clock milliseconds] / 1000.0}]
-		# SampleTime is a 16-bit counter of zero crossings
-		set _de1_sample_time \
-			[expr { int( ( $_now - $::gui::_arbitrary_t0 ) \
-					     / $::gui::_st_period ) % 65536 }]
-		set event_dict [dict create \
-					event_time 	$_now \
-					update_received	$_now \
-					SampleTime	$_de1_sample_time \
-					GroupPressure	$::de1(pressure) \
-					GroupFlow	$::de1(flow) \
-					MixTemp		$::de1(mix_temperature) \
-					HeadTemp	$::de1(head_temperature) \
-					SetHeadTemp	$::de1(goal_temperature) \
-					SetGroupPressure $::de1(goal_pressure) \
-					SetGroupFlow	$::de1(goal_flow) \
-					FrameNumber	$::de1(current_frame_number) \
-					SteamTemp	$::de1(steam_heater_temperature) \
-					this_state	[::de1::state::current_state] \
-					this_substate	[::de1::state::current_substate] \
-				       ]
-
-		if {$::de1(state) == 4} {
-			::de1::event::apply::on_shotvalue_available_callbacks $event_dict
-		} elseif {$::de1(state) == 5} {
-			#steaming
-			::de1::event::apply::on_shotvalue_available_callbacks $event_dict
-		}
-
-	} ;# $::android == 0
+	dui page update_onscreen_variables
+	return
+	
+#	#update_chart
+#
+#	#save_settings
+#
+#	#set since_last_ping [expr {[clock seconds] - $::de1(last_ping)}]
+#	#if {$since_last_ping > 3} {
+#		#set ::de1(last_ping) [clock seconds]
+#		#if {$::android == 1} {
+#			#set ::de1(found) 0
+#			#ble_find_de1s
+#			#ble_connect_to_de1
+#		#}
+#
+#	#}
+#
+#	if {$::android == 0} {
+#
+#		if {[expr {int(rand() * 100)}] > 96} {
+#			set ::gui::state::_state_change_chart_value \
+#				[expr {$::gui::state::_state_change_chart_value * -1}]
+#
+#			if {[expr {rand()}] > 0.5} {
+#				set ::settings(current_frame_description) [translate "pouring"]
+#			} else {
+#				set ::settings(current_frame_description) [translate "preinfusion"]
+#			}
+#		}
+#
+#		if {$::de1(state) == 2} {
+#			# idle
+#			if {$::de1(substate) == 0} {
+#				if {[expr {int(rand() * 100)}] > 92} {
+#					# occasionally set the de1 to heating mode
+#					#set ::de1(substate) 1
+#					#update_de1_state "$::de1_state(Idle)\x1"
+#				}
+#			} else {
+#				if {[expr {int(rand() * 100)}] > 90} {
+#					# occasionally set the de1 to heating mode
+#					update_de1_state "$::de1_state(Idle)\x0"
+#				}
+#			}
+#		} elseif {$::de1(state) == 4} {
+#			# espresso
+#			if {$::de1(substate) == 0} {
+#			} elseif {$::de1(substate) < 4} {
+#				if {[expr {int(rand() * 100)}] > 80} {
+#					# occasionally set the de1 to heating mode
+#					#set ::de1(substate) 4
+#					update_de1_state "$::de1_state(Espresso)\x4"
+#				}
+#			} elseif {$::de1(substate) == 4} {
+#				if {[expr {int(rand() * 100)}] > 80} {
+#					# occasionally set the de1 to heating mode
+#					#set ::de1(substate) 5
+#					update_de1_state "$::de1_state(Espresso)\x5"
+#				}
+#			} 
+#		}
+#
+#        #set timerkey "$::de1(state)-$::de1(substate)"
+#        #set ::timers($timerkey) [clock milliseconds]
+#
+#		#if {$::de1(substate) > 6} {
+#		#	set ::de1(substate) 0
+#		#}
+#
+#		# JB's GUI driver needs an event_dict
+#
+#		# NB: This seems to be getting called at a 10 Hz rate
+#		#     which is faster than the DE1's 25/(2 * line frequency)
+#
+#		set _now [expr {[clock milliseconds] / 1000.0}]
+#		# SampleTime is a 16-bit counter of zero crossings
+#		set _de1_sample_time \
+#			[expr { int( ( $_now - $::gui::_arbitrary_t0 ) \
+#					     / $::gui::_st_period ) % 65536 }]
+#		set event_dict [dict create \
+#					event_time 	$_now \
+#					update_received	$_now \
+#					SampleTime	$_de1_sample_time \
+#					GroupPressure	$::de1(pressure) \
+#					GroupFlow	$::de1(flow) \
+#					MixTemp		$::de1(mix_temperature) \
+#					HeadTemp	$::de1(head_temperature) \
+#					SetHeadTemp	$::de1(goal_temperature) \
+#					SetGroupPressure $::de1(goal_pressure) \
+#					SetGroupFlow	$::de1(goal_flow) \
+#					FrameNumber	$::de1(current_frame_number) \
+#					SteamTemp	$::de1(steam_heater_temperature) \
+#					this_state	[::de1::state::current_state] \
+#					this_substate	[::de1::state::current_substate] \
+#				       ]
+#
+#		if {$::de1(state) == 4} {
+#			::de1::event::apply::on_shotvalue_available_callbacks $event_dict
+#		} elseif {$::de1(state) == 5} {
+#			#steaming
+#			::de1::event::apply::on_shotvalue_available_callbacks $event_dict
+#		}
+#
+#	} ;# $::android == 0
 
 	# update the timers
   	#set state_timerkey "$::de1(state)"
@@ -1286,48 +1313,137 @@ proc update_onscreen_variables { {state {}} } {
   	#set ::timers($state_timerkey) $now
   	#set ::substate_timers($timerkey) $now
 
+#	#set x [clock milliseconds]
+#	global variable_labels
+#	set something_updated 0
+#	if {[info exists variable_labels($::de1(current_context))] == 1} {
+#		set labels_to_update $variable_labels($::de1(current_context)) 
+#		foreach label_to_update $labels_to_update {
+#			set label_name [lindex $label_to_update 0]
+#			set label_cmd [lindex $label_to_update 1]
+#			
+#			set label_value ""
+#			set errcode [catch {
+#				set label_value [subst $label_cmd]
+#			}]
+#
+#
+#		    if {$errcode != 0} {
+#		        catch {
+#		            msg "update_onscreen_variables error: $::errorInfo"
+#		        }
+#		    }
+#
+#			if {[ifexists ::labelcache($label_name)] != $label_value} {
+#				.can itemconfig $label_name -text $label_value
+#				set ::labelcache($label_name) $label_value
+#				set something_updated 1
+#			}
+#		}
+#	}
+#
+#	if {$something_updated == 1} {
+#		# john 3-10-19 not sure we need to do a forced screen update
+#		#update
+#	}
+#
+#	#set y [clock milliseconds]
+#	#puts "elapsed: [expr {$y - $x}] $something_updated"
+#
+#	if {[info exists ::update_onscreen_variables_alarm_handle] == 1} {
+#		after cancel $::update_onscreen_variables_alarm_handle
+#		unset ::update_onscreen_variables_alarm_handle
+#	}
+#	set ::update_onscreen_variables_alarm_handle [after $::settings(timer_interval) update_onscreen_variables]
+}
 
-	#set x [clock milliseconds]
-	global variable_labels
-	set something_updated 0
-	if {[info exists variable_labels($::de1(current_context))] == 1} {
-		set labels_to_update $variable_labels($::de1(current_context)) 
-		foreach label_to_update $labels_to_update {
-			set label_name [lindex $label_to_update 0]
-			set label_cmd [lindex $label_to_update 1]
-			
-			set label_value ""
-			set errcode [catch {
-				set label_value [subst $label_cmd]
-			}]
+# Define fake / dummy espresso variables on workstations
+proc set_dummy_espresso_vars {} {
+	if { $::android } { return }
+	
+	if {[expr {int(rand() * 100)}] > 96} {
+		set ::gui::state::_state_change_chart_value \
+			[expr {$::gui::state::_state_change_chart_value * -1}]
 
-
-		    if {$errcode != 0} {
-		        catch {
-		            msg -ERROR "update_onscreen_variables error: $::errorInfo"
-		        }
-		    }
-
-			if {[ifexists ::labelcache($label_name)] != $label_value} {
-				.can itemconfig $label_name -text $label_value
-				set ::labelcache($label_name) $label_value
-				set something_updated 1
-			}
+		if {[expr {rand()}] > 0.5} {
+			set ::settings(current_frame_description) [translate "pouring"]
+		} else {
+			set ::settings(current_frame_description) [translate "preinfusion"]
 		}
 	}
 
-	if {$something_updated == 1} {
-		# john 3-10-19 not sure we need to do a forced screen update
-		#update
+	if {$::de1(state) == 2} {
+		# idle
+		if {$::de1(substate) == 0} {
+			if {[expr {int(rand() * 100)}] > 92} {
+				# occasionally set the de1 to heating mode
+				#set ::de1(substate) 1
+				#update_de1_state "$::de1_state(Idle)\x1"
+			}
+		} else {
+			if {[expr {int(rand() * 100)}] > 90} {
+				# occasionally set the de1 to heating mode
+				update_de1_state "$::de1_state(Idle)\x0"
+			}
+		}
+	} elseif {$::de1(state) == 4} {
+		# espresso
+		if {$::de1(substate) == 0} {
+		} elseif {$::de1(substate) < 4} {
+			if {[expr {int(rand() * 100)}] > 80} {
+				# occasionally set the de1 to heating mode
+				#set ::de1(substate) 4
+				update_de1_state "$::de1_state(Espresso)\x4"
+			}
+		} elseif {$::de1(substate) == 4} {
+			if {[expr {int(rand() * 100)}] > 80} {
+				# occasionally set the de1 to heating mode
+				#set ::de1(substate) 5
+				update_de1_state "$::de1_state(Espresso)\x5"
+			}
+		} 
 	}
 
-	#set y [clock milliseconds]
+	#set timerkey "$::de1(state)-$::de1(substate)"
+	#set ::timers($timerkey) [clock milliseconds]
 
-	if {[info exists ::update_onscreen_variables_alarm_handle] == 1} {
-		after cancel $::update_onscreen_variables_alarm_handle
-		unset ::update_onscreen_variables_alarm_handle
-	}
-	set ::update_onscreen_variables_alarm_handle [after $::settings(timer_interval) update_onscreen_variables]
+	#if {$::de1(substate) > 6} {
+	#	set ::de1(substate) 0
+	#}
+
+	# JB's GUI driver needs an event_dict
+
+	# NB: This seems to be getting called at a 10 Hz rate
+	#     which is faster than the DE1's 25/(2 * line frequency)
+
+	set _now [expr {[clock milliseconds] / 1000.0}]
+	# SampleTime is a 16-bit counter of zero crossings
+	set _de1_sample_time \
+		[expr { int( ( $_now - $::gui::_arbitrary_t0 ) \
+						/ $::gui::_st_period ) % 65536 }]
+	set event_dict [dict create \
+				event_time 	$_now \
+				update_received	$_now \
+				SampleTime	$_de1_sample_time \
+				GroupPressure	$::de1(pressure) \
+				GroupFlow	$::de1(flow) \
+				MixTemp		$::de1(mix_temperature) \
+				HeadTemp	$::de1(head_temperature) \
+				SetHeadTemp	$::de1(goal_temperature) \
+				SetGroupPressure $::de1(goal_pressure) \
+				SetGroupFlow	$::de1(goal_flow) \
+				FrameNumber	$::de1(current_frame_number) \
+				SteamTemp	$::de1(steam_heater_temperature) \
+				this_state	[::de1::state::current_state] \
+				this_substate	[::de1::state::current_substate] \
+					]
+
+	if {$::de1(state) == 4} {
+		::de1::event::apply::on_shotvalue_available_callbacks $event_dict
+	} elseif {$::de1(state) == 5} {
+		#steaming
+		::de1::event::apply::on_shotvalue_available_callbacks $event_dict
+	}	
 }
 
 proc set_next_page {machinepage guipage} {
@@ -1343,10 +1459,12 @@ proc show_settings { {tab_to_show ""} } {
 	if {$tab_to_show == ""} {
 		page_to_show_when_off $::settings(active_settings_tab)
 		scheduler_feature_hide_show_refresh
-		set_profiles_scrollbar_dimensions
-		set_advsteps_scrollbar_dimensions
 	} else {
 		page_to_show_when_off $tab_to_show
+	}
+	after idle {
+		set_profiles_scrollbar_dimensions
+		set_advsteps_scrollbar_dimensions
 	}
 
 	update_de1_explanation_chart
@@ -1354,14 +1472,16 @@ proc show_settings { {tab_to_show ""} } {
 	#preview_profile 
 }
 
-proc page_to_show_when_off {page_to_show} {
+proc page_to_show_when_off {page_to_show args} {
 	set_next_page off $page_to_show
-	page_show $page_to_show
+	dui page load $page_to_show {*}$args
+#	page_show $page_to_show
 }
 
-proc page_show {page_to_show} {
-	set page_to_hide $::de1(current_context)
-	return [page_display_change $page_to_hide $page_to_show] 
+proc page_show {page_to_show args} {
+	dui page load $page_to_show {*}$args
+#	set page_to_hide $::de1(current_context)
+#	return [page_display_change $page_to_hide $page_to_show] 
 }
 
 proc display_brightness {percentage} {
@@ -1370,112 +1490,134 @@ proc display_brightness {percentage} {
 }
 
 
-proc page_display_change {page_to_hide page_to_show} {
-
-	#if {$page_to_hide == ""} {
-	#}
-
-	delay_screen_saver
-
-	set key "machine:$page_to_show"
-	if {[ifexists ::nextpage($key)] != ""} {
-		# there are different possible tabs to display for different states (such as preheat-cup vs hot water)
-		set page_to_show $::nextpage($key)
-	}
-
-	if {$::de1(current_context) == $page_to_show} {
-		#jbtemp
-		return 
-	}
-
-	msg -DEBUG "page_display_change $page_to_hide->$page_to_show"
-
-
-	if {$page_to_hide == "sleep" && $page_to_show == "off"} {
-		msg -DEBUG "discarding intermediate sleep/off state msg"
-		return 
-	} elseif {$page_to_show == "saver"} {
-		if {[ifexists ::exit_app_on_sleep] == 1} {
-			get_set_tablet_brightness 0
-			close_all_ble_and_exit
-		}
-	}
-
-	# signal the page change with a sound
-	say "" $::settings(sound_button_out)
-	#set start [clock milliseconds]
-
-	# set the brightness in one place
-	if {$page_to_show == "saver" } {
-		if {$::settings(screen_saver_change_interval) == 0} {
-			# black screen saver
-			display_brightness 0
-		} else {
-			display_brightness $::settings(saver_brightness)
-		}
-		borg systemui $::android_full_screen_flags  
-	} else {
-		display_brightness $::settings(app_brightness)
-	}
-
-
-	if {$::settings(stress_test) == 1 && $::de1_num_state($::de1(state)) == "Idle" && [info exists ::idle_next_step] == 1} {
-
-		msg -DEBUG "Doing next stress test step: '$::idle_next_step '"
-		set todo $::idle_next_step 
-		unset -nocomplain ::idle_next_step 
-		eval $todo
-	}
-
-
-	#global current_context
-	set ::de1(current_context) $page_to_show
-
-	catch {
-		.can itemconfigure $page_to_hide -state hidden
-	}
-	#.can itemconfigure [list "pages" "splash" "saver"] -state hidden
-
-	if {[info exists ::delayed_image_load($page_to_show)] == 1} {
-		set pngfilename	$::delayed_image_load($page_to_show)
-
-		set errcode [catch {
-			# this can happen if the image file has been moved/deleted underneath the app
-			#fallback is to at least not crash
-			msg -DEBUG "page_display_change image create photo $page_to_show -file $pngfilename" 
-			image create photo $page_to_show -file $pngfilename
-		}]
-
-	    if {$errcode != 0} {
-	        catch {
-	            msg -ERROR "image create photo error: $::errorInfo"
-	        }
-	    }
-
-	    foreach {page img} [array get ::delayed_image_load] {
-	    	if {$img == $pngfilename} {
-	    		
-	    		# Matching delayed image load to every page that references it
-	    		# this avoids loading the same iamge over and over, for each page referencing it
-
-				set errcode [catch {
-					# this error can happen if the image file has been moved/deleted underneath the app, fallback is to at least not crash
-					.can itemconfigure $page -image $page_to_show -state hidden					
-				}]
-
-			    if {$errcode != 0} {
-			        catch {
-			            msg -ERROR ".can itemconfigure page_to_show ($page/$page_to_show) error: $::errorInfo"
-			        }
-			    }
-
-				unset -nocomplain ::delayed_image_load($page)
-	    	}
-	    }
-
-	}
-
-
+proc page_display_change {page_to_hide page_to_show args} {
+	dui page load $page_to_show {*}$args
+#	::dui::page::display_change $page_to_hide $page_to_show
+	
+#	#msg [stacktrace]
+#
+#	#if {$page_to_hide == ""} {
+#	#}
+#
+#	delay_screen_saver
+#
+#	set key "machine:$page_to_show"
+#	if {[ifexists ::nextpage($key)] != ""} {
+#		# there are different possible tabs to display for different states (such as preheat-cup vs hot water)
+#		set page_to_show $::nextpage($key)
+#	}
+#
+#	if {$::de1(current_context) == $page_to_show} {
+#		#jbtemp
+#		#msg "page_display_change returning because ::de1(current_context) == $page_to_show"
+#		return 
+#	}
+#
+#	msg "page_display_change $page_to_hide->$page_to_show"
+#
+#
+#	if {$page_to_hide == "sleep" && $page_to_show == "off"} {
+#		msg "discarding intermediate sleep/off state msg"
+#		return 
+#	} elseif {$page_to_show == "saver"} {
+#		if {[ifexists ::exit_app_on_sleep] == 1} {
+#			get_set_tablet_brightness 0
+#			close_all_ble_and_exit
+#		}
+#	}
+#
+#	# signal the page change with a sound
+#	say "" $::settings(sound_button_out)
+#	#msg "page_display_change $page_to_show"
+#	#set start [clock milliseconds]
+#
+#	# set the brightness in one place
+#	if {$page_to_show == "saver" } {
+#		if {$::settings(screen_saver_change_interval) == 0} {
+#			# black screen saver
+#			display_brightness 0
+#		} else {
+#			display_brightness $::settings(saver_brightness)
+#		}
+#		borg systemui $::android_full_screen_flags  
+#	} else {
+#		display_brightness $::settings(app_brightness)
+#	}
+#
+#
+#	if {$::settings(stress_test) == 1 && $::de1_num_state($::de1(state)) == "Idle" && [info exists ::idle_next_step] == 1} {
+#
+#		msg "Doing next stress test step: '$::idle_next_step '"
+#		set todo $::idle_next_step 
+#		unset -nocomplain ::idle_next_step 
+#		eval $todo
+#	}
+#
+#
+#	#global current_context
+#	set ::de1(current_context) $page_to_show
+#
+#	#puts "page_display_change hide:$page_to_hide show:$page_to_show"
+#	catch {
+#		.can itemconfigure $page_to_hide -state hidden
+#	}
+#	#.can itemconfigure [list "pages" "splash" "saver"] -state hidden
+#
+#	if {[info exists ::delayed_image_load($page_to_show)] == 1} {
+#		set pngfilename	$::delayed_image_load($page_to_show)
+#		msg "Loading skin image from disk: $pngfilename"
+#		
+#		set errcode [catch {
+#			# this can happen if the image file has been moved/deleted underneath the app
+#			#fallback is to at least not crash
+#			msg "page_display_change image create photo $page_to_show -file $pngfilename" 
+#			image create photo $page_to_show -file $pngfilename
+#			#msg "image create photo $page_to_show -file $pngfilename"
+#		}]
+#
+#	    if {$errcode != 0} {
+#	        catch {
+#	            msg "image create photo error: $::errorInfo"
+#	        }
+#	    }
+#
+#	    foreach {page img} [array get ::delayed_image_load] {
+#	    	if {$img == $pngfilename} {
+#	    		
+#	    		# Matching delayed image load to every page that references it
+#	    		# this avoids loading the same iamge over and over, for each page referencing it
+#
+#				set errcode [catch {
+#					# this error can happen if the image file has been moved/deleted underneath the app, fallback is to at least not crash
+#					.can itemconfigure $page -image $page_to_show -state hidden					
+#				}]
+#
+#			    if {$errcode != 0} {
+#			        catch {
+#			            msg ".can itemconfigure page_to_show ($page/$page_to_show) error: $::errorInfo"
+#			        }
+#			    }
+#
+#				unset -nocomplain ::delayed_image_load($page)
+#	    	}
+#	    }
+#
+#	}
+#
+#	set errcode [catch {
+#		.can itemconfigure $page_to_show -state normal
+#	}]
+#
+#	if {$errcode != 0} {
+#		catch {
+#			msg ".can itemconfigure page_to_show error: $::errorInfo"
+#		}
+#
+#	} 
+#
+#	set these_labels [ifexists ::existing_labels($page_to_show)]
+#	#msg "these_labels: $these_labels"
+#
 #	if {[info exists ::all_labels] != 1} {
 #		set ::all_labels {}
 #		foreach {page labels} [array get ::existing_labels]  {
@@ -1484,57 +1626,61 @@ proc page_display_change {page_to_hide page_to_show} {
 #		set ::all_labels [lsort -unique $::all_labels]
 #	}
 #
+#	#msg "Hiding [llength $::all_labels] labels"
 #	foreach label $::all_labels {
 #		if {[.can itemcget $label -state] != "hidden"} {
 #			.can itemconfigure $label -state hidden
+#			#msg "hiding: '$label'"
 #		}
 #	}
-	.can itemconfigure all -state hidden
-
-	set errcode [catch {
-		.can itemconfigure $page_to_show -state normal
-	}]
-
-	if {$errcode != 0} {
-		catch {
-			msg -ERROR ".can itemconfigure page_to_show error: $::errorInfo"
-		}
-
-	}
-
-	set these_labels [ifexists ::existing_labels($page_to_show)]
-	foreach label $these_labels {
-		.can itemconfigure $label -state normal
-	}
-
-	update
-	#set end [clock milliseconds]
-
-	global actions
-	if {[info exists actions($page_to_show)] == 1} {
-		foreach action $actions($page_to_show) {
-			eval $action
-			msg -INFO "Page entry action: $page_to_show: '$action'"
-		}
-	}
-
-	msg -INFO "Switched to page: $page_to_show"
-
-	update_onscreen_variables
-
-	hide_android_keyboard
+#
+#	#msg "Showing [llength $these_labels] labels"
+#	foreach label $these_labels {
+#		.can itemconfigure $label -state normal
+#		#msg "showing: '$label'"
+#	}
+#
+#	update
+#	#set end [clock milliseconds]
+#	#puts "elapsed: [expr {$end - $start}]"
+#
+#	global actions
+#	if {[info exists actions($page_to_show)] == 1} {
+#		foreach action $actions($page_to_show) {
+#			eval $action
+#			msg "action: '$action"
+#		}
+#	}
+#
+#	#msg "Switched to page: $page_to_show [stacktrace]"
+#	msg "Switched to page: $page_to_show"
+#
+#	update_onscreen_variables
+#
+#	hide_android_keyboard
 
 }
 
-proc hide_android_keyboard {} {
-	# make sure on-screen keyboard doesn't auto-pop up, and if
-	# physical keyboard is connected, make sure navbar stays hidden
-	sdltk textinput off
+proc adjust_machine_nextpage { page_to_hide page_to_show } { 
+	set key "machine:$page_to_show"
+	if {[ifexists ::nextpage($key)] != ""} {
+		# there are different possible tabs to display for different states (such as preheat-cup vs hot water)
+		return $::nextpage($key)
+	}
+	return 1
+}
 
-	# this auto-hides the bottom android controls, which can appear if a gesture was made
-	borg systemui $::android_full_screen_flags
+proc hide_android_keyboard {} {
+	dui platform hide_android_keyboard
 	
-	focus .can
+#	# make sure on-screen keyboard doesn't auto-pop up, and if
+#	# physical keyboard is connected, make sure navbar stays hidden
+#	sdltk textinput off
+#
+#	# this auto-hides the bottom android controls, which can appear if a gesture was made
+#	borg systemui $::android_full_screen_flags
+#	
+#	focus .can
 }
 
 proc update_de1_explanation_chart_soon  { {context {}} } {
@@ -2019,7 +2165,8 @@ proc setup_images_for_first_page {} {
 	set fn [random_splash_file]
 	image create photo splash -file $fn 
 	.can create image {0 0} -anchor nw -image splash -tag splash -state normal
-	pack .can
+#	pack .can
+	
 	update
 	return
 }
@@ -2027,12 +2174,15 @@ proc setup_images_for_first_page {} {
 proc run_de1_app {} {
 	page_display_change "splash" "off"
 }
+package require de1_shot 2.0
 
 proc ui_startup {} {
-
+	
 	load_settings
-	::profile::sync_from_legacy
+
+	::profile::sync_from_legacy	
 	setup_environment
+		
 	bluetooth_connect_to_devices
 	
 	if {[ifexists ::settings(enable_shot_history_export)] == "1"} {
@@ -2046,8 +2196,9 @@ proc ui_startup {} {
 	
 	setup_images_for_first_page
 	setup_images_for_other_pages
+	history_viewer init
+
 	plugins init
-	.can itemconfigure splash -state hidden
 
 	set app_version [package version de1app]
 
@@ -2065,6 +2216,15 @@ proc ui_startup {} {
 		save_settings
 	}
 
+	# auto-setup of DUI pages. dui init and setting of folders may need to be done before skin & plugins inits?
+	#dui init
+	dui font add_dirs "[homedir]/fonts"
+	dui item add_image_dirs "[homedir]/skins/$::settings(skin)" "[homedir]/skins/default"
+	dui setup_ui
+	
+
+	.can itemconfigure splash -state hidden
+	
 	#after $::settings(timer_interval) 
 	update_onscreen_variables
 	delay_screen_saver
@@ -2075,10 +2235,12 @@ proc ui_startup {} {
 	# check for app updates, some time after startup, and then every 24h thereafter
 	if {$::settings(do_async_update_check) == 1} {
 		# no need to delay doing a remove update check, if we're doing it async
-		after 500 scheduled_app_update_check
+		#after 500 scheduled_app_update_check
 	} else {
-		after 3000 scheduled_app_update_check
+		#after 3000 scheduled_app_update_check
 	}
+
+	schedule_app_update_check
 
 	tcl_introspection
 
@@ -2413,7 +2575,7 @@ proc calibration_gui_init {} {
 
 		after 1000 de1_read_calibration "temperature"
 		after 2000 de1_read_calibration "pressure"
-		after 3000 get_calibration_flow_multiplier
+		#after 3000 get_calibration_flow_multiplier
 		#after 3000 de1_read_calibration "flow"
 
 		after 4000 de1_read_calibration "temperature" "factory"
@@ -3012,9 +3174,16 @@ namespace eval ::gui::notify {
 
 			not_connected {
 
-				set what [translate {WARNING: Scale not connected}]
-				borg toast $what
-				say $what $::settings(sound_button_in)
+			    # With automatically_ble_reconnect_forever_to_scale 1
+			    # `ble` will report a connection event when attempting to connect.
+			    # When the connection fails, the disconnect logic fires.
+			    # This has been reported to cause "ticking" sounds every 30 seconds.
+
+			    if { [::de1::state::current_state] == "Sleep" } { return }
+
+			    set what [translate {WARNING: Scale not connected}]
+			    borg toast $what
+			    say $what $::settings(sound_button_in)
 			}
 
 			no_updates {

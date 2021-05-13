@@ -1,3 +1,4 @@
+
 # Change package name for you extension / plugin
 set plugin_name "DPx_Screen_Saver"
 
@@ -5,7 +6,7 @@ namespace eval ::plugins::${plugin_name} {
     # These are shown in the plugin selection page
     variable author "Damian"
     variable contact "via Diaspora"
-    variable version 1.1
+    variable version 1.3
     variable description "A plugin that allows users to select an alternate screen saver directory, for skins that don't already do so"
 
     proc build_ui {} {
@@ -64,9 +65,8 @@ namespace eval ::plugins::${plugin_name} {
     # REQUIRED
 
     proc main {} {
-        trace add execution load_skin leave ::plugins::DPx_Screen_Saver::check_MySaver_exists
+        check_MySaver_exists
         plugins gui DPx_Screen_Saver [build_ui]
     }
-
 }
 

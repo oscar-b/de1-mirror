@@ -71,13 +71,16 @@ set slider_trough_color #EAEAEA
 set chart_background_color #F8F8F8
 ##############################################################################################################################################################################################################################################################################
 
-proc set_scrollbar_dimensions { scrollbar_widget listbox_widget } {
-		# set the height of the scrollbar to be the same as the listbox
-		$scrollbar_widget configure -length [winfo height $listbox_widget]
-		set coords [.can coords $listbox_widget ]
-		set newx [expr {[winfo width $listbox_widget] + [lindex $coords 0]}]
-		.can coords $scrollbar_widget "$newx [lindex $coords 1]"
-	}
+proc set_scrollbar_dimensions { scrollbar_widget listbox_widget } {	
+	# set the height of the scrollbar to be the same as the listbox, and locate it on its right side.
+	# BEWARE this depends on the canvas being able to retrieve the 2 widgets by pathname instead of tag or id.
+	# Listbox height is exactly 1 whenever it has not been drawn yet.	
+	lassign [.can bbox $listbox_widget] x0 y0 x1 y1
+	if { [expr {$y1-$y0}] > 1 } {
+		$scrollbar_widget configure -length [expr {$y1-$y0}]
+		.can coords $scrollbar_widget [list $x1 $y0]
+	}	
+}
 
 ############################
 # pressure controlled shots
@@ -697,7 +700,7 @@ add_de1_text "settings_4" 50 220 -text [translate "Update App"] -font Helv_10_bo
 		add_de1_button "firmware_update_4" {say [translate {Exit}] $::settings(sound_button_in); app_exit} 1960 1200 2560 1600 ""
 		#add_de1_variable "firmware_update_5" 60 120 -text "" -font Helv_10_bold -fill "#222222" -anchor "nw" -width [rescale_y_skin 700] -justify "left" -textvariable {[if {$::de1(currently_updating_firmware) == 0} { page_show firmware_update_5 }; return [firmware_uploaded_label]]} 
 		#add_de1_text "firmware_update_4" 730 800 -text [subst {[translate "Turn your DE1 off. Wait a few seconds. Turn your DE1 on."]\n\n[translate "Please be patient. It can take several minutes for your DE1 to update."]}] -font Helv_8 -fill "#222222" -anchor "ne" -width [rescale_y_skin 700] -justify "right" 
-		add_de1_variable "firmware_update_4" 2030 300 -text "" -font Helv_16_bold -fill "#222222" -anchor "center" -width [rescale_y_skin 700] -justify "center" -textvariable {[if {$::de1(device_handle) == 0} { after 120000 enable_de1_reconnect; page_show firmware_update_5; }; return ""]}
+		add_de1_variable "firmware_update_4" 2030 300 -text "" -font Helv_16_bold -fill "#222222" -anchor "center" -width [rescale_y_skin 700] -justify "center" -textvariable {[if {$::de1(device_handle) == 0} { after 120000 enable_de1_reconnect; after 600000 app_exit; page_show firmware_update_5; }; return ""]}
 
 	add_de1_text "firmware_update_5" 40 20 -text [translate "Turn your DE1 on"] -font Helv_16_bold -width 1200 -fill "#444444" -anchor "nw" -justify "left" 
 		add_de1_text "firmware_update_5" 40 1500 -text "[translate "Firmware Update"] - [translate "Page"]  5/5" -font Helv_12_bold -fill "#888888" -anchor "nw" -justify "left"
@@ -1239,11 +1242,11 @@ add_de1_text "calibrate calibrate2" 1280 290 -text [translate "Calibrate"] -font
 		#     IF you read 0, 1120, or 1230, you can write a new nominal voltage, which may be 120 or 230V
 
 		add_de1_text "calibrate2" 350 450  -text [translate "Voltage"] -font Helv_11_bold -fill "#7f879a" -anchor "nw" -justify "left" 
-		add_de1_variable "calibrate2" 1000 450  -text "" -font Helv_11_bold -fill "#4e85f4" -anchor "nw" -textvariable {[if {$::settings(heater_voltage) == "1230" || $::settings(heater_voltage) == "0" || $::settings(heater_voltage) == "" } { return [subst {\[ [translate "Set to 120V"] \]}] } else { return "" }]}
-		add_de1_variable "calibrate2" 1600 450  -text "" -font Helv_11_bold -fill "#4e85f4" -anchor "nw" -textvariable {[if {$::settings(heater_voltage) == "1120" || $::settings(heater_voltage) == "0" || $::settings(heater_voltage) == "" } { return [subst {\[ [translate "Set to 230V"] \]}] } else { return "" }]}
+		add_de1_variable "calibrate2" 1000 450  -text "" -font Helv_11_bold -fill "#4e85f4" -anchor "nw" -textvariable {[if {$::settings(heater_voltage) != "1120" || $::settings(heater_voltage) == "0" || $::settings(heater_voltage) == "" } { return [subst {\[ [translate "Set to 120V"] \]}] } else { return "" }]}
+		add_de1_variable "calibrate2" 1600 450  -text "" -font Helv_11_bold -fill "#4e85f4" -anchor "nw" -textvariable {[if {$::settings(heater_voltage) != "1230" || $::settings(heater_voltage) == "0" || $::settings(heater_voltage) == "" } { return [subst {\[ [translate "Set to 230V"] \]}] } else { return "" }]}
 		
-		add_de1_button "calibrate2" {if {$::settings(heater_voltage) == "1230" || $::settings(heater_voltage) == "0" || $::settings(heater_voltage) == "" } { if {$::android == 0} { set ::settings(heater_voltage) "1120" }; set_heater_voltage "120"; get_heater_voltage} } 1000 450 1450 600 ""
-		add_de1_button "calibrate2" {if {$::settings(heater_voltage) == "1120" || $::settings(heater_voltage) == "0" || $::settings(heater_voltage) == "" } { if {$::android == 0} { set ::settings(heater_voltage) "1230" }; set_heater_voltage "230"; get_heater_voltage} } 1600 450 2050 600 ""
+		add_de1_button "calibrate2" {if {$::settings(heater_voltage) != "1120" || $::settings(heater_voltage) == "0" || $::settings(heater_voltage) == "" } { if {$::android == 0} { set ::settings(heater_voltage) "1120" }; set_heater_voltage "120"; get_heater_voltage} } 1000 450 1450 600 ""
+		add_de1_button "calibrate2" {if {$::settings(heater_voltage) != "1230" || $::settings(heater_voltage) == "0" || $::settings(heater_voltage) == "" } { if {$::android == 0} { set ::settings(heater_voltage) "1230" }; set_heater_voltage "230"; get_heater_voltage} } 1600 450 2050 600 ""
 
 		add_de1_variable "calibrate2" 700 450  -text [translate "Voltage"] -font Helv_11 -fill "#7f879a" -anchor "nw" -justify "left"  -textvariable {[if {$::settings(heater_voltage) == "120" || $::settings(heater_voltage) == "1120"} {
 				return "120V"

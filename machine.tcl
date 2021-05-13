@@ -440,6 +440,8 @@ array set ::settings {
 	maximum_pressure_range_advanced 0.6
 	high_vibration_scale_filtering False
 	last_version "1.34"
+
+	create_legacy_shotfiles 0
 }
 
 # default de1plus skin
@@ -820,6 +822,26 @@ proc start_espresso {} {
 
 	return	
 }
+
+proc start_next_step {} {
+
+	if {$::de1_num_state($::de1(state)) != "Espresso"} {
+		msg -INFO "Not in espresso state, skipping moving on"
+		return
+	}
+
+
+	if {$::de1_substate_types($::de1(substate)) != "preinfusion" \
+	 && $::de1_substate_types($::de1(substate)) != "pouring" } {
+		msg -INFO "Espresso heating, skipping moving on"
+	}
+
+	msg -NOTICE "Tell DE1 to go to next frame"
+	de1_send_state "skip to next frame" $::de1_state(SkipToNext)
+
+	return	
+}
+
 
 proc reset_gui_starting_hotwater {} {
 	set ::de1(timer) 0

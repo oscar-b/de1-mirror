@@ -10,7 +10,7 @@ proc add_back_button { contexts text } {
 	set item_id [.can create line [rescale_x_skin 120] [rescale_y_skin  60] [rescale_x_skin 60] [rescale_y_skin 120] [rescale_x_skin 120] [rescale_y_skin 180] -width [rescale_x_skin 24] -fill $::color_text -state "hidden"]
 	add_visual_items_to_contexts $contexts $item_id
 	set page_title_id [add_de1_text $contexts 180 120 -text $text -font $::font_main_menu -fill $::color_text -anchor "w" -state "hidden"]
-	add_de1_button $contexts {say [translate "back"] $::settings(sound_button_in); metric_jump_back } 0 0 1280 240
+	add_de1_button $contexts {say [translate "back"] $::settings(sound_button_in); metric_jump_to "off" } 0 0 1280 240
 	return $page_title_id
 }
 
@@ -58,60 +58,14 @@ proc update_button_color { button_id backcolor } {
 	.can itemconfigure "button_$button_id" -fill $backcolor
 }
 
-### page navigation and history functions ###
-
-set ::metric_page_history "off"
-proc metric_history_push { pagename } {
-	if {$pagename == "off"} {
-		set ::metric_page_history "off"
-	} else {
-		lappend ::metric_page_history $pagename
-	}
-	# when tank is empty, stay on current page
-	set_next_page "tankempty" $pagename
-}
-proc metric_history_pop {} {
-	# remove last item
-	set ::metric_page_history [lreplace $::metric_page_history end end]
-
-	set pagename [lindex $::metric_page_history end]
-	if {$pagename == ""} {
-		set pagename "off"
-	} else {
-		# remove last item
-		set ::metric_page_history [lreplace $::metric_page_history end end]
-	}
-	return $pagename
-}
+### page navigation ###
 
 proc metric_jump_to { pagename } {
 	set_next_page "off" $pagename
 	page_show "off"
 	start_idle
-	if {[lindex $::metric_page_history end] != $pagename} {
-		metric_history_push $pagename
-	}
-}
-
-proc metric_jump_to_no_history { pagename } {
-	set_next_page "off" $pagename
-	page_show "off"
-	start_idle
-}
-
-proc metric_jump_back {} {
-	set pagename [metric_history_pop]
-	metric_jump_to $pagename
-}
-
-proc metric_jump_home {} {
-	metric_jump_to "off"
-	set ::metric_page_history "off"
-}
-
-proc metric_jump_current {} {
-	set pagename [lindex $::metric_page_history end]
-	metric_jump_to $pagename
+	# when tank is empty, stay on current page
+	set_next_page "tankempty" $pagename
 }
 
 

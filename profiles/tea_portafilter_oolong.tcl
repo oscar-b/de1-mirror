@@ -2,6 +2,7 @@ advanced_shot {{exit_if 1 flow 11 volume 500 transition fast exit_flow_under 0 t
 author Decent
 bean_brand {}
 bean_type {}
+beverage_type tea_portafilter
 espresso_decline_time 0
 espresso_hold_time 25
 espresso_pressure 8.6
@@ -38,4 +39,4 @@ profile_title {Tea portafilter/oolong}
 settings_profile_type settings_2c
 tank_desired_water_temperature 0
 water_temperature 80
-beverage_type {tea_portafilter}
+

@@ -113,6 +113,8 @@ proc make_de1_dir {srcdir destdirs} {
         de1app.tcl *
         de1_comms.tcl *
         gui.tcl *
+        history_viewer.tcl *
+        dui.tcl *
         machine.tcl *
         utils.tcl *
         main.tcl *
@@ -136,9 +138,12 @@ proc make_de1_dir {srcdir destdirs} {
         history_export.tcl *
         version.tcl *
         profile.tcl *
+        shot.tcl *
         de1_de1.tcl *
         device_scale.tcl *
         event.tcl *
+
+        build-info.txt *
 
         profiles_v2/readme.txt *
 
@@ -532,11 +537,11 @@ proc make_de1_dir {srcdir destdirs} {
         skins/MimojaCafe/fonts/Mazzard\ Regular.otf *
         skins/MimojaCafe/fonts/Mazzard\ SemiBold.otf *
         skins/MimojaCafe/framework.tcl *
-        skins/MimojaCafe/history_viewer.tcl *
         skins/MimojaCafe/interfaces/default_settings_screen.tcl *
         skins/MimojaCafe/interfaces/default_ui.tcl *
         skins/MimojaCafe/interfaces/magadan_ui.tcl *
         skins/MimojaCafe/settings.tcl *
+        skins/MimojaCafe/theme.tcl *
         skins/MimojaCafe/skin.tcl *
 
         skins/metric/1280x800/icon.jpg *
@@ -975,6 +980,43 @@ proc make_de1_dir {srcdir destdirs} {
         plugins/keyboard_control/settings.tdb *
 
         plugins/log_debug/plugin.tcl *
+
+        plugins/DYE/1280x800/bean_DSx.png *
+        plugins/DYE/1280x800/bean_Insight.png *
+        plugins/DYE/1280x800/bean_MimojaCafe.png *
+        plugins/DYE/1280x800/espresso_DSx.png *
+        plugins/DYE/1280x800/espresso_Insight.png *
+        plugins/DYE/1280x800/espresso_MimojaCafe.png *
+        plugins/DYE/1280x800/niche_DSx.png *
+        plugins/DYE/1280x800/niche_Insight.png *
+        plugins/DYE/1280x800/niche_MimojaCafe.png *
+        plugins/DYE/1280x800/people_DSx.png *
+        plugins/DYE/1280x800/people_Insight.png *
+        plugins/DYE/1280x800/people_MimojaCafe.png *
+        plugins/DYE/2560x1600/bean_DSx.png *
+        plugins/DYE/2560x1600/bean_Insight.png *
+        plugins/DYE/2560x1600/bean_MimojaCafe.png *
+        plugins/DYE/2560x1600/espresso_DSx.png *
+        plugins/DYE/2560x1600/espresso_Insight.png *
+        plugins/DYE/2560x1600/espresso_MimojaCafe.png *
+        plugins/DYE/2560x1600/niche_DSx.png *
+        plugins/DYE/2560x1600/niche_Insight.png *
+        plugins/DYE/2560x1600/niche_MimojaCafe.png *
+        plugins/DYE/2560x1600/people_DSx.png *
+        plugins/DYE/2560x1600/people_Insight.png *
+        plugins/DYE/2560x1600/people_MimojaCafe.png *
+        plugins/DYE/changelog.md *
+        plugins/DYE/DYE.tcl *
+        plugins/DYE/plugin.tcl *
+        plugins/DYE/setup_DSx.tcl *
+        plugins/DYE/setup_Insight.tcl *
+        plugins/DYE/setup_MimojaCafe.tcl *
+
+        plugins/SDB/SDB.tcl *
+        plugins/SDB/plugin.tcl *
+
+        allcerts.pem *
+        
     }
 #        profiles/Traditional\ lever\ machine\ at\ 9\ bar.tcl *
 #        profiles/Powerful\ 10\ bar\ shot.tcl *
@@ -985,13 +1027,18 @@ proc make_de1_dir {srcdir destdirs} {
     #set destdirs [list "/d/download/sync/de1plus"]
     #set destdirs [list "/d/download/sync/de1beta"]
 
+    set old_timestamp 0
     # load the local manifest into memory
     foreach {filename filesize filemtime filesha} [string trim [read_file "$srcdir/complete_manifest.txt"]] {
         #puts "$filename $filecrc"
         set lmanifest_mtime($filename) $filemtime
         set lmanifest_sha($filename) $filesha
+        if {$filemtime > $old_timestamp} {
+            set old_timestamp $filemtime
+        }
     }
 
+    array set original_manifest_sha [array get lmanifest_sha]
 
     set timestamp [clock seconds]
     set dircount  0
@@ -1022,9 +1069,14 @@ proc make_de1_dir {srcdir destdirs} {
             } else {
                 puts -nonewline "Calculating SHA256 for $source : "
                 set sha256 [calc_sha $source]
+
                 puts $sha256
-                set lmanifest_sha($file) $sha256
-                set lmanifest_mtime($file) $mtime
+                if {[ifexists lmanifest_sha($file)] == $sha256} {
+                    puts "Timestamp changed, file identical, skipping"
+                } else {
+                    set lmanifest_sha($file) $sha256
+                    set lmanifest_mtime($file) $mtime
+                }
             }
 
             lappend complete_manifest "\"$file\" [file size $source] [file mtime $source] $sha256"
@@ -1053,7 +1105,17 @@ proc make_de1_dir {srcdir destdirs} {
 
             puts "$file -> $destdir/"
             file copy -force $source $dest
-            set files_copied 1
+        }
+
+        foreach k [array names lmanifest_sha] {
+            if {[ifexists original_manifest_sha($k)] != [set lmanifest_sha($k)]} {
+                set files_copied 1
+            }
+        }
+        
+        if {$files_copied == 0} {
+            puts "Not generating a new timestamp as no files are new"
+            set timestamp [expr $old_timestamp + 1]
         }
 
         #puts "Writing timestamp to '$destdir/timestamp.txt'"

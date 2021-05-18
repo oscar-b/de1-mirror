@@ -45,6 +45,7 @@
 
 #set ::skindebug 1 
 #plugins enable DYE
+fconfigure $::logging::_log_fh -buffering line
 
 namespace eval ::plugins::DYE {
 	variable author "Enrique Bengoechea"
@@ -94,6 +95,9 @@ proc ::plugins::DYE::main {} {
 	foreach page {DYE DYE_fsh} {
 		dui page add $page -namespace true
 	}
+	foreach page $::dui::pages::DYE_v3::pages {
+		dui page add $page -namespace ::dui::pages::DYE_v3
+	}
 	
 	# Update the describe settings when the a shot is started 
 	trace add execution ::reset_gui_starting_espresso enter ::plugins::DYE::reset_gui_starting_espresso_enter_hook
@@ -130,6 +134,7 @@ proc ::plugins::DYE::preload {} {
 	check_settings
 	plugins save_settings DYE
 
+	#init_dye_metadata
 	setup_default_aspects
 	dui page add DYE_settings -namespace true -theme default
 	return DYE_settings
@@ -205,7 +210,8 @@ proc ::plugins::DYE::check_settings {} {
 	ifexists settings(next_shot_DSx_home_coords) {500 1165}
 	ifexists settings(last_shot_DSx_home_coords) {2120 1165}
 	ifexists settings(github_latest_url) "https://api.github.com/repos/ebengoechea/de1app_plugin_DYE/releases/latest"
-
+	ifexists settings(use_dye_v3) 0
+	
 	# Propagation mechanism 
 	ifexists settings(next_modified) 0
 	foreach field_name "$::plugins::DYE::propagated_fields espresso_notes" {
@@ -225,6 +231,8 @@ proc ::plugins::DYE::check_settings {} {
 			}
 		}
 	}
+	
+	ifexists settings(summary_fields) {bean_brand bean_type roast_date grinder_setting espresso_notes espresso_enjoyment}
 	
 #	ifexists settings(visualizer_url) "visualizer.coffee"
 #	ifexists settings(visualizer_endpoint) "api/shots/upload"
@@ -289,13 +297,13 @@ proc ::plugins::DYE::setup_default_aspects { args } {
 	dui aspect set -theme $theme -style dsx_midsize {dbutton.shape round dbutton.bwidth 220 dbutton.bheight 140
 		dbutton_label.pos {0.5 0.5} dbutton_symbol.font_size 30}
 	
-	set bold_font [dui aspect get text font_family -theme default -style bold]
+	set bold_font [dui aspect get dtext font_family -theme default -style bold]
 	dui aspect set -theme $theme -style dsx_done [list dbutton.shape round dbutton.bwidth 220 dbutton.bheight 140 \
 		dbutton_label.pos {0.5 0.5} dbutton_label.font_size 20 dbutton_label.font_family $bold_font]
 	
 	dui aspect set -theme $theme -type symbol -style dye_main_nav_button { font_size 24 fill "#35363d" }
 	
-	dui aspect set -theme $theme -type text -style section_header [list font_family $bold_font font_size 20]
+	dui aspect set -theme $theme -type dtext -style section_header [list font_family $bold_font font_size 20]
 	
 	dui aspect set -theme $theme -type dclicker -style dye_double {orient horizontal use_biginc 1 symbol chevron-double-left 
 		symbol1 chevron-left symbol2 chevron-right symbol3 chevron-double-right }
@@ -308,10 +316,136 @@ proc ::plugins::DYE::setup_default_aspects { args } {
 	dui aspect set -theme $theme -type dclicker_symbol -style dye_single {pos {0.1 0.5} font_size 24 anchor center fill "#7f879a"} 
 	dui aspect set -theme $theme -type dclicker_symbol1 -style dye_single {pos {0.9 0.5} font_size 24 anchor center fill "#7f879a"} 
 	
-	foreach {a aval} [dui aspect list -theme default -type dbutton -style dsx_settings -values 1 -full_aspect 1]] {
-		msg -DEBUG "setup_default_aspects, $a = $aval"
+	# DYE v3
+	set bg_color [dui aspect get page bg_color -theme default]
+	set btn_spacing 100
+	set half_button_width [expr {int(($::dui::pages::DYE_v3::page_coords(panel_width)-$btn_spacing)/2)}]
+	
+	dui aspect set -theme default [subst { 
+		dbutton.bheight.dyev3_topnav 90 
+		dbutton.shape.dyev3_topnav rect 
+		dbutton_label.font_size.dyev3_topnav -1 
+		dbutton_label.pos.dyev3_topnav {0.5 0.5} 
+		dbutton_label.anchor.dyev3_topnav center 
+		dbutton_label.justify.dyev3_topnav center 
+	
+		dbutton.bwidth.dyev3_nav_button 100 
+		dbutton.bheight.dyev3_nav_button 120
+		dbutton.fill.dyev3_nav_button {} 		
+		dbutton.symbol_pos.dyev3_nav_button {0.5 0.5} 
+		dbutton.symbol_fill.dyev3_nav_button grey
+		
+		text.font_size.dyev3_top_panel_text -1
+		text.yscrollbar.dyev3_top_panel_text no
+		text.bg.dyev3_top_panel_text $bg_color
+		text.borderwidth.dyev3_top_panel_text 0
+		text.highlightthickness.dyev3_top_panel_text 0
+		text.relief.dyev3_top_panel_text flat
+		
+		text.font_size.dyev3_bottom_panel_text -1
+	
+		dtext.font_family.dyev3_right_panel_title notosansuibold 
+		dtext.font_size.dyev3_right_panel_title +2
+		dtext.fill.dyev3_right_panel_title black
+		dtext.anchor.dyev3_right_panel_title center
+		dtext.justify.dyev3_right_panel_title center
+		
+		graph.background.dyev3_text_graph white 
+		graph.plotbackground.dyev3_text_graph white 
+		graph.borderwidth.dyev3_text_graph 1 
+		graph.plotrelief.dyev3_text_graph flat
+		
+		dtext.font_size.dyev3_chart_stage_title +2 
+		dtext.anchor.dyev3_chart_stage_title center 
+		dtext.justify.dyev3_chart_stage_title center 
+		dtext.fill.dyev3_chart_stage_title black
+		
+		dtext.anchor.dyev3_chart_stage_colheader center 
+		dtext.justify.dyev3_chart_stage_colheader center
+		
+		dtext.anchor.dyev3_chart_stage_value center
+		dtext.justify.dyev3_chart_stage_value center
+		
+		dtext.anchor.dyev3_chart_stage_comp center
+		dtext.justify.dyev3_chart_stage_comp center
+		dtext.font_size.dyev3_chart_stage_comp -4
+		dtext.fill.dyev3_chart_stage_comp white
+	
+		line.fill.dyev3_chart_stage_line_sep grey
+				
+		dbutton.shape.dyev3_action_half round
+		dbutton.bwidth.dyev3_action_half $half_button_width
+		dbutton.bheight.dyev3_action_half 125
+		dbutton_symbol.pos.dyev3_action_half {0.2 0.5} 
+		dbutton_label.pos.dyev3_action_half {0.6 0.5}
+		dbutton_label.width.dyev3_action_half [expr {$half_button_width-75}]
+		
+		#text_tag.foregroud.which_shot black
+		text_tag.font.dyev3_which_shot "[dui font get notosansuibold 15]"
+		text_tag.justify.dyev3_which_shot center
+		
+		text_tag.justify.dyev3_profile_title center
+		
+		text_tag.foreground.dyev3_section black 
+		text_tag.font.dyev3_section "[dui font get notosansuibold 17]" 
+		text_tag.spacing1.dyev3_section [dui platform rescale_y 20]
+		
+		text_tag.foreground.dyev3_field "#7f879a" 
+		text_tag.lmargin1.dyev3_field [dui platform rescale_x 35] 
+		text_tag.lmargin2.dyev3_field [dui platform rescale_x 45]
+		
+		text_tag.foreground.dyev3_value blue
+		
+		text_tag.foreground.dyev3_compare grey
+		
+		text_tag.font.dyev3_field_highlighted "[dui font get notosansuibold 15]"
+		text_tag.background.dyev3_field_highlighted  pink
+		text_tag.font.dyev3_field_nonhighlighted "[dui font get notosansuiregular 15]"
+		text_tag.background.dyev3_field_nonhighlighted {}
+	}]
+	#text_tag.foreground.field brown
+	
+	#	foreach {a aval} [dui aspect list -theme default -type dbutton -style dsx_settings -values 1 -full_aspect 1]] {
+#		msg -DEBUG "setup_default_aspects, $a = $aval"
+#	}
+#	::logging::flush_log
+}
+
+proc ::plugins::DYE::init_dye_metadata {} {
+	metadata add drinker_name {
+		domain shot
+		category description
+		section people
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Drinker"
+		name_plural "Drinkers"
+		short_name "Drinker" 
+		short_name_plural "Drinkers"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
 	}
-	::logging::flush_log
+	metadata add repository_links {
+		domain shot
+		category description
+		section id
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Repository link"
+		name_plural "Repository links"
+		short_name "Repo link" 
+		short_name_plural "Repo links"
+		propagate 0
+		data_type complex
+		required 1
+		length list
+		default_dui_widget dcombobox
+	}
 }
 
 # Update the current shot description from the "next" description when doing a new espresso, if it has been
@@ -520,6 +654,76 @@ proc ::plugins::DYE::define_next_shot_desc { args } {
 	}
 }
 
+# Returns an array with the same structure as ::plugins::SDB::load_shot but with the data for next shot, taken from
+# the global and DYE settings. Data that doesn't apply to a "next" shot gets an emptry string as value, or 0.0 for series.
+# This is used so we can easily use the returned array as the source for DYE pages.
+proc ::plugins::DYE::load_next_shot { } {
+	array set shot_data {
+		comes_from_archive 0
+		path {}
+		filename {}
+		file_modification_date {}
+		clock {}
+		date_time {}
+		local_time {}
+		espresso_elapsed {0.0}
+		extraction_time 0.0
+		espresso_pressure {0.0}
+		espresso_weight {0.0}
+		espresso_flow {0.0}
+		espresso_flow_weight {0.0} 
+		espresso_temperature_basket {0.0}
+		espresso_temperature_mix {0.0}
+		espresso_flow_weight_raw {0.0}
+		espresso_water_dispensed {0.0} 
+		espresso_temperature_goal {0.0}
+		espresso_pressure_goal {0.0}
+		espresso_flow_goal {0.0}
+		espresso_state_change {0.0}
+		repository_links {}
+	}
+		
+	set text_fields [::plugins::SDB::field_names "category text long_text date" "shot"]
+	foreach field_name $text_fields {
+		if { [info exists ::plugins::DYE::settings(next_$field_name)] } {
+			set shot_data($field_name) [string trim $::plugins::DYE::settings(next_$field_name)]
+		} else {
+			set shot_data($field_name) {}
+		}
+	}
+	
+	foreach field_name [::plugins::SDB::field_names "numeric" "shot"] {
+		if { [info exists ::plugins::DYE::settings(next_$field_name)] && $::plugins::DYE::settings(next_$field_name) > 0 } {
+			set shot_data($field_name) $::plugins::DYE::settings(next_$field_name)
+		} else {
+			# We use {} instead of 0 to get DB NULLs and empty values in entry textboxes
+			set shot_data($field_name) {}
+		}
+	}
+
+	foreach field_name {app_version firmware_version_number enabled_plugins skin skin_version profile_title beverage_type} {
+		if { [info exists ::settings($field_name)] } {
+			set shot_data($field_name) $::settings($field_name)
+		} else {
+			set shot_data($field_name) {}
+		}
+	}
+	
+#	if { $shot_data(grinder_dose_weight) eq "" } {
+#		if {[info exists file_sets(DSx_bean_weight)] == 1} {
+#			set shot_data(grinder_dose_weight) $file_sets(DSx_bean_weight)
+#		} elseif {[info exists file_sets(dsv4_bean_weight)] == 1} {
+#			set shot_data(grinder_dose_weight) $file_sets(dsv4_bean_weight)
+#		} elseif {[info exists file_sets(dsv3_bean_weight)] == 1} {
+#			set shot_data(grinder_dose_weight) $file_sets(dsv3_bean_weight)
+#		} elseif {[info exists file_sets(dsv2_bean_weight)] == 1} {
+#			set shot_data(grinder_dose_weight) $file_sets(dsv2_bean_weight)
+#		}
+#	}
+	
+	return [array get shot_data]
+}
+
 proc ::plugins::DYE::return_blank_if_zero {in} {
 	if {$in == 0} { return {} }
 	return $in
@@ -571,7 +775,7 @@ proc ::plugins::DYE::plugin_directory_graphics {} {
 
 proc ::plugins::DYE::page_skeleton { page {title {}} {titlevar {}} {done_button yes} {cancel_button yes} {buttons_loc right} } {
 	if { $title ne "" } {
-		dui add text $page 1280 60 -text $title -tags page_title -style page_title 
+		dui add dtext $page 1280 60 -text $title -tags page_title -style page_title 
 	} elseif { $titlevar ne "" } {
 		dui add variable $page 1280 60 -textvariable $titlevar -tags page_title -style page_title
 	}
@@ -615,6 +819,25 @@ proc ::plugins::DYE::page_skeleton { page {title {}} {titlevar {}} {done_button 
 	}
 	if { $done_button } {
 		dui add dbutton $page $x_done $y -label [translate Ok] -tags page_done -style dsx_done
+	}
+}
+
+
+proc ::plugins::DYE::open { args } {	
+	if { [llength $args] == 1 } {
+		set use_dye_v3 0
+		set which_shot [lindex $args 0]
+		set args {}
+	} else {
+		array set opts $args
+		set use_dye_v3 [string is true [dui::args::get_option -use_dye_v3 [value_or_default ::plugins::DYE::settings(use_dye_v3) 0] 1]]
+		set which_shot [dui::args::get_option -which_shot "last" 1] 
+	}
+	
+	if { $use_dye_v3 } {	
+		dui page load DYE_v3 -which_shot $which_shot {*}$args 
+	} else {
+		dui page load DYE $which_shot
 	}
 }
 
@@ -701,7 +924,7 @@ proc ::dui::pages::DYE::setup {} {
 	
 	# BEANS DATA
 	dui add image $page $x_left_label 150 "bean_${skin}.png" -tags beans_img
-	dui add text $page $x_left_field 250 -text [translate "Beans"] -tags beans_header -style section_header \
+	dui add dtext $page $x_left_field 250 -text [translate "Beans"] -tags beans_header -style section_header \
 		-command beans_select
 	
 	dui add symbol $page [expr {$x_left_field+300}] 245 -tags beans_select -symbol sort-down -font_size 24 -command yes
@@ -741,7 +964,7 @@ proc ::dui::pages::DYE::setup {} {
 	set y 925
 
 	dui add image $page $x_left_label $y "niche_${skin}.png" -tags equipment_img
-	dui add text $page $x_left_field [expr {$y+130}] -text [translate "Equipment"] -style section_header
+	dui add dtext $page $x_left_field [expr {$y+130}] -text [translate "Equipment"] -style section_header
 		
 	# Other equipment (EXPERIMENTAL)
 #	if { [info exists ::debugging] && $::debugging == 1 } {
@@ -766,7 +989,7 @@ proc ::dui::pages::DYE::setup {} {
 	# EXTRACTION
 	set x_right_label 1280; set x_right_field 1525
 	dui add image $page $x_right_label 150 "espresso_${skin}.png" -tags extraction_img
-	dui add text $page 1550 250 -text [translate "Extraction"] -style section_header
+	dui add dtext $page 1550 250 -text [translate "Extraction"] -style section_header
 
 	# Calc EY from TDS button
 	dui add dbutton $page 2050 175 -tags calc_ey_from_tds -style dsx_settings -label [translate "Calc EY from TDS"] \
@@ -800,7 +1023,7 @@ proc ::dui::pages::DYE::setup {} {
 	incr y 100	
 	lassign [::plugins::SDB::field_lookup drink_tds {n_decimals min_value max_value default_value small_increment big_increment}] \
 		n_decimals min max default smallinc biginc
-	dui add text $page $x_right_label [expr {$y+6}] -text [translate "Total Dissolved Solids (TDS)"] -tags {drink_tds_label drink_tds*}
+	dui add dtext $page $x_right_label [expr {$y+6}] -text [translate "Total Dissolved Solids (TDS)"] -tags {drink_tds_label drink_tds*}
 	dui add dclicker $page [expr {$x_right_field+300}] $y -bwidth 610 -bheight 75 -tags drink_tds \
 		-labelvariable {$%NS::data(drink_tds)%} -style dye_double \
 		-min $min -max $max -default $default -n_decimals $n_decimals -smallincrement $smallinc -bigincrement $biginc \
@@ -811,7 +1034,7 @@ proc ::dui::pages::DYE::setup {} {
 	incr y 100
 	lassign [::plugins::SDB::field_lookup drink_ey {n_decimals min_value max_value default_value small_increment big_increment}] \
 		n_decimals min max default smallinc biginc
-	dui add text $page $x_right_label [expr {$y+6}] -text [translate "Extraction Yield (EY)"] -tags {drink_ey_label drink_ey*}
+	dui add dtext $page $x_right_label [expr {$y+6}] -text [translate "Extraction Yield (EY)"] -tags {drink_ey_label drink_ey*}
 	dui add dclicker $page [expr {$x_right_field+300}] $y -bwidth 610 -bheight 75 -tags drink_ey \
 		-labelvariable {$%NS::data(drink_ey)%} -style dye_double \
 		-min $min -max $max -default $default -n_decimals $n_decimals -smallincrement $smallinc -bigincrement $biginc \
@@ -822,7 +1045,7 @@ proc ::dui::pages::DYE::setup {} {
 	incr y 100
 	lassign [::plugins::SDB::field_lookup espresso_enjoyment {n_decimals min_value max_value default_value small_increment big_increment}] \
 		n_decimals min max default smallinc biginc
-	dui add text $page $x_right_label [expr {$y+6}] -text [translate "Enjoyment (0-100)"] -tags espresso_enjoyment_label
+	dui add dtext $page $x_right_label [expr {$y+6}] -text [translate "Enjoyment (0-100)"] -tags espresso_enjoyment_label
 		
 	dui add dclicker $page [expr {$x_right_field+300}] $y -bwidth 610  -bheight 75 -tags espresso_enjoyment \
 		-labelvariable espresso_enjoyment -style dye_double \
@@ -842,7 +1065,7 @@ proc ::dui::pages::DYE::setup {} {
 	# PEOPLE
 	set y 1030
 	dui add image $page $x_right_label $y "people_${skin}.png" -tags people_img
-	dui add text $page $x_right_field [expr {$y+140}] -text [translate "People"] -style section_header 
+	dui add dtext $page $x_right_field [expr {$y+140}] -text [translate "People"] -style section_header 
 		
 	# Barista (my_name)
 	incr y 240
@@ -899,7 +1122,9 @@ proc ::dui::pages::DYE::load { page_to_hide page_to_show {which_shot current} } 
 			set data(describe_which_shot) "past"
 		}
 		set data(clock) $which_shot
-	} elseif { $which_shot eq "current" } { 
+	} elseif { $which_shot in {last current} } {
+		set which_shot "current"
+		set data(describe_which_shot) "current"
 		if { $current_clock == 0 } {
 			info_page [translate "Last shot is not available to describe"] [translate Ok]
 			return
@@ -1705,7 +1930,7 @@ proc ::dui::pages::DYE::calc_ey_from_tds  {} {
 proc ::dui::pages::DYE::upload_to_visualizer {} {
 	variable data
 	variable widgets
-	set remark_color [dui aspect get text fill -style remark -default orange]
+	set remark_color [dui aspect get dtext fill -style remark -default orange]
 #	if { $::dui::pages::DYE::data(repository_links) ne {} } {
 #		say [translate "browsing"] $::settings(sound_button_in)
 #		if { [llength $::dui::pages::DYE::data(repository_links)] > 1 } {
@@ -1876,7 +2101,7 @@ proc ::dui::pages::DYE_fsh::setup {} {
 		-selectmode multiple -yscrollbar yes -font_size -1
 	
 	# Reset categories1
-	dui add text $page [expr {$x_left+340}] [expr {$y+15}] -text "\[ [translate "Reset"] \]" -tags reset_categories1 \
+	dui add dtext $page [expr {$x_left+340}] [expr {$y+15}] -text "\[ [translate "Reset"] \]" -tags reset_categories1 \
 		-style remark -command true 
 	
 	# Categories2 listbox
@@ -1889,7 +2114,7 @@ proc ::dui::pages::DYE_fsh::setup {} {
 		-selectmode multiple -yscrollbar yes -font_size -1
 
 	# Reset categories2
-	dui add text $page [expr {$x_left2+340}] [expr {$y+15}] -text "\[ [translate "Reset"] \]" -tags reset_categories2 \
+	dui add dtext $page [expr {$x_left2+340}] [expr {$y+15}] -text "\[ [translate "Reset"] \]" -tags reset_categories2 \
 		-style remark -command true
 	
 	# Date period from
@@ -1946,7 +2171,7 @@ proc ::dui::pages::DYE_fsh::setup {} {
 		-min $min -max $max -n_ratings 5 -use_halfs yes -label [translate "to"]	-label_pos {w -20 0} -label_anchor e -label_justify right 
 	
 	# Order by
-	dui add text $page $x_right_label 688 -tags order_by_label -text [translate "Order by"] -font_size +2
+	dui add dtext $page $x_right_label 688 -tags order_by_label -text [translate "Order by"] -font_size +2
 
 	set x $x_right_widget; set y 720
 	dui add variable $page [incr x 50] $y -tags order_by_date -anchor center -justify center -command [list %NS::set_order_by date]
@@ -2556,6 +2781,8 @@ namespace eval ::dui::pages::DYE_settings {
 	variable data
 	array set data {
 		page_name "::dui::pages::DYE_settings"
+		previous_page {}
+		callback_cmd {}
 		db_status_msg {}
 		update_plugin_state {-}
 		latest_plugin_version {}
@@ -2572,7 +2799,7 @@ proc ::dui::pages::DYE_settings::setup {} {
 	set page [namespace tail [namespace current]]
 
 	# HEADER AND BACKGROUND
-	dui add text $page 1280 100 -tags page_title -text [translate "Describe Your Espresso Settings"] -style page_title
+	dui add dtext $page 1280 100 -tags page_title -text [translate "Describe Your Espresso Settings"] -style page_title
 
 	dui add canvas_item rect $page 10 190 2550 1430 -fill "#ededfa" -width 0
 	dui add canvas_item line $page 14 188 2552 189 -fill "#c7c9d5" -width 2
@@ -2585,7 +2812,7 @@ proc ::dui::pages::DYE_settings::setup {} {
 	# LEFT SIDE
 	set x 75; set y 250; set vspace 130; set lwidth 1050
 	
-	dui add text $page $x $y -text [translate "General options"] -style section_header
+	dui add dtext $page $x $y -text [translate "General options"] -style section_header
 		
 	dui add dcheckbox $page $x [incr y $vspace] -tags propagate_previous_shot_desc -command propagate_previous_shot_desc_change \
 		-textvariable ::plugins::DYE::settings(propagate_previous_shot_desc) \
@@ -2601,11 +2828,16 @@ proc ::dui::pages::DYE_settings::setup {} {
 
 	dui add dcheckbox $page $x [incr y $vspace] -tags use_stars_to_rate_enjoyment \
 		-textvariable ::plugins::DYE::settings(use_stars_to_rate_enjoyment) \
-		-label [translate "Use 1-5 stars rating to evaluate enjoyment"] -label_width $lwidth
+		-label [translate "Use 1-5 stars rating to evaluate enjoyment"] -label_width $lwidth \
+		-command [list ::plugins::save_settings DYE]
+
+	dui add dcheckbox $page $x [incr y $vspace] -tags use_dye_v3 -textvariable ::plugins::DYE::settings(use_dye_v3) \
+		-label [translate "Use DYE version 3 (EXPERIMENTAL/ALPHA CODE)"] -label_width $lwidth \
+		-command [list ::plugins::save_settings DYE]
 	
 	# RIGHT SIDE
 	set x 1350; set y 250
-	dui add text $page $x $y -text [translate "DSx skin options"] -style section_header
+	dui add dtext $page $x $y -text [translate "DSx skin options"] -style section_header
 	
 	dui add dcheckbox $page $x [incr y 100] -tags show_shot_desc_on_home -command show_shot_desc_on_home_change \
 		-textvariable ::plugins::DYE::settings(show_shot_desc_on_home) \
@@ -2616,7 +2848,7 @@ proc ::dui::pages::DYE_settings::setup {} {
 		-symbol paint-brush -symbol_fill $::plugins::DYE::settings(shot_desc_font_color) -command shot_desc_font_color_change 
 	incr y [expr {[dui aspect get dbutton bheight -style dsx_settings]+35}]
 	
-	dui add text $page [expr {int($x+100+[dui aspect get dbutton bwidth -style dsx_settings]/2)}] $y \
+	dui add dtext $page [expr {int($x+100+[dui aspect get dbutton bwidth -style dsx_settings]/2)}] $y \
 		-text "\[ [translate {Use default color}] \]" -anchor center -justify center \
 		-fill  $::plugins::DYE::default_shot_desc_font_color -command set_default_shot_desc_font_color
 	
@@ -2626,7 +2858,12 @@ proc ::dui::pages::DYE_settings::setup {} {
 
 # Normally not used as this is not invoked directly but by the DSx settings pages carousel, but still kept for 
 # consistency or for launching the page from a menu.
-proc ::dui::pages::DYE_settings::load { page_to_hide page_to_show } {
+proc ::dui::pages::DYE_settings::load { page_to_hide page_to_show args } {
+	variable data
+	array set opts $args
+	
+	set data(previous_page) $page_to_hide
+	set data(callback_cmd) [value_or_default opts(-callback_cmd) ""]
 }
 
 # Added to context actions, so invoked automatically whenever the page is loaded
@@ -2791,9 +3028,1453 @@ proc ::dui::pages::DYE_settings::set_default_shot_desc_font_color {} {
 #}
 
 proc ::dui::pages::DYE_settings::page_done {} {
+	variable data
 	dui say [translate {Done}] button_in
-	dui page load extensions
+	
+	if { $data(callback_cmd) ne "" } {
+		uplevel #0 $data(callback_cmd)
+	} elseif { $data(previous_page) eq "" } {
+		dui page load extensions
+	} else {
+		dui page show $data(previous_page)
+	} 
 }
+
+#### DYE v3  #########################################################################################
+
+namespace eval ::dui::pages::DYE_v3 {
+	variable widgets
+	array set widgets {}
+	
+	variable data
+	array set data {
+		previous_page {}
+		callback_cmd {}
+		page_title {translate {Describe your espresso}}
+		# next / last / past
+		which_shot {current}
+		clock 0		
+		shot_file {}
+		which_compare {previous}
+		compare_clock {}
+		compare_file {}
+		field_being_edited {}
+		ok_cancel_clicked 0
+		menu {}
+		chart_stage_idx 0
+		chart_stage {Full shot}
+		
+		test_msg {}
+	}
+	
+	variable pages
+	set pages {DYE_v3 DYE_v3_bean DYE_v3_equipment DYE_v3_extraction DYE_v3_other DYE_v3_chart DYE_v3_manage DYE_v3_compare}
+		
+	variable page_coords
+	array set page_coords {
+		margin_width 75
+		middle_width 150
+		scrollbar_width 100
+		y_top_panel 175
+		y_main_panel 300
+		top_panel_height 125
+		main_panel_height 1100 
+		field_label_width 425
+	}
+	set page_coords(panel_width) [expr {int(($dui::_base_screen_width-$page_coords(margin_width)*2-$page_coords(middle_width))/2)}]
+	set page_coords(x_right_panel) [expr {int($page_coords(margin_width)+$page_coords(panel_width)+$page_coords(middle_width))}]
+	set page_coords(x_field_widget) [expr {int($page_coords(x_right_panel)+$page_coords(field_label_width))}]
+	set page_coords(field_widget_width) [expr {int($page_coords(panel_width)-$page_coords(field_label_width)-$page_coords(scrollbar_width)-50)}]
+	
+	variable original_shot
+	array set original_shot {}
+	variable edited_shot
+	array set edited_shot {}
+	variable compare_shot
+	array set compare_shot {}
+	
+	namespace eval vectors {
+		namespace eval edited {
+			proc init {} {
+				blt::vector create elapsed pressure_goal flow_goal temperature_goal
+				blt::vector create pressure flow flow_weight weight state_change resistance_weight resistance 
+				blt::vector create temperature_basket temperature_mix  temperature_goal
+			}
+		}
+
+		namespace eval compare {
+			proc init {} {
+				blt::vector create elapsed pressure_goal flow_goal temperature_goal
+				blt::vector create pressure flow flow_weight weight state_change resistance_weight resistance
+				blt::vector create temperature_basket temperature_mix  temperature_goal
+			}
+		}
+
+		proc init {} {
+			edited::init
+			compare::init
+		}
+	}
+	
+}
+
+proc ::dui::pages::DYE_v3::setup {} {
+	variable data
+	variable widgets
+	variable pages
+	variable page_coords
+	set page [namespace tail [namespace current]]
+	
+	init_shot_arrays
+	
+	### TOP NAVIGATION BAR (common to all pages) ###
+	set x $page_coords(margin_width)
+	set y 50
+	set bar_width [expr {$dui::_base_screen_width-$x*2}]
+	set btn_width [expr {int($bar_width/9)}]
+	set btn_height 90
+	# Summary Chart Profile Beans Equipment Extraction Other | Compare Search
+	
+	dui add dbutton $pages $x $y -tags nav_summary -style dyev3_topnav -label [translate Summary] \
+		-command {%NS::navigate_to summary} -shape round -bwidth [expr {$btn_width+60}] -label_pos {0.45 0.5}
+	set i 0
+	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_chart -style dyev3_topnav \
+		-label [translate Chart] -command {%NS::navigate_to chart} 
+	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_profile -style dyev3_topnav \
+		-label [translate Profile] -command {%NS::navigate_to profile} -label_fill "#ddd" 	
+	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_bean -style dyev3_topnav \
+		-label [translate Beans] -command {%NS::navigate_to bean}
+	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_equipment -style dyev3_topnav \
+		-label [translate Equipment] -command {%NS::navigate_to equipment} 
+	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_extraction -style dyev3_topnav \
+		-label [translate Extraction] -command {%NS::navigate_to extraction} 
+	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_other -style dyev3_topnav \
+		-label [translate Other] -command {%NS::navigate_to other}
+	
+	dui add dbutton $pages [expr {$x+$btn_width*($i+2)-75}] $y -tags nav_compare -style dyev3_topnav -label [translate Compare] \
+		-command {%NS::navigate_to compare} -shape round -bwidth [expr {$btn_width+60}] -label_pos {0.55 0.5}
+	dui add dbutton $pages [expr {$x+$btn_width*($i+1)}] $y -bwidth $btn_width -tags nav_manage -style dyev3_topnav \
+		-label [translate Manage] -command {%NS::navigate_to manage} 
+	
+	### LEFT PANEL (common to all pages) ###
+	set width [expr {$page_coords(panel_width)-$page_coords(scrollbar_width)}]
+	
+	dui add text $pages $x $page_coords(y_top_panel) -tags edited_summary -canvas_width $width \
+		-canvas_height $page_coords(top_panel_height) -style dyev3_top_panel_text
+	
+	# We need to handle the yscrollbar in a special way to manually hide the graph on top of the text widget,
+	# otherwise it overflows the space on top of the text widget when scrolling down (Androwish bug?) 
+	dui add text $pages $x $page_coords(y_main_panel) -tags edited_text -canvas_width $width \
+		-canvas_height $page_coords(main_panel_height) -style dyev3_bottom_panel_text -yscrollbar yes \
+		-yscrollbar_width $page_coords(scrollbar_width) -yscrollcommand [list ::dui::pages::DYE_v3::text_scale_scroll edited] \
+		-yscrollbar_command [list ::dui::pages::DYE_v3::text_scroll_moveto edited]
+	
+	# Create graph (but don't add them, they'are added to the text widgets when shots are loaded) 
+	set widget [dui canvas].[string tolower $page]-edited_graph
+	set widgets(edited_graph) $widget
+	graph $widget -width [dui platform rescale_x [expr {$width-10}]] -height [dui platform rescale_y 600] \
+		{*}[dui aspect list -type graph -style dyev3_text_graph -as_options yes] 
+	vectors::init
+	setup_graph $widget edited 1
+	bind $widget [dui platform button_press] [list ::dui::pages::DYE_v3::navigate_to chart]
+		
+	### RIGHT PANELS ###
+	setup_right_panel $page "Summary" $::plugins::DYE::settings(summary_fields)
+	setup_right_panel DYE_v3_bean "Beans" [metadata fields -domain shot -category description -section beans]
+	setup_right_panel DYE_v3_equipment "Equipment" [metadata fields -domain shot -category description -section equipment]
+	setup_right_panel DYE_v3_extraction "Extraction" [metadata fields -domain shot -category description -section extraction]
+	setup_right_panel DYE_v3_other "People & Others" [metadata fields -domain shot -category description -section people]
+	
+#	setup_right_panel DYE_v3_bean "Beans" [::plugins::SDB::field_names "" "" {bean bean_batch}]
+#	setup_right_panel DYE_v3_equipment "Equipment" [::plugins::SDB::field_names "" "" equipment]
+#	setup_right_panel DYE_v3_extraction "Extraction" [::plugins::SDB::field_names "" "" extraction]
+#	setup_right_panel DYE_v3_other "People & Others" [::plugins::SDB::field_names "" "" people]
+	setup_chart_page
+	setup_manage_page
+	setup_compare_page
+	
+#	dui add variable $page 1890 500 -tags test_msg -font_size +2 -anchor center -justify center -width 1200
+#	dui add text $page [expr {$x+$width+150+100}] 300 -tags text_right -canvas_width $width -canvas_height 1100 \
+#		-yscrollbar yes -yscrollbar_width 100
+	
+	### BOTTOM BAR (common to all pages ###
+	# Shot navigation
+	set y 1460; set x [expr {$page_coords(margin_width)-15}]; set hspace 105
+
+	dui add dbutton $pages $x $y -bwidth 100 -bheight 120 -symbol backward -tags move_backward \
+		-style dyev3_nav_button	
+	dui add dbutton $pages [incr x $hspace] $y -bwidth 100 -bheight 120 -symbol forward \
+		-tags move_forward -style dyev3_nav_button	
+	dui add dbutton $pages [incr x $hspace] $y -bwidth 100 -bheight 120 -symbol fast-forward \
+		-tags move_to_next -style dyev3_nav_button
+	
+	dui add dbutton $pages [incr x [expr {$hspace+30}]] $y -bwidth 100 -bheight 120 -symbol list \
+		-tags select_shot -style dyev3_nav_button
+	dui add dbutton $pages [incr x $hspace] $y -bwidth 100 -bheight 120 -symbol binoculars \
+		-tags search_shot -style dyev3_nav_button
+	dui add dbutton $pages [incr x $hspace] $y -bwidth 100 -bheight 120 -symbol history \
+		-tags open_history_viewer -style dyev3_nav_button
+	
+	
+	# Ok & Cancel 
+	dui add dbutton $pages 770 1460 -tags page_cancel -style insight_ok -label [translate Cancel]
+	dui add dbutton $pages 1310 1460 -tags page_done -style insight_ok -label [translate Ok]
+	
+	# Go to settings
+	dui add dbutton {DYE_v3 DYE_v3_manage} [expr {$dui::_base_screen_width-$page_coords(margin_width)}] $y \
+		-tags go_to_settings -symbol cogs -style dyev3_nav_button -anchor ne
+}
+
+# We need the description array variables defined from the beginning so as to be able to put traces on them.
+# Beware not to unset them or the trace will be lost (including the traces set by some DUI widgets).
+proc ::dui::pages::DYE_v3::init_shot_arrays {} {
+	variable edited_shot
+	variable compared_shot
+	
+	foreach field [metadata fields -domain shot -category description] {
+		set edited_shot($field) {}
+	}
+}
+
+# This proc and the next add code to the standard scrollbar commands so that the graph widget on top doesn't 
+# overflow the page space on top of the text widget when it is scrolled (which seems like a bug in Tk::Text or Androwish)
+proc ::dui::pages::DYE_v3::text_scale_scroll { {target edited} args } {
+	variable widgets
+	if { $target eq "compare" } {
+		set page "DYE_v3_compare"
+	} else {
+		set target "edited"
+		set page "DYE_v3"
+	}
+	if { [dui item cget $page ${target}_text -state] in {hidden {}} } { 
+		return
+	}
+	
+	::dui::item::scale_scroll $page ${target}_text ::dui::item::sliders(${page},${target}_text) {*}$args
+	
+	set ygraph ""
+	catch { set ygraph [lindex [$widgets(${target}_text) dlineinfo chart] 1] }
+	if { $ygraph ne "" } {
+		if { $ygraph < -1 } {
+			$widgets(${target}_graph) configure -height 0
+		} elseif { $ygraph >=0 } {
+			$widgets(${target}_graph) configure -height [dui platform rescale_y 600]
+		}
+	}
+}
+
+proc ::dui::pages::DYE_v3::text_scroll_moveto { {target edited} args } {
+	variable widgets
+	if { $target eq "compare" } {
+		set page "DYE_v3_compare"
+	} else {
+		set target "edited"
+		set page "DYE_v3"
+	}
+	if { [dui item cget $page ${target}_text -state] eq {hidden {}} } { 
+		return
+	}
+	
+	::dui::item::scrolled_widget_moveto $page ${target}_text $::dui::item::sliders(${page},${target}_text) {*}$args
+	
+	set ygraph ""
+	catch { set ygraph [lindex [$widgets(${target}_text) dlineinfo chart] 1] }
+	if { $ygraph ne "" } {
+		if { $ygraph < -1 } {
+			$widgets(${target}_graph) configure -height 0
+		} elseif { $ygraph >=0 } {
+			$widgets(${target}_graph) configure -height [dui platform rescale_y 600]
+		}
+	}
+}
+
+proc ::dui::pages::DYE_v3::setup_graph { widget {target edited} {create_axis 0} } {
+	set ns [namespace current]
+	if { $create_axis } {
+		$widget axis create temp
+		$widget axis configure temp {*}[dui aspect list -type graph_axis -style hv_graph_axis -as_options yes]
+		$widget axis configure x {*}[dui aspect list -type graph_xaxis -style hv_graph_axis -as_options yes]
+		$widget axis configure y {*}[dui aspect list -type graph_yaxis -style hv_graph_axis -as_options yes]
+		$widget grid configure {*}[dui aspect list -type graph_grid -style hv_graph_grid -as_options yes]
+	}
+
+	foreach lt {temperature_goal temperature_basket temperature_mix} {
+		$widget element create line_${target}_$lt -xdata ${ns}::vectors::${target}::elapsed \
+			-ydata ${ns}::vectors::${target}::$lt -mapy temp {*}[dui aspect list -type graph_line -style hv_${lt} -as_options yes]
+	}
+	
+	foreach lt {pressure_goal flow_goal pressure flow flow_weight weight} {
+		$widget element create line_${target}_$lt -xdata ${ns}::vectors::${target}::elapsed \
+			-ydata ${ns}::vectors::${target}::$lt {*}[dui aspect list -type graph_line -style hv_${lt} -as_options yes]
+	}
+	
+	foreach lt {state_change resistance} {
+		$widget element create line_${target}_$lt -xdata ${ns}::vectors::${target}::elapsed \
+			-ydata ${ns}::vectors::${target}::$lt {*}[dui aspect list -type graph_line -style hv_${lt} -as_options yes]
+	}
+	
+}
+
+proc ::dui::pages::DYE_v3::setup_right_side_title { page title {y {}} {tag right_side_title} } {
+	variable page_coords
+	
+	set x [expr {int($page_coords(x_right_panel)+($page_coords(panel_width)-$page_coords(scrollbar_width))/2)}]	
+	if { $y eq "" } {
+		set y [expr {int($page_coords(y_top_panel)+$page_coords(top_panel_height)*0.4)}]
+	}
+	
+	dui add dtext $page $x $y -tags $tag -style dyev3_right_panel_title -text [translate $title]
+}
+
+proc ::dui::pages::DYE_v3::setup_right_panel { page title fields } {
+	variable page_coords
+	set ns [namespace current]
+	
+	set width [expr {$page_coords(panel_width)-$page_coords(scrollbar_width)}]
+	set x_label $page_coords(x_right_panel)
+	set x_widget $page_coords(x_field_widget)
+	set label_width [expr {$x_widget-$x_label}]
+	set widget_width $page_coords(field_widget_width)
+	set y $page_coords(y_main_panel)	
+	set default_vspace 100
+	
+	setup_right_side_title $page $title
+	
+	foreach field $fields {
+		if { $field eq "" } {
+			incr y [expr {int($vspace*0.4)}]
+			continue
+		}
+		set vspace $default_vspace
+		
+		lassign [metadata get $field name short_name data_type n_decimals min max default \
+				smallincrement bigincrement measure_unit length] \
+				name short_name data_type n_decimals min max default smallinc biginc measure_unit length
+#		lassign [::plugins::SDB::field_lookup $field {name short_name data_type n_decimals min_value max_value 
+#			default_value small_increment big_increment}] \
+#			name short_name data_type n_decimals min max default smallinc biginc
+		if { $name eq "" } {
+			msg -ERROR "setup_right_panel: summary field '$field' not recognized"
+			continue
+		}
+		set varname ${ns}::edited_shot($field)
+		
+		if { $data_type eq "number" } {
+			if { $field eq "espresso_enjoyment" } {
+				dui add drater $page $x_widget $y -tags $field -width $widget_width -variable $varname \
+					-label [translate $name] -label_pos [list $x_label $y] -label_width $label_width -min $min -max $max 
+			} else {
+				dui add dtext $page $x_label $y -text [translate $name] -tags [list ${field}_label ${field}*]
+				dui add dclicker $page $x_widget $y -tags $field -bwidth $widget_width -bheight [expr {$vspace-20}] \
+					-style dye_double -variable $varname -labelvariable "\$$varname" -label_width $label_width -default $default \
+					-n_decimals $n_decimals -min $min -max $max -smallincrement $smallinc -bigincrement $biginc -editor_page yes \
+					-editor_page_title [translate "Enter $name"]
+			}
+		} elseif { $data_type eq "category" } {
+			set w [dui add dcombobox $page $x_widget $y -tags $field -canvas_width $widget_width -textvariable $varname \
+				-label [translate $name] -label_pos [list $x_label $y] -label_width $label_width \
+				-values "\[::plugins::SDB::available_categories $field\]" -page_title [translate "Select the $name"]]
+			bind $w <FocusIn> [list + ${ns}::highlight_field $field]
+		} elseif { $data_type eq "long_text" } {
+			set w [dui add multiline_entry $page [expr {$x_widget-200}] $y -tags $field -canvas_width [expr {$widget_width+200}] \
+				-canvas_height 170 -label [translate $name] -label_pos [list $x_label $y] -label_width [expr {$label_width-200}] \
+				-textvariable $varname -yscrollbar yes -yscrollbar_width 100]
+			bind $w <FocusIn> [list + ${ns}::highlight_field $field]
+			# Trace add variable is not working with multiline_entry, so we need a fix:
+			#bind $w <<Modified>> [list ::dui::pages::DYE_v3::multiline_entry_modified $w $field] 
+			set vspace 225
+		} else {
+			set w [dui add entry $page $x_widget $y -tags $field -canvas_width $widget_width -label $name -label_pos [list $x_label $y] \
+				-textvariable $varname]
+			bind $w <FocusIn> [list + ${ns}::highlight_field $field]
+		}
+		
+		incr y $vspace
+	}
+}
+
+#proc ::dui::pages::DYE_v3::multiline_entry_modified { widget field } {
+#	msg "FIELD $field MODIFIED, value=[$widget get 1.0 end]"
+#	#[subst {set ${ns}::edited_shot($fields) \[$w get 1.0 end\] }]
+#}
+
+proc ::dui::pages::DYE_v3::setup_chart_page {} {
+	variable page_coords
+	set page "DYE_v3_chart"
+	
+	set x_label $page_coords(x_right_panel)
+	set y [expr {$page_coords(y_main_panel)+50}]
+	
+	setup_right_side_title $page "Chart"
+	
+#	dui add dbutton $page $page_coords(x_right_panel) $y -bwidth 120 -bheight 120 -symbol chevron-left \
+#		-tags previous_chart_stage -style dyev3_nav_button -symbol_pos {0.5 0.5} -anchor w
+
+	set x [expr {int($page_coords(x_right_panel)+($page_coords(panel_width)-$page_coords(scrollbar_width))/2)}]	
+	dui add variable $page $x $y -tags chart_stage -style dyev3_chart_stage_title \
+		-textvariable {$%NS::data(chart_stage_idx). $%NS::data(chart_stage)} 
+ 
+#	dui add dbutton $page [expr {$page_coords(x_right_panel)+$page_coords(panel_width)}] $y -bwidth 120 -bheight 120 \
+#		-symbol chevron-right -tags next_chart_stage -style dyev3_nav_button -symbol_pos {0.5 0.5} -anchor e
+	
+	array set series {
+		elapsed "Elapsed (sec)"
+		pressure "Pressure (bar)"
+		flow "Flow (mL/s)"
+		flow_weight "Flow weight (g)"
+		weight "Weight (g)"
+		temperature_basket "Temp.bkt (ºC)"
+	}
+	
+	set x_start [expr {$x_label+375}]
+	set hspace 170
+	set x_min [expr {$x_start+$hspace}]
+	set x_avg [expr {$x_min+$hspace}]
+	set x_max [expr {$x_avg+$hspace}]
+	set x_end [expr {$x_max+$hspace}]
+	set vspace 100
+	
+	incr y 100
+	dui add dtext $page $x_start $y -tags start_label -text [translate Start] -style dyev3_chart_stage_colheader
+	dui add dtext $page $x_min $y -tags min_label -text [translate Min] -style dyev3_chart_stage_colheader
+	dui add dtext $page $x_avg $y -tags avg_label -text [translate Mean] -style dyev3_chart_stage_colheader
+	dui add dtext $page $x_max $y -tags max_label -text [translate Max] -style dyev3_chart_stage_colheader
+	dui add dtext $page $x_end $y -tags end_label -text [translate End] -style dyev3_chart_stage_colheader
+
+	dui add canvas_item line $page $x_label [expr {$y+50}] [expr {$x_label+$page_coords(panel_width)}] [expr {$y+50}] -fill grey 
+	
+	foreach var {elapsed pressure flow flow_weight weight temperature_basket} {
+		incr y $vspace
+		if { $var eq "elapsed" } {
+			set color [dui aspect get dtext fill]
+		} else {
+			set color [dui aspect get graph_line color -style hv_${var}]
+		}
+		dui add dtext $page $x_label $y -tags ${var}_label -text [translate $series($var)] -anchor w -fill $color
+		
+		foreach stat {start min avg max end} {
+			dui add variable $page [subst \$x_$stat] $y -tags chart_stage_${var}_${stat} -style dyev3_chart_stage_value -fill $color 
+			dui add variable $page [subst \$x_$stat] [expr {$y+40}] -tags chart_stage_comp_${var}_${stat} \
+				-style dyev3_chart_stage_comp
+		}
+	}
+		
+	dui add canvas_item line $page $x_label [expr {$y+75}] [expr {$x_label+$page_coords(panel_width)}] [expr {$y+75}] \
+		-style dyev3_chart_stage_line_sep 
+}
+
+proc ::dui::pages::DYE_v3::setup_manage_page {  } {
+	variable page_coords
+	set page "DYE_v3_manage"
+	
+	set x_label $page_coords(x_right_panel)
+	set x_widget $page_coords(x_field_widget)
+	#	set width [expr {$page_coords(panel_width)-$page_coords(scrollbar_width)}]
+		
+	set btn_spacing 100
+	set btn_width [dui aspect get dbutton bwidth -style dyev3_action_half]
+	set vspace 100
+	set y $page_coords(y_main_panel)
+	
+	setup_right_side_title $page "Manage shot"
+
+	dui add dbutton $page $x_label $y -tags archive_shot -style dyev3_action_half -label [translate "Archive"] \
+		-symbol archive
+	
+	dui add dbutton $page [expr {$x_label+$btn_width+$btn_spacing}] $y -tags delete_shot -style dyev3_action_half \
+		-label [translate "Delete"] -symbol trash
+	
+	incr y 175
+	dui add dbutton $page $x_label $y -tags export_shot -style dyev3_action_half \
+		-label [translate "Export"] -symbol file-export
+	
+	incr y 275
+	setup_right_side_title $page Visualizer $y visualizer_title 
+	#dui add dtext $page 1890 $y -tags visualizer_title -font_size +2 -anchor center -justify center -text [translate Visualizer]
+	
+	incr y 75
+	dui add dbutton $page $x_label $y -tags upload_to_visualizer -style dyev3_action_half -label [translate "Upload"] \
+		-symbol cloud-upload
+	
+	dui add dbutton $page [expr {$x_label+$btn_width+$btn_spacing}] $y -tags download_from_visualizer -style dyev3_action_half \
+		-label [translate "Download"] -symbol cloud-download
+		
+	incr y 175
+	dui add dbutton $page $x_label $y -tags visualizer_browse -style dyev3_action_half \
+		-label [translate "Browse"] -symbol eye
+	
+}
+
+proc ::dui::pages::DYE_v3::setup_compare_page {  } {
+	variable widgets
+	variable page_coords
+	set page "DYE_v3_compare"
+	
+	set width [expr {$page_coords(panel_width)-$page_coords(scrollbar_width)}]
+	set x $page_coords(x_right_panel)
+	
+	dui add text $page $x $page_coords(y_top_panel) -tags compare_summary -canvas_width $width \
+		-canvas_height $page_coords(top_panel_height) -style dyev3_top_panel_text
+	
+	# We need to handle the yscrollbar in a special way to manually hide the graph on top of the text widget,
+	# otherwise it overflows the space on top of the text widget when scrolling down (Androwish bug?) 
+	dui add text $page $x $page_coords(y_main_panel) -tags compare_text -canvas_width $width \
+		-canvas_height $page_coords(main_panel_height) -style dyev3_bottom_panel_text -yscrollbar yes \
+		-yscrollbar_width $page_coords(scrollbar_width) -yscrollcommand [list ::dui::pages::DYE_v3::text_scale_scroll compare] \
+		-yscrollbar_command [list ::dui::pages::DYE_v3::text_scroll_moveto compare]
+	
+	# Create graph (but don't add them, they'are added to the text widgets when shots are loaded) 
+	set widget [dui canvas].[string tolower $page]-compare_graph
+	set widgets(compare_graph) $widget
+	graph $widget -width [dui platform rescale_x [expr {$width-15}]] \
+		-height [dui platform rescale_y 600] {*}[dui aspect list -type graph -style dyev3_text_graph -as_options yes]
+	setup_graph $widget compare 1
+}
+
+
+# Named arguments:
+# -which_shot 'last', 'next' or a shot clock or file. Default is 'last' 
+# -which_compare: 'previous' or a shot clock or file. Default is 'previous'
+# -open_page: the subpage where to open DYE_v3
+# -callback_cmd
+proc ::dui::pages::DYE_v3::load { page_to_hide page_to_show args } {
+	variable data
+	variable original_shot
+	variable edited_shot
+	variable compare_shot
+
+	array set opts $args
+	set page [namespace tail [namespace current]]
+
+	array set original_shot {}
+	array set edited_shot {espresso_notes "" bean_notes ""}
+	array set compare_shot {espresso_notes "" bean_notes ""}
+	set data(ok_cancel_clicked) 0
+	set data(field_being_edited) ""
+	
+	if { [string range $page_to_hide 0 5] ne "DYE_v3" } {
+		set data(previous_page) $page_to_hide
+	}
+	set data(callback_cmd) [value_or_default opts(-callback_cmd)]
+	set which_shot [value_or_default opts(-which_shot) "last"]
+	if { $which_shot eq "next" } {
+		set data(which_shot) next
+		set data(clock) {}		
+		set data(shot_file) {}
+	} elseif { $which_shot in {last current} } {
+		set data(which_shot) "last"
+		set data(clock) $::settings(espresso_clock)
+		set data(shot_file) [::plugins::SDB::get_shot_file_path $data(clock)]
+	} elseif { [string is integer $which_shot] } {
+		if { $which_shot == $::settings(espresso_clock) } {
+			set data(which_shot) last
+		} else {			
+			set data(which_shot) past
+		}
+		set data(clock) $which_shot
+		set data(shot_file) [::plugins::SDB::get_shot_file_path $data(clock)]
+	} else {
+		set data(shot_file) [::plugins::SDB::get_shot_file_path $which_shot]
+		if { $data(shot_file) eq "" } {
+			msg -ERROR [namespace current] "'which_shot' value '$which_shot' is not valid"
+			return 0
+		}
+	}
+	
+	set data(compare_clock) ""
+	set data(compare_file) ""
+	set data(which_compare) [value_or_default opts(-which_compare) "previous"]
+	if { $data(which_compare) eq "previous" } {
+		# BEWARE $data(clock) may not be defined if -which_shot was a filename
+		if { $data(which_shot) eq "next" } {
+			set data(compare_clock) $::settings(espresso_clock)
+		} else {
+			set data(compare_clock) [::plugins::SDB::previous_shot $data(clock)]
+		}
+		if { $data(compare_clock) ne "" } { 
+			set data(compare_file) [::plugins::SDB::get_shot_file_path $data(compare_clock)]
+		}
+	} else {		
+		set data(compare_file) [::plugins::SDB::get_shot_file_path $data(which_compare)]
+		if { $data(compare_file) ne "" } {
+			set data(which_compare) "past"
+		}
+	}
+	
+	if { $data(shot_file) eq "" } {
+		if { $data(which_shot) ne "next" } {
+			msg -ERROR [namespace current] "shot file '$which_shot' not found"
+			return 0
+		}
+		set shot_list [::plugins::DYE::load_next_shot]
+	} else {
+		set shot_list [::plugins::SDB::load_shot $data(shot_file)]
+	}
+	
+	array set original_shot $shot_list 
+	array set edited_shot $shot_list
+	load_graph edited
+	
+	if { $data(compare_file) ne "" } {
+		set compare_list [::plugins::SDB::load_shot $data(compare_file)]
+		array set compare_shot $compare_list
+		load_graph compare
+		shot_to_text compare
+	}
+	
+	shot_to_text edited	
+	calc_chart_stage_stats edited
+	calc_chart_stage_stats compare
+	
+	return 1
+}
+
+proc ::dui::pages::DYE_v3::load_graph { {target edited} } {
+	variable edited_shot
+	variable compare_shot
+	
+	set ns ::dui::pages::DYE_v3::vectors::${target}
+	
+	foreach fn {elapsed pressure_goal pressure flow_goal flow flow_weight weight temperature_basket temperature_mix
+			temperature_goal state_change} {
+		if { [info exists ${target}_shot(espresso_$fn)] } {
+			${ns}::${fn} set [subst \$${target}_shot(espresso_$fn)]
+		} else {
+			msg -ERROR [namespace current] "load_graph: can't add chart series '$fn' to '$target'"
+		}
+	}
+
+	set fn resistance
+	if { [info exists ${target}_shot($fn)] } {
+		${ns}::${fn} set [subst \$${target}_shot($fn)]
+	} else {
+		msg -ERROR [namespace current] "load_graph: can't add chart series '$fn' to '$target'"
+	}
+}
+
+proc ::dui::pages::DYE_v3::show { page_to_hide page_to_show args } {
+	variable data
+	variable widgets
+	
+	if { $data(menu) ne "" } {
+		dui item config DYE_v3 nav_$data(menu)-btn -fill [dui aspect get dbutton fill -style dyev3_topnav]
+	}
+	
+	if { $page_to_show in {DYE_v3 DYE_v3_next} } {
+		set data(menu) "summary"
+	} else {
+		set data(menu) [string range $page_to_show 7 end]
+	}
+	
+	if { $data(menu) ne "" } {
+		dui item config DYE_v3 nav_$data(menu)-btn -fill grey
+	}
+	
+	set tw $widgets(edited_text)
+	unhighlight_field "" $tw
+	if { $data(menu) eq "" } {
+		set section "summary"
+	} elseif { $data(menu) eq "other" } {
+		set section "people"
+	} else {
+		set section $data(menu)
+	}
+	try {
+		$tw see $section
+		$tw see ${section}:end
+	} on error err {
+		$tw see summary
+		$tw see summary:end
+		msg -WARNING [namespace current] "navigate_to: marks '$section' or '${section}:end' not found in text widget '$tw'"
+	}
+}
+
+proc ::dui::pages::DYE_v3::menu_to_page { menu } {
+	if { $menu eq "" } {
+		set menu"summary
+	} else {
+		switch $menu {
+			bean_batch {set menu bean} 
+			people {set menu other}
+		}
+	}
+	
+	if { $menu eq "summary" } {
+		set dest_page DYE_v3
+	} else {
+		set dest_page DYE_v3_$menu
+	}
+
+	return $dest_page
+}
+
+proc ::dui::pages::DYE_v3::navigate_to { dest {change_page 1} } {
+	variable widgets
+	variable data
+	set tw $widgets(edited_text)
+		
+	if { [string is true $change_page] } {
+		set dest_page [menu_to_page $dest]
+		
+		if { $dest_page ne [dui page current] } {
+			if { [dui page exists $dest_page] } {
+				dui page show $dest_page
+			} else {
+				msg -WARNING [namespace current] "show: destination page '$dest_page' not found"
+			}
+		}
+	}
+} 
+
+proc ::dui::pages::DYE_v3::shot_to_text { {target edited} } {
+	variable widgets
+	variable data
+	set ns [namespace current]
+	set page [namespace tail $ns]
+
+	if { $target ni {edited compare} } {
+		msg -ERROR [namespace current] "shot_to_text: target value '$target' not supported. Use 'edited' or 'compare'"
+		return 0
+	}
+	set shot [array get ${ns}::${target}_shot]
+	array set shot_array $shot
+	set tw $widgets(${target}_text)
+	set sw $widgets(${target}_summary)
+
+	set do_compare 0
+	if { $target eq "edited" && $data(compare_clock) ne "" } {
+		set do_compare 1
+		set shot [array get ${ns}::compare_shot]
+		array set comp_array $shot
+	}
+	unset -nocomplain shot
+
+	### TOP PANEL (2-lines shot summary) ###########################################################
+	$sw configure -state normal
+	$sw delete 1.0 end
+		
+	#$sw tag configure which -foreground black -font [dui font get notosansuibold 15] -justify center	
+	$sw tag configure which {*}[dui aspect list -type text_tag -style dyev3_which_shot -as_options yes]
+	$sw tag configure profile_title {*}[dui aspect list -type text_tag -style dyev3_profile_title -as_options yes]
+	
+	if { $target eq "edited" } {
+		if { $data(which_shot) eq "next" } {
+			set which [translate "NEXT SHOT PLAN"]
+		} elseif { $data(which_shot) eq "last" } {
+			set which [translate "LAST SHOT"]
+		} else {
+			set which [translate "PAST SHOT"]
+		}
+	} else {
+		if { $data(which_compare) eq "next" } {
+			set which [translate "NEXT SHOT PLAN"]
+		} elseif { $data(which_compare) eq "previous" } {
+			set which [translate "PREVIOUS SHOT"]
+		} else {
+			set which [translate "PAST SHOT"]
+		}
+	}
+
+	$sw insert insert [translate $which] which
+	if { $data(which_shot) eq "next" } {
+		$sw insert insert "\n"
+	} else {
+		$sw insert insert ": " {} $shot_array(date_time) "date_time" "\n"
+	}
+	if { $shot_array(profile_title) eq "" } {
+		$sw insert insert " " profile_title
+	} else {
+		$sw insert insert $shot_array(profile_title) "profile_title" " - "
+	}
+	
+	if { $shot_array(grinder_dose_weight) eq "" } {
+		set dose "?"
+	} else {
+		set dose $shot_array(grinder_dose_weight)
+	}
+	if { $shot_array(drink_weight) eq "" } {
+		set yield "?"
+	} else {
+		set yield $shot_array(drink_weight)
+	}
+	set ratio [calc_ratio $dose $yield]
+
+	$sw insert insert $dose grinder_dose_weight " g : " "" $yield drink_weight " g "
+	if { $ratio eq "" } {
+		$sw insert insert " " ratio
+	} else {
+		$sw insert insert "($ratio) " ratio
+	}
+	
+	if { $data(which_shot) ne "next" && $shot_array(extraction_time) ne "" } {
+		$sw insert insert [format [translate "in %.0f sec"] $shot_array(extraction_time)] extraction_time
+	}
+
+	$sw configure -state disabled
+
+	### MAIN (BOTTOM) PANEL, full shot description ###########################################################
+	$tw configure -state normal
+	# First time this is run mark "chart:end" does not exist
+	set first_time 0
+	try { 
+		$tw delete chart:end end 
+	} on error err {
+		set first_time 1
+	}
+	#$tw delete chart:end end
+
+	# Tag styles
+	$tw tag configure section {*}[dui aspect list -type text_tag -style dyev3_section -as_options yes]
+	$tw tag configure field {*}[dui aspect list -type text_tag -style dyev3_field -as_options yes]  
+	$tw tag configure value {*}[dui aspect list -type text_tag -style dyev3_value -as_options yes]
+	$tw tag configure compare -elide [expr {!$do_compare}] {*}[dui aspect list -type text_tag -style dyev3_compare -as_options yes]
+
+#	$tw tag configure section -foreground black -font [dui font get notosansuibold 17] -spacing1 [dui platform rescale_y 20]
+#	$tw tag configure field -foreground brown -lmargin1 [dui platform rescale_x 35] -lmargin2 [dui platform rescale_x 45]  
+#	$tw tag configure value -foreground blue
+	
+#	# Add graph to the shot text widget
+	if { $first_time } {
+		foreach mark {summary summary:end chart} {
+			$tw mark set $mark insert
+			$tw mark gravity $mark left
+		}
+		$tw window create insert -window $widgets(${target}_graph) -align center
+		
+		$tw mark set chart:end insert
+		$tw mark gravity chart:end left
+		
+	}
+	
+	# Shot meta description
+	set sections [dict create beans Beans equipment Equipment extraction Extraction people People]
+	#bean_batch "Beans batch"
+	
+	foreach section [dict keys $sections] {
+		$tw mark set $section insert 
+		$tw mark gravity $section left
+		$tw insert insert [translate [dict get $sections $section]] [list section $section] "\n"
+		
+		foreach field [metadata fields -domain shot -category description -section $section] {
+			if { ![info exists shot_array($field)] } continue
+			lassign [metadata get $field {name data_type n_decimals}] name data_type n_decimals
+			$tw insert insert "[translate $name]: " [list field $field ${field}:n] 
+			# ": " [list colon $field]
+			
+			if { $shot_array($field) eq "" } {
+				$tw insert insert " " [list undef $field ${field}:v]
+			} else {
+				$tw insert insert $shot_array($field) [list value $field ${field}:v]
+			}
+
+			if { $do_compare } {
+				set compare_text [field_compare_string $shot_array($field) [value_or_default comp_array($field) ""] \
+					$field $data_type $n_decimals]
+				$tw insert insert $compare_text [list compare $field ${field}:c] "\n"
+			} else {
+				$tw insert insert "\n"
+			}
+
+			if { $target eq "edited" } {				
+				trace add variable ${ns}::edited_shot($field) write ${ns}::shot_variable_changed
+			}
+		}
+		$tw mark set ${section}:end insert
+		$tw mark gravity ${section}:end left 
+	}
+
+	# Shot management
+	set section manage
+	$tw mark set $section insert 
+	$tw mark gravity $section left
+	$tw insert insert [translate "Shot management"] [list section $section] "\n"
+	
+	if { [info exists shot_array(filename)] } {
+		set field filename
+		set filename [::plugins::SDB::get_shot_file_path $shot_array($field) 1]
+		if { $filename ne "" } {
+			$tw insert insert [translate File] [list field $field ${field}:n] ": " [list colon $field]
+			$tw insert insert $filename [list readonly $field ${field}:v] "\n"
+		}
+	}
+	if { $do_compare && [info exists comp_array(filename)] } {
+		set field comp_filename
+		set filename [::plugins::SDB::get_shot_file_path $comp_array(filename) 1]
+		if { $filename ne "" } {
+			$tw insert insert [translate "Compare to file"] [list field $field ${field}:n] ": " [list colon $field]
+			$tw insert insert $filename [list readonly $field ${field}:v] "\n"
+		}
+	}
+	
+	if { [info exists shot_array(repository_links)] } {
+		set field "visualizer"
+		$tw insert insert [translate Visualizer] [list field $field ${field}:n] ": " [list colon $field]
+		
+		set visualizer_link ""
+		set i 0
+		while { $i < [llength $shot_array(repository_links)] } {
+			set repo_link [lindex $shot_array(repository_links) $i]
+			if { [lindex $repo_link 0] eq "Visualizer" && [lindex $repo_link 1] ne "" } {
+				set visualizer_link [lindex $repo_link 1]
+				break
+			}
+			incr i
+		}
+		
+		if { $visualizer_link eq "" } {
+			$tw insert insert [translate "Not uploaded"] [list $field ${field}:v] "\n"
+		} else {
+			$tw insert insert [translate "Uploaded"] [list link $field ${field}:v] "\n"
+		}
+	}
+
+	set field app_version
+	set app_version ""
+	if { [info exists shot_array(app_version)] } {
+		append app_version "app=$shot_array(app_version), "	
+	}
+	if { [info exists shot_array(firmware_version_number)] } {
+		append app_version "fw=$shot_array(firmware_version_number), "
+	}
+	if { [info exists shot_array(skin)] } {
+		append app_version "skin=$shot_array(skin), "
+	}
+	if { [info exists shot_array(enabled_plugins)] } {
+		append app_version "plugins=$shot_array(enabled_plugins), "
+	}
+
+	if { $app_version ne "" } {
+		set app_version [string range $app_version 0 end-2]
+		$tw insert insert [translate "Versions"] [list field $field ${field}:n] ": " [list colon $field]
+		$tw insert insert $app_version [list readonly $field ${field}:v] "\n"
+	}
+
+	$tw mark set ${section}:end insert
+	$tw mark gravity ${section}:end left 
+
+	# Bind "clickable" tags 
+	if {$target eq "edited" } { 
+		$tw tag bind section [dui platform button_press] [list + ${ns}::click_shot_text %W %x %y %X %Y]
+		$tw tag bind field [dui platform button_press] [list + ${ns}::click_shot_text %W %x %y %X %Y]
+		$tw tag bind value [dui platform button_press] [list + ${ns}::click_shot_text %W %x %y %X %Y]
+	}
+	
+	$tw configure -state disabled
+	return 1
+}
+
+proc ::dui::pages::DYE_v3::field_compare_string { value compare {field {}} {data_type {}} {n_decimals {}} } {
+	#msg -INFO [namespace current] "COMPARING $value and $compare, field=$field, data_type=$data_type, n_dec=$n_decimals"	
+	if { [string trim $value] eq "" || [string trim $compare] eq "" } {
+		return " "
+	}
+
+	if { $field ne "" && ($data_type eq "" || $n_decimals eq "") } {
+		lassign [::plugins::SDB::field_lookup $field {data_type n_decimals}] data_type n_decimals
+		if { $data_type eq "" } {
+			if { [string is double $value] && [string is double $compare] } {
+				set data_type "number"
+				if { [string is integer $value] && [string is integer $compare] } {
+					set n_decimals 0
+				} else {
+					set n_decimals 2
+				}
+			} else {
+				set data_type text
+			}
+		}
+	}
+	
+	if { $data_type eq "long_text" } {
+		set compare_text " "
+	} elseif { $data_type eq "number" } {
+		if { $value == $compare } {
+			set compare_text "  ="
+		} else {
+			set comparison [expr {$value-$compare}]
+			set compare_text [format "%.${n_decimals}f" $comparison]
+			if { $comparison > 0 } {
+				set compare_text "+$compare_text"
+			}
+		}
+	} else {
+		#{text category date}
+		if { $value eq $compare } {
+			set compare_text "  ="
+		} else {
+			set compare_text "[translate was] \"$compare\""
+		}
+	}
+	
+	if { $compare_text ne "  =" && [string trim $compare_text] ne "" } {
+		set compare_text "  (${compare_text})"
+	}
+	return $compare_text
+}
+
+proc ::dui::pages::DYE_v3::calc_ratio { {dose {}} {yield {}} {target edited} } {
+	variable edited_shot
+	variable compare_shot
+	if { $dose eq "" && $yield eq "" && $target ni {edited compare} } {
+		msg -WARNING [namesapce current] "calc_ratio: target '$target' not recognized, must be one of {target edited}. Assuming 'edited'"
+		set target "edited"
+	}
+	
+	if { $dose eq "" } {
+		set dose [subst \$${target}_shot(grinder_dose_weight)]
+	}
+	if { $yield eq "" } {
+		set yield [subst \$${target}_shot(drink_weight)]
+	}
+	
+	set ratio ""
+	if { [string is double -strict $dose] && [string is double -strict $yield] } {
+		set ratio "1:[format {%.1f} [expr {$yield/$dose}]]"
+	}
+	return $ratio
+}
+
+proc ::dui::pages::DYE_v3::shot_variable_changed { arrname varname op } {
+if { $varname eq "espresso_notes" } { msg -INFO "SHOT_VARIABLE_CHANGED $arrname $varname $op" }
+	
+	if { $arrname ne "::dui::pages::DYE_v3::edited_shot" } return
+	if { $op ne "write" } return
+	variable original_shot
+	variable edited_shot
+	variable data
+	
+	highlight_field $varname
+	change_text_shot_field $varname ${arrname}(${varname})
+#	if { $edited_shot($varname) ne $original_shot($varname) } {
+#		set data(shot_modified) 1
+#	}
+}
+
+proc ::dui::pages::DYE_v3::highlight_field { field {widget {}} } { 
+	variable widgets
+	variable data
+	set is_edited_shot 0
+	if { $widget eq "" } { 
+		set widget $widgets(edited_text) 
+		set is_edited_shot 1
+	}
+	if { $is_edited_shot } {
+		if { $data(field_being_edited) eq $field } {
+			return
+		}
+		if { $data(field_being_edited) ne "" } {
+			unhighlight_field $data(field_being_edited) $widget
+		}
+		set data(field_being_edited) $field
+	}
+	
+	$widget tag configure $field {*}[dui aspect list -type text_tag -style dyev3_field_highlighted -as_options yes]
+	$widget see $field.first
+	$widget see $field.last
+}
+
+proc ::dui::pages::DYE_v3::unhighlight_field { field {widget {}} } { 	
+	variable data
+	if { $widget eq "" } {
+		variable widgets
+		set widget $widgets(edited_text)
+	}
+	if { $field eq "" } {
+		set field $data(field_being_edited)
+	}
+	
+	$widget tag configure $field {*}[dui aspect list -type text_tag -style dyev3_field_nonhighlighted -as_options yes] 
+	
+	if { $field eq $data(field_being_edited) } {
+		set data(field_being_edited) ""
+	}
+	
+}
+
+proc ::dui::pages::DYE_v3::change_text_shot_field { field var {widget {}} } { 
+	variable widgets
+	variable data
+	variable edited_shot
+	variable compare_shot
+	if { $widget eq "" } { set widget $widgets(edited_text) }
+	set value [subst \$$var]
+	set start_index [$widget index ${field}:v.first]
+	
+	if { $start_index eq "" } {
+		msg -WARNING [namespace current] "change_text_shot_field: tag '${field}:v' not found in text shot widget '$widget'"
+		return
+	}
+	
+	$widget configure -state normal
+	modify_text_tag $widget ${field}:v $value
+	
+	if { $data(which_compare) ne "" } {
+		set compare [value_or_default compare_shot($field) ""]
+		set compare_text [field_compare_string $value $compare $field]
+		modify_text_tag $widget ${field}:c $compare_text
+	}	
+	$widget configure -state disabled
+
+	# Some fields need to be modified on the summary top panel too
+	if { $field in {date_time profile_title grinder_dose_weight drink_weight extraction_time} } {
+		if { $field in {grinder_dose_weight drink_weight} } {
+			if { $value eq "" } {
+				set value "?"
+			}
+			set ratio [calc_ratio "" "" edited]
+		}
+
+		set widget $widgets(edited_summary)	
+		$widget configure -state normal
+		
+		modify_text_tag $widget $field $value
+		
+		if { $field in {grinder_dose_weight drink_weight} } {
+			if { $ratio eq "" } {
+				set ratio " "
+			} else {
+				set ratio "($ratio) "
+			}
+			modify_text_tag $widget ratio $ratio
+		}
+		$widget configure -state disabled
+	}
+}
+
+proc ::dui::pages::DYE_v3::modify_text_tag { widget tag new_value } {
+	set start_index ""
+	try {
+		set start_index [$widget index ${tag}.first]
+	} on error err {
+		msg -ERROR [namespace current] "modify_text_tag: can't find tag '$tag' in text widget '$widget'"
+	}
+	
+	if { $new_value eq "" } {
+		# An empty string would make the field tag dissapear
+		set new_value " "
+	}
+	if { $start_index ne "" } {
+		set tags [$widget tag names ${tag}.first]
+		$widget delete $start_index ${tag}.last
+		$widget insert $start_index $new_value $tags
+	}	
+}
+
+proc ::dui::pages::DYE_v3::click_shot_text { widget x y X Y } {
+	variable widgets
+	variable data
+
+	# On PC the coordinates taken by [Text tag names] are screen absolute, whereas on android we need to first transform
+	# them, then make then relative to the Text widget left-top coordinate	
+	set rx [dui platform translate_coordinates_finger_down_x $x]
+	set ry [dui platform translate_coordinates_finger_down_y $y]
+	if { $::android == 1 } {
+		set wcoords [[dui canvas] bbox $widget]
+		set rx [expr {$rx-[lindex $wcoords 0]}]
+		set ry [expr {$ry-[lindex $wcoords 1]}]
+	}
+	
+	set clicked_tags [$widget tag names @$rx,$ry]
+	
+	set type [lindex $clicked_tags 0] 
+	if { $type ni {section field colon value} } {
+		return
+	}
+	set field [lindex $clicked_tags 1]
+	
+	if { $type eq "section" } {
+		navigate_to $field
+	}
+
+#	set tag_rg [$tw tag ranges $field_name]
+#	set tag_start [lindex $tag_rg 0] 
+#	set tag_end [lindex $tag_rg 1]
+#	set value [$tw get $tag_start $tag_end] 
+#	
+#	set data(test_msg) "Clicked ${field_name}!\r(from $tag_start to $tag_end)\rValue is '$value'"
+#	#$tw tag configure comp -elide [expr {![$tw tag cget comp -elide]}]
+#	
+#	$tw delete $tag_start $tag_end
+#	$tw insert $tag_start "New value" [list value $field_name]
+	
+	#after 1000 {set ::dui::pages::DYE_v3::data(test_msg) ""} 
+}
+
+proc ::dui::pages::DYE_v3::calc_chart_stage_stats { {target edited} {stage_index 0} } {
+	variable data
+
+	if { $target eq "compare" } { 
+		set target_str "_comp"
+	} else {
+		set target_str ""
+		set target "edited"
+	}
+	vector create subvec
+	
+	foreach var {elapsed pressure flow flow_weight weight temperature_basket} {
+		set vecname [namespace current]::vectors::${target}::${var}
+		
+		if { [info commands $vecname] eq $vecname && [$vecname length] > 1 } {
+			#$vecname variable vec
+			if { [subvec length] > 0 } {
+				subvec delete 0:end
+			}
+			subvec append [$vecname range 1 end]
+			
+			if { $var eq "elapsed" } {
+				set start_idx 0
+			} else {
+				set start_idx 1
+			}
+			if { $var eq "elapsed" && $stage_index == 0 } {
+				set data(chart_stage${target_str}_${var}_start) 0.0
+			} else {
+				set data(chart_stage${target_str}_${var}_start) [format {%.2f} $subvec(0)]
+			}
+			set data(chart_stage${target_str}_${var}_end) [format {%.2f} $subvec(end)]
+			if { $var ne "elapsed" } {
+				set data(chart_stage${target_str}_${var}_min) [format {%.2f} [vector expr min(subvec)]]
+				set data(chart_stage${target_str}_${var}_max) [format {%.2f} [vector expr max(subvec)]]
+				set data(chart_stage${target_str}_${var}_avg) [format {%.2f} [vector expr mean(subvec)]]
+			}
+		} else {
+			set data(chart_stage${target_str}_${var}_start) "-"
+			set data(chart_stage${target_str}_${var}_end) "-"
+			if { $var ne "elapsed" } {
+				set data(chart_stage${target_str}_${var}_min) "-"
+				set data(chart_stage${target_str}_${var}_max) "-"
+				set data(chart_stage${target_str}_${var}_avg) "-"
+			}
+		}
+	}
+}
+
+proc ::dui::pages::DYE_v3::previous_chart_stage { } {
+}
+
+proc ::dui::pages::DYE_v3::next_chart_stage { } {
+}
+
+proc ::dui::pages::DYE_v3::archive_shot { } {
+}
+
+proc ::dui::pages::DYE_v3::delete_shot { } {
+	
+}
+
+proc ::dui::pages::DYE_v3::export_shot { } {
+
+}
+
+proc ::dui::pages::DYE_v3::upload_to_visualizer { } {
+	
+}
+
+proc ::dui::pages::DYE_v3::download_from_visualizer { } {
+	
+}
+
+proc ::dui::pages::DYE_v3::visualizer_browse { } {
+	
+}
+	
+proc ::dui::pages::DYE_v3::move_backward {} {
+	variable data
+	save_description
+	
+	if { $data(which_shot) eq "next" } {
+		dui page load [dui page current] -which_shot last -reload yes
+	} else {
+		set previous_clock [::plugins::SDB::previous_shot $data(clock)]
+		if { $previous_clock ne "" && $previous_clock > 0 } {
+			dui page load [dui page current] -which_shot $previous_clock -reload yes
+		}
+	}
+}
+
+proc ::dui::pages::DYE_v3::move_forward {} {
+	variable data
+	if { $data(which_shot) eq "next" } return
+	save_description
+	
+	if { $data(which_shot) eq "last" || $data(clock) == $::settings(espresso_clock) } {
+		dui page load [dui page current] -which_shot next -reload yes
+	} else {		
+		set next_clock [::plugins::SDB::next_shot $data(clock)]
+		if { $next_clock ne "" && $next_clock > 0} {
+			dui page load [dui page current] -which_shot $next_clock -reload yes
+		}
+	}
+}
+
+proc ::dui::pages::DYE_v3::move_to_next {} {
+	variable data
+	if { $data(which_shot) eq "next" } return
+	save_description
+	
+	dui page load [dui page current] -which_shot next -reload yes
+}
+
+proc ::dui::pages::DYE_v3::select_shot {} {
+	save_description
+	
+	array set shots [::plugins::SDB::shots "clock shot_desc" 1 {} 500]
+	dui page load dui_item_selector {} $shots(shot_desc) -values_ids $shots(clock) \
+		-page_title [translate "Select the shot to describe"] \
+		-callback_cmd [namespace current]::select_shot_callback -listbox_width 2300
+}
+
+proc ::dui::pages::DYE_v3::select_shot_callback { shot_desc shot_id args } {
+	variable data
+
+	if { [llength $shot_id] == 0 } { 
+		dui page show [menu_to_page $data(menu)]
+	} else {
+		set previous_page $data(previous_page)
+		dui page load [menu_to_page $data(menu)] -reload yes -which_shot [lindex $shot_id 0]
+		set data(previous_page) $previous_page
+	}
+}
+
+proc ::dui::pages::DYE_v3::search_shot {} {
+	save_description
+	dui page load DYE_fsh -page_title [translate "Select the shot to describe"] -callback_cmd [namespace current]::search_shot_callback
+}
+
+proc ::dui::pages::DYE_v3::search_shot_callback { selected_shots matched_shots } {
+	variable data
+	if { [llength $selected_shots] == 0 } { 
+		dui page show [menu_to_page $data(menu)]
+	} else {
+		set previous_page $data(previous_page)
+		dui page load [menu_to_page $data(menu)] -reload yes -which_shot [lindex $selected_shots 0]
+		set data(previous_page) $previous_page
+	}
+}
+
+proc ::dui::pages::DYE_v3::open_history_viewer {} {
+	save_description
+	
+	if { $::settings(skin) eq "DSx" } {
+		::history_prep
+	} else {
+		history_viewer open -callback_cmd [namespace current]::history_viewer_callback
+	}
+}
+
+proc ::dui::pages::DYE_v3::history_viewer_callback { left_clock right_clock } {
+	variable data
+	
+	if { $left_clock eq "" } { 
+		dui page show [menu_to_page $data(menu)] 
+	} else {
+		set previous_page $data(previous_page)
+		dui page load [menu_to_page $data(menu)] -reload yes -which_shot [lindex $left_clock 0]
+		set data(previous_page) $previous_page
+	}
+}
+
+proc ::dui::pages::DYE_v3::go_to_settings {} {
+	save_description
+	dui page load DYE_settings
+}
+
+proc ::dui::pages::DYE_v3::save_description {} {
+	variable data
+	variable edited_shot
+	variable original_shot
+	array set changes {}
+	
+	foreach field [metadata fields -domain shot -category description] {
+		if { $edited_shot($field) ne $original_shot($field) } {
+			set changes($field) $edited_shot($field)
+		}
+	}	
+	if { [array size changes] == 0 } {
+		return
+	}
+	
+	if { $data(which_shot) eq "next" } {
+		foreach field [array names changes] {
+			if { [info exists ::plugins::DYE::settings(next_$field)] } {
+				set ::plugins::DYE::settings(next_$field) $edited_shot($field)
+			}
+		}
+		plugins save_settings DYE
+		::plugins::DYE::define_next_shot_desc
+	} else {
+		if { $data(which_shot) eq "last" } {
+			foreach field [array names changes] {			
+				if { [info exists ::settings($field)] } {
+					set ::settings($field) $edited_shot($field)
+				}
+			}
+			::save_settings
+			::plugins::DYE::define_last_shot_desc
+		}
+		
+		::plugins::SDB::modify_shot_file $data(shot_file) changes
+		
+		if { $::plugins::SDB::settings(db_persist_desc) == 1 } {
+			set changes(file_modification_date) [file mtime $data(shot_file)]
+			::plugins::SDB::update_shot_description $data(clock) changes
+		}
+	}
+}
+
+
+proc ::dui::pages::DYE_v3::page_cancel {} {
+	variable data
+	# Normally we only save changes when leaving the page, but also when leaving to "dialog" pages like shot selection,
+	# so if cancel is clicked we make sure to revert to original shot values and resave. 
+	
+	set data(ok_cancel_clicked) 1
+	
+	if { $data(callback_cmd) ne "" } {
+		$data(callback_cmd) {}
+	} else {
+		dui page show $data(previous_page)
+	}
+	
+	page_unload
+}
+
+proc ::dui::pages::DYE_v3::page_done {} {
+	variable data
+	set data(ok_cancel_clicked) 1
+	save_description
+
+	if { $data(callback_cmd) ne "" } {
+		$data(callback_cmd) {}
+	} else {
+		dui page show $data(previous_page)
+	}
+	
+	page_unload
+}
+
+# TODO: If we unset the array, traces created on widget creation are removed, don't do!!!
+proc ::dui::pages::DYE_v3::page_unload {} {
+#	set ns [namespace current]
+#	# Force removal of shot arrays, so all traces are removed too
+#	unset -nocomplain ${ns}::original_shot
+#	unset -nocomplain ${ns}::edited_shot
+#	unset -nocomplain ${ns}::compare_shot
+}
+
+# Ensure the shot description is saved if it has been modified and we're leaving the page unexpectedly, for example
+# if a GHC button is tapped while editing the shot, or the machine is starting up .
+proc ::dui::pages::DYE_v3::hide { page_to_hide page_to_show } {
+	variable data
+	variable pages
+	
+	if { !$data(ok_cancel_clicked) && [string range $page_to_show 0 5] ni $pages && \
+			$page_to_show ni {dui_number_editor DYE_fsh DYE_settings} } {
+		save_description
+		page_unload
+	}
+}
+
 
 #### GLOBAL STUFF AND STARTUP  #########################################################################################
 

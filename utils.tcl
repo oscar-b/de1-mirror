@@ -1,6 +1,7 @@
 package provide de1_utils 1.1
 
 package require de1_logging 1.0
+package require de1_metadata 1.0
 
 proc setup_environment {} {
 	global android
@@ -55,10 +56,10 @@ proc setup_environment {} {
 	
 	# Create hardcoded fonts used in default and Insight skins. These should be replaced by DUI aspects in the future,
 	# but are left at the moment to guarantee backwards-compatibility.
-	set helvetica_font [dui aspect get text font_family -theme default]
-	set helvetica_bold_font [dui aspect get text font_family -theme default -style bold]
-	set global_font_name [dui aspect get text font_family -theme default -style global]
-	set global_font_size [dui aspect get text font_size -theme default -style global]
+	set helvetica_font [dui aspect get dtext font_family -theme default]
+	set helvetica_bold_font [dui aspect get dtext font_family -theme default -style bold]
+	set global_font_name [dui aspect get dtext font_family -theme default -style global]
+	set global_font_size [dui aspect get dtext font_size -theme default -style global]
 	set fontawesome_brands [dui aspect get symbol font_family -theme default -style brands]
 		
 	if {$android == 1 || $undroid == 1} {
@@ -131,6 +132,10 @@ proc setup_environment {} {
         font create Helv_30 -family $regularfont -size [expr {int($fontm * 72)}]
 	}
 	
+	metadata init
+	source "app_metadata.tcl"
+	init_app_metadata
+			
 	after 60000 schedule_minute_task
 
 	return

@@ -42,9 +42,24 @@ proc calc_sha {source} {
     set sha 0
     set tries 0
 
+    set use_unix_sha 0
+    set shasum "/usr/bin/shasum"
+    if {$::android != 1} {
+        if {[file exists $shasum] == 1} {
+            set use_unix_sha 1
+        } 
+    }
+
     while {$sha == 0 && $tries < 10} {
-        catch {
-            set sha [::sha2::sha256 -hex -filename $source]
+
+        if {$use_unix_sha == 1} {
+            #puts "Using fast Unix SHA256"
+            set sha [lindex [exec $shasum -a 256 $source] 0]
+        } else {
+            catch {
+                #puts "Using slow Tcl SHA256"
+                set sha [::sha2::sha256 -hex -filename $source]
+            }
         }
         
         # use this to test SHA failure once
@@ -560,6 +575,11 @@ proc start_app_update {} {
     
     set remote_timestamp [check_timestamp_for_app_update_available 1]
     if {$remote_timestamp < 0} {
+        set ::de1(app_update_button_label) [translate "Update failed"]; 
+        catch {
+            .hello configure -text $::de1(app_update_button_label)
+        }
+
         msg -ERROR "Could not fetch remote timestamp. Aborting update"
         set ::app_updating 0
         return -1

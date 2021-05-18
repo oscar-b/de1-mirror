@@ -299,9 +299,9 @@ namespace eval ::dui {
 		set fontawesome_pro [dui::font::add_or_get_familyname "Font Awesome 5 Pro-Regular-400.otf"]
 
 		msg -DEBUG [namespace current] "Font multiplier: $fontm"
-		dui aspect set -theme default -type text font_family $helvetica_font 
-		dui aspect set -theme default -type text -style bold font_family $helvetica_bold_font
-		dui aspect set -theme default -type text -style global font_family $global_font_name font_size $global_font_size
+		dui aspect set -theme default -type dtext font_family $helvetica_font 
+		dui aspect set -theme default -type dtext -style bold font_family $helvetica_bold_font
+		dui aspect set -theme default -type dtext -style global font_family $global_font_name font_size $global_font_size
 		#msg -DEBUG [namespace current] "Adding global font with family=$global_font_name and size=$global_font_size"		
 		dui aspect set -theme default -type symbol font_family $fontawesome_pro
 		dui aspect set -theme default -type symbol -style brands font_family $fontawesome_brands
@@ -433,8 +433,12 @@ namespace eval ::dui {
 	# System-related stuff
 	namespace eval platform {
 		namespace export hide_android_keyboard button_press button_long_press finger_down button_unpress \
-			xscale_factor yscale_factor rescale_x rescale_y
+			xscale_factor yscale_factor rescale_x rescale_y translate_coordinates_finger_down_x translate_coordinates_finger_down_y \
+			is_fast_double_tap
 		namespace ensemble create
+		
+		variable last_click_time
+		array set last_click_time {}
 		
 		proc hide_android_keyboard {} {
 			# make sure on-screen keyboard doesn't auto-pop up, and if
@@ -498,7 +502,44 @@ namespace eval ::dui {
 
 		proc rescale_y {in} {
 			return [expr {int($in / [yscale_factor])}]
-		}		
+		}
+		
+		# on android we track finger-down, instead of button-press, as it gives us lower latency by avoding having to distinguish a potential gesture from a tap
+		# finger down gives a http://blog.tcl.tk/39474
+		proc translate_coordinates_finger_down_x { x } {
+ 
+			if {$::android == 1 && $::settings(use_finger_down_for_tap) == 1} {
+					return [expr {$x * [winfo screenwidth .] / 10000}]
+				}
+				return $x
+		}
+		
+		proc translate_coordinates_finger_down_y { y } {
+
+			if {$::android == 1 && $::settings(use_finger_down_for_tap) == 1} {
+					return [expr {$y * [winfo screenheight .] / 10000}]
+				}
+				return $y
+		}
+		
+		proc is_fast_double_tap { key } {
+			variable last_click_time
+			# if this is a fast double-tap, then treat it like a long tap (button-3) 
+		
+			set b 0
+			set millinow [clock milliseconds]
+			set prevtime [ifexists last_click_time($key)]
+			if {$prevtime != ""} {
+				# check for a fast double-varName
+				if {[expr {$millinow - $prevtime}] < 150} {
+					msg -INFO "Fast button double-tap on $key"
+					set b 1
+				}
+			}
+			set last_click_time($key) $millinow
+		
+			return $b
+		}
 	}
 	
 	### THEME SUB-ENSEMBLE ###
@@ -647,22 +688,22 @@ namespace eval ::dui {
 			default.font.font_family notosansuiregular
 			default.font.font_size 16
 			
-			default.text.font_family notosansuiregular
-			default.text.font_size 16
-			default.text.fill "#7f879a"
-			default.text.disabledfill "#ddd"
-			default.text.anchor nw
-			default.text.justify left
+			default.dtext.font_family notosansuiregular
+			default.dtext.font_size 16
+			default.dtext.fill "#7f879a"
+			default.dtext.disabledfill "#ddd"
+			default.dtext.anchor nw
+			default.dtext.justify left
 			
-			default.text.fill.remark "#4e85f4"
-			default.text.fill.error red
-			default.text.font_family.section_title notosansuibold
+			default.dtext.fill.remark "#4e85f4"
+			default.dtext.fill.error red
+			default.dtext.font_family.section_title notosansuibold
 			
-			default.text.font_family.page_title notosansuibold
-			default.text.font_size.page_title 26
-			default.text.fill.page_title "#35363d"
-			default.text.anchor.page_title center
-			default.text.justify.page_title center
+			default.dtext.font_family.page_title notosansuibold
+			default.dtext.font_size.page_title 26
+			default.dtext.fill.page_title "#35363d"
+			default.dtext.anchor.page_title center
+			default.dtext.justify.page_title center
 						
 			default.symbol.font_family "Font Awesome 5 Pro-Regular-400"
 			default.symbol.font_size 55
@@ -688,7 +729,7 @@ namespace eval ::dui {
 			default.dbutton_label.anchor center	
 			default.dbutton_label.justify center
 			default.dbutton_label.fill white
-			default.dbutton_label.disabledfill "#ddd"
+			default.dbutton_label.disabledfill "#ccc"
 
 			default.dbutton_label1.pos {0.5 0.8}
 			default.dbutton_label1.font_size 16
@@ -827,6 +868,11 @@ namespace eval ::dui {
 			default.graph_line.linewidth 6
 			default.graph_line.pixels 0 
 			default.graph_line.smooth linear
+			
+			default.text.bg white
+			default.text.font_size 16
+			default.text.relief flat
+			default.text.highlightthickness 1
 		}
 		
 		# Named options:
@@ -985,8 +1031,46 @@ namespace eval ::dui {
 				::set use_full_aspect 0
 			}
 			
-			::set result {}			
+			# First iterate to find all unique aspects (which may come from either requested theme or default,
+			#	or from requested style or unstyled)
+			::set all_aspects {}
 			foreach full_aspect [array names aspects -regexp $pattern] {
+				::set type_and_aspect [join [lrange [split $full_aspect .] 1 2] .]
+				if { $type_and_aspect ni $all_aspects } {
+					lappend all_aspects $type_and_aspect
+				}
+			}
+			
+			::set full_aspect_names {}
+			foreach aspect $all_aspects {
+				::set full_aspect ""
+				if { $theme ne "default" } {
+					if { $style ne "" && [info exists aspects(${theme}.${aspect}.${style})] } {
+						::set full_aspect ${theme}.${aspect}.${style}
+					} elseif { [info exists aspects(${theme}.${aspect})] } {
+						::set full_aspect ${theme}.${aspect}
+					}
+				}
+				if { $full_aspect eq "" } {
+					if { $style ne "" && [info exists aspects(default.${aspect}.${style})] } {
+							::set full_aspect default.${aspect}.${style}
+					} elseif { [info exists aspects(default.${aspect})] } {
+						::set full_aspect default.${aspect}
+					}
+				}				
+				if { $full_aspect eq "" } {
+					# By construction, this should never happen
+					msg -ERROR [namespace current] list: "aspect '$aspect' not found for theme '$theme' and style '$style'"
+				} else {
+					lappend full_aspect_names $full_aspect
+				}
+			}
+
+			::set result {}
+			foreach full_aspect $full_aspect_names {
+				::set aspect_parts [split $full_aspect .]
+				::set aspect_theme [lindex $aspect_parts 0]
+				
 				if { $use_full_aspect } {
 					lappend result $full_aspect
 				} elseif { $as_options } {
@@ -2945,9 +3029,6 @@ namespace eval ::dui {
 		
 		proc add_dirs { args } {
 			variable font_dirs
-			if { [llength $args] == 1 } {
-				set args [lindex $args 0]
-			}
 			
 			foreach dir $args {
 				set dir [file normalize $dir]
@@ -3182,9 +3263,6 @@ namespace eval ::dui {
 				
 		proc add_dirs { args } {
 			variable img_dirs
-			if { [llength $args] == 1 } {
-				set args [lindex $args 0]
-			}
 			
 			foreach dir $args {
 				set dir [file normalize $dir]
@@ -3589,11 +3667,11 @@ namespace eval ::dui {
 					remove_options -font_$f largs
 				}
 			} elseif { $type ni {ProgressBar} } {
-				set font_family [get_option -font_family [dui aspect get [list $type text font] font_family -style $style] 1 largs]
+				set font_family [get_option -font_family [dui aspect get [list $type dtext font] font_family -style $style] 1 largs]
 				
-				set default_size [dui aspect get [list $type text font] font_size]
+				set default_size [dui aspect get [list $type dtext font] font_size]
 				if { $default_size eq "" || [string range $default_size 0 0] in "- +" } {
-					set default_size [dui aspect get [list text font] font_size]
+					set default_size [dui aspect get [list dtext font] font_size]
 					if { $default_size eq "" || [string range $default_size 0 0] in "- +" } {
 						set default_size [dui aspect get font font_size]
 						if { $default_size eq "" || [string range $default_size 0 0] in "- +" } {
@@ -3646,9 +3724,9 @@ namespace eval ::dui {
 			
 			set label_tags [list ${main_tag}-lbl {*}[lrange $tags 1 end]]
 			set label_args [extract_prefixed -label_ largs]
-			foreach aspect [dui aspect list -type [list ${type}_label text] -style $style] {
+			foreach aspect [dui aspect list -type [list ${type}_label dtext] -style $style] {
 				add_option_if_not_exists -$aspect [dui aspect get ${type}_label $aspect -style $style \
-					-default {} -default_type text] label_args
+					-default {} -default_type dtext] label_args
 			}
 						
 			set label_pos [get_option -pos "w -20 0" 1 label_args]
@@ -3684,7 +3762,7 @@ namespace eval ::dui {
 			}
 
 			if { $label ne "" } {
-				set id [dui add text $pages $xlabel $ylabel -text $label -tags $label_tags -aspect_type ${type}_label \
+				set id [dui add dtext $pages $xlabel $ylabel -text $label -tags $label_tags -aspect_type ${type}_label \
 					{*}$label_args]
 			} elseif { $labelvar ne "" } {
 				set id [dui add variable $pages $xlabel $ylabel -textvariable $labelvar -tags $label_tags \
@@ -4915,7 +4993,7 @@ namespace eval ::dui {
 		proc scale_scroll { page widget_tag slider_varname dest1 dest2 } {
 			set widget [get_widget $page $widget_tag]
 			set class [winfo class $widget]
-			
+						
 			if { $class eq "Listbox" } {
 				# get number of items visible in list box
 				set visible_items [lindex [split [$widget configure -height] " "] 4]
@@ -4930,8 +5008,11 @@ namespace eval ::dui {
 				set last_top_item [expr $total_items - $visible_items]
 				# determine what percentage of the way down the current top item is
 				set rescaled_value [expr $dest1 * $total_items / $last_top_item]
-			} elseif { $class eq "Multiline_entry" } {
-				set rescaled_value $dest1
+			} elseif { $class in {Multiline_entry Text} } {
+				if { $dest1 <= 0.0 && $dest2 >= 1.0 } {
+					return
+				}
+				set rescaled_value [expr {$dest1/(1-($dest2-$dest1))}]
 			} else {
 				msg -WARNING [namespace current] scale_scroll "cannot scroll a widget of class '$class'"
 				return
@@ -4946,7 +5027,6 @@ namespace eval ::dui {
 		proc scrolled_widget_moveto { page widget_tag dest1 dest2 } {
 			set widget [get_widget $page $widget_tag]
 			set class [winfo class $widget]
-
 			if { $class eq "Listbox" } {
 				# get number of items visible in list box
 				set visible_items [lindex [split [$widget configure -height] " "] 4]
@@ -4962,8 +5042,12 @@ namespace eval ::dui {
 				set top_item [expr int(round($last_top_item * $dest2))]
 				
 				$widget yview $top_item
-			} elseif { $class eq "Multiline_entry" } {
-				$widget yview moveto $dest2
+			} elseif { $class in {Multiline_entry Text} } {
+				lassign [$widget yview] visible_start visible_end
+				if { $visible_start <= 0.0 && $visible_end >= 1.0 } {
+					return
+				}
+				$widget yview moveto [expr {$dest1*(1-($visible_end-$visible_start))}]
 			} else {
 				msg -WARNING [namespace current] scrolled_widget_moveto "cannot 'move to' a widget of class '$class'"
 			}
@@ -5644,21 +5728,21 @@ namespace eval ::dui {
 		#	-compatibility_mode: set to 0 to be backwards-compatible with add_de1_text calls (don't apply aspects,
 		#		font suboptions and don't rescale width)
 		#	All others passed through to the 'canvas create text' command
-		proc text { pages x y args } {
+		proc dtext { pages x y args } {
 			global text_cnt
 			set can [dui canvas]
 			set x [dui platform rescale_x $x]
 			set y [dui platform rescale_y $y]
 			
-			set tags [dui::args::process_tags_and_var $pages text ""]
+			set tags [dui::args::process_tags_and_var $pages dtext ""]
 			set main_tag [lindex $tags 0]
 			set cmd [dui::args::get_option -command {} 1]
 			
 			set compatibility_mode [string is true [dui::args::get_option -compatibility_mode 0 1]]
 			if { ! $compatibility_mode } {				
 				set style [dui::args::get_option -style "" 1]
-				dui::args::process_aspects text $style "" "pos"
-				dui::args::process_font text $style
+				dui::args::process_aspects dtext $style "" "pos"
+				dui::args::process_font dtext $style
 				set width [dui::args::get_option -width {} 1]
 				if { $width ne "" } {
 					set width [dui platform rescale_x $width]
@@ -5669,7 +5753,7 @@ namespace eval ::dui {
 			try {
 				set id [$can create text $x $y -state hidden {*}$args]
 			} on error err {
-				set msg "can't add text '$main_tag' in page(s) '$pages' to canvas: $err"
+				set msg "can't add dtext '$main_tag' in page(s) '$pages' to canvas: $err"
 				msg -ERROR [namespace current] $msg
 				error $msg
 				return
@@ -5691,7 +5775,7 @@ namespace eval ::dui {
 				$can bind $id [dui platform button_press] $cmd
 			}
 			
-			#msg -INFO [namespace current] text "'$main_tag' to page(s) '$pages' with args '$args'"
+			#msg -INFO [namespace current] dtext "'$main_tag' to page(s) '$pages' with args '$args'"
 			return $id
 		}
 		
@@ -5703,7 +5787,7 @@ namespace eval ::dui {
 		# 		If -textvariable gives a plain name instead of code to be evaluted (no brackets, parenthesis, ::, etc.) 
 		#		and the first page in 'pages' is a namespace, uses {$::dui::pages::<page>::data(<textvariable>)}. 
 		#		Also in this case, if -tags is not specified, uses the textvariable name as tag.
-		# All others passed through to the 'dui add text' command
+		# All others passed through to the 'dui add dtext' command
 		proc variable { pages x y args } {
 			global variable_labels
 			
@@ -5711,7 +5795,7 @@ namespace eval ::dui {
 			set main_tag [lindex $tags 0]
 			set varcode [dui::args::get_option -textvariable "" 1]
 	
-			set id [dui add text $pages $x $y {*}$args]
+			set id [dui add dtext $pages $x $y {*}$args]
 			dui page add_variable $pages $id $varcode
 			return $id
 		}
@@ -5731,7 +5815,7 @@ namespace eval ::dui {
 			
 			dui::args::add_option_if_not_exists -aspect_type symbol
 			
-			return [dui add text $pages $x $y -text $symbol {*}$args]
+			return [dui add dtext $pages $x $y -text $symbol {*}$args]
 		}
 		
 		# Add dbutton items to the canvas. Returns the list of all added tags (one per page).
@@ -5759,7 +5843,7 @@ namespace eval ::dui {
 		#	-labelvariable, -label1variable... to use a variable as label text
 		#	-label_pos, -label1_pos... a list with 2 elements between 0 and 1 that specify the x and y percentages where to position
 		#		the label inside the button
-		#	-label_* (-label_fill -label_outline etc.) are passed through to 'dui add text' or 'dui add variable'
+		#	-label_* (-label_fill -label_outline etc.) are passed through to 'dui add dtext' or 'dui add variable'
 		#	-symbol to add a Fontawesome symbol/icon to the button, on position -symbol_pos, and using option values
 		#		given in -symbol_* that are passed through to 'dui add symbol'
 		#	-radius for rounded rectangles, and -arc_offset for rounded outline rectangles
@@ -5814,7 +5898,7 @@ namespace eval ::dui {
 			set ry [dui platform rescale_y $y]
 			set ry1 [dui platform rescale_y $y1]
 					
-			set tags [dui::args::process_tags_and_var $pages dbutton {} 1]
+			set tags [dui::args::process_tags_and_var $pages dbutton {} 1 args 1]
 			set main_tag [lindex $tags 0]
 			set button_tags [list ${main_tag}-btn {*}[lrange $tags 1 end]]
 			
@@ -5830,9 +5914,9 @@ namespace eval ::dui {
 				set "label${suffix}_tags" [list "${main_tag}-lbl$suffix" {*}[lrange $tags 1 end]]	
 				set "label${suffix}_args" [dui::args::extract_prefixed "-label${suffix}_"]
 				
-				foreach aspect [dui aspect list -type [list "${aspect_type}_label$suffix" text] -style $style] {
+				foreach aspect [dui aspect list -type [list "${aspect_type}_label$suffix" dtext] -style $style] {
 					dui::args::add_option_if_not_exists -$aspect [dui aspect get "${aspect_type}_label$suffix" $aspect \
-						-style $style -default {} -default_type text] "label${suffix}_args"
+						-style $style -default {} -default_type dtext] "label${suffix}_args"
 				}
 				
 				set "label${suffix}_pos" [dui::args::get_option -pos {0.5 0.5} 1 "label${suffix}_args"]
@@ -5956,7 +6040,7 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			while { ([info exists label$suffix] && [subst \$label$suffix] ne "") || 
 					([info exists labelvar$suffix] && [subst \$labelvar$suffix] ne "") } {
 				if { [info exists label$suffix] && [subst \$label$suffix] ne "" } {
-					dui add text $pages [subst \$xlabel$suffix] [subst \$ylabel$suffix] -text [subst \$label$suffix] \
+					dui add dtext $pages [subst \$xlabel$suffix] [subst \$ylabel$suffix] -text [subst \$label$suffix] \
 						-tags [subst \$label${suffix}_tags] -aspect_type "dbutton_label$suffix" \
 						-style $style {*}[subst \$label${suffix}_args]
 				} elseif { [info exists labelvar$suffix] && [subst \$labelvar$suffix] ne "" } {
@@ -6026,7 +6110,7 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			foreach fn {min max default smallincrement bigincrement} {
 				set $fn [dui::args::get_option -$fn "" 1]
 			}
-
+			
 			set editor_cmd {}
 			set editor_page [dui::args::get_option -editor_page [dui cget use_editor_pages] 1]
 			set callback_cmd [dui::args::get_option -callback_cmd "" 1]
@@ -6120,7 +6204,7 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 		#		negative x and y offsets. The marker and offsets are used in a relocate_text_wrt call on the page show 
 		#		event, so that it is repositioned dynamically for widgets whose size is defined in characters instead
 		#		of pixels.
-		#	-label_* passed through to 'add text'
+		#	-label_* passed through to 'add dtext'
 		#	-tclcode code to be evaluated after the widget is created, to allow configuring the widget. It is evaluated
 		#		in a global context, and performs the following substitutions:
 		#			%W the widget pathname
@@ -6523,11 +6607,11 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			set ysb [dui::args::get_option -yscrollbar 0 1]
 			set sb_args [dui::args::extract_prefixed -yscrollbar_]
 #			set ysb [dui::args::process_yscrollbar $pages $x $y listbox $style]
-#			if { $ysb != 0 && ![dui::args::has_option -yscrollcommand] } {
-#				set first_page [lindex $pages 0]
-#				dui::args::add_option_if_not_exists -yscrollcommand \
-#					[list ::dui::item::scale_scroll $first_page $main_tag ::dui::item::sliders($first_page,$main_tag)]
-#			}
+			if { $ysb != 0 && ![dui::args::has_option -yscrollcommand] } {
+				set first_page [lindex $pages 0]
+				dui::args::add_option_if_not_exists -yscrollcommand \
+					[list ::dui::item::scale_scroll $first_page $main_tag ::dui::item::sliders($first_page,$main_tag)]
+			}
 			
 			set cmd [dui::args::get_option -select_cmd {} 1]
 			
@@ -6939,6 +7023,7 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 		#	-use_halfs, default 1
 		#	-min, default 0
 		#	-max, default 10
+		#	-width, total width in pixels
 		proc drater { pages x y args } {
 			set ids {}
 			set tags [dui::args::process_tags_and_var $pages drater -variable 1 args 0]
@@ -7029,6 +7114,41 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			return [dui add widget graph $pages $x $y {*}$args]
 			
 		}
+		
+		proc text { pages x y args } {
+			set tags [dui::args::process_tags_and_var $pages tk_text {} 1]
+			set main_tag [lindex $tags 0]
+			
+			#set style [dui::args::get_option -style "" 0]
+			dui::args::process_aspects text
+			
+			set width [dui::args::get_option -width "" 1]
+			if { $width ne "" } {
+				dui::args::add_option_if_not_exists -width [expr {int($width * $::globals(entry_length_multiplier))}]
+			}
+			set height [dui::args::get_option -height "" 1]
+			if { $height ne "" } {
+				dui::args::add_option_if_not_exists -height [expr {int($height * $::globals(listbox_length_multiplier))}]
+			}
+			
+			set ysb [dui::args::get_option -yscrollbar 0 1]
+			set sb_args [dui::args::extract_prefixed -yscrollbar_]
+#			set ysb [dui::args::process_yscrollbar $pages $x $y listbox $style]
+			if { $ysb != 0 && ![dui::args::has_option -yscrollcommand] } {
+				set first_page [lindex $pages 0]
+				dui::args::add_option_if_not_exists -yscrollcommand \
+					[list ::dui::item::scale_scroll $first_page $main_tag ::dui::item::sliders($first_page,$main_tag)]
+			}
+						
+			set widget [dui add widget tk::text $pages $x $y -theme none {*}$args]
+
+			if { [string is true $ysb] || [llength $sb_args] > 0 } {
+				dui add yscrollbar $pages $x $y -tags $tags -aspect_type tk_text_yscrollbar {*}$sb_args 
+			}
+			
+			return $widget
+		}
+		
 	}
 	
 	### GENERAL TOOLS ###
@@ -7358,11 +7478,11 @@ namespace eval ::dui::pages::dui_number_editor {
 		
 		if { $data(value) ne "" } {
 			if { $data(min) ne "" && $data(value) < $data(min) } {
-				$widget configure -foreground [dui aspect get text fill -style error]
+				$widget configure -foreground [dui aspect get dtext fill -style error]
 			} elseif { $data(max) ne "" && $data(value) > $data(max) } {
-				$widget configure -foreground [dui aspect get text fill -style error]
+				$widget configure -foreground [dui aspect get dtext fill -style error]
 			} else {
-				$widget configure -foreground [dui aspect get text fill]
+				$widget configure -foreground [dui aspect get dtext fill]
 			}
 		}
 	}

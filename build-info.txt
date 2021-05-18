@@ -1,39 +1,39 @@
 # DO NOT EDIT - Automatically generated
-version_string	v1.36.4
-last_commit_hash	923b759
-last_commit_time	2021-05-13 07:00:57 +0200
+version_string	v1.36.5
+last_commit_hash	0e5fdae
+last_commit_time	2021-05-18 10:11:48 +0200
 #
 de1plus/plugins/DPx_Screen_Saver/_version_string	v1.3
 de1plus/plugins/DPx_Screen_Saver/_last_commit_hash	d66853f
 de1plus/plugins/DPx_Screen_Saver/_last_commit_time	2021-04-30 17:06:34 +1000
 #
-de1plus/plugins/DYE/_version_string	v2.03
-de1plus/plugins/DYE/_last_commit_hash	a4d1663
-de1plus/plugins/DYE/_last_commit_time	2021-05-08 16:02:05 +0200
+de1plus/plugins/DYE/_version_string	v2.03-16-g554a51a
+de1plus/plugins/DYE/_last_commit_hash	554a51a
+de1plus/plugins/DYE/_last_commit_time	2021-05-17 22:45:45 +0200
 #
-de1plus/plugins/SDB/_version_string	v1.02-12-gab12e77
-de1plus/plugins/SDB/_last_commit_hash	ab12e77
-de1plus/plugins/SDB/_last_commit_time	2021-05-08 16:02:11 +0200
+de1plus/plugins/SDB/_version_string	v1.02-14-ge59763d
+de1plus/plugins/SDB/_last_commit_hash	e59763d
+de1plus/plugins/SDB/_last_commit_time	2021-05-14 16:51:01 +0200
 #
 de1plus/plugins/keyboard_control/_version_string	g732b8b5
 de1plus/plugins/keyboard_control/_last_commit_hash	732b8b5
 de1plus/plugins/keyboard_control/_last_commit_time	2021-02-23 12:27:08 -0800
 #
-de1plus/skins/DSx/_version_string	v4.51-10-g9a838a7
-de1plus/skins/DSx/_last_commit_hash	9a838a7
-de1plus/skins/DSx/_last_commit_time	2021-04-18 09:52:10 +1000
+de1plus/skins/DSx/_version_string	v4.51-12-gc1b703d
+de1plus/skins/DSx/_last_commit_hash	c1b703d
+de1plus/skins/DSx/_last_commit_time	2021-05-16 20:17:34 +1000
 #
-de1plus/skins/MimojaCafe/_version_string	v1.4.1-47-g107f196
-de1plus/skins/MimojaCafe/_last_commit_hash	107f196
-de1plus/skins/MimojaCafe/_last_commit_time	2021-05-07 16:55:44 +0200
+de1plus/skins/MimojaCafe/_version_string	v1.4.1-50-g970b5b5
+de1plus/skins/MimojaCafe/_last_commit_hash	970b5b5
+de1plus/skins/MimojaCafe/_last_commit_time	2021-05-18 09:40:25 +0200
 #
 de1plus/skins/metric/_version_string	g5f69316
 de1plus/skins/metric/_last_commit_hash	5f69316
 de1plus/skins/metric/_last_commit_time	2021-05-07 12:03:45 +0100
 #
-misc/_version_string	ge117b7c
-misc/_last_commit_hash	e117b7c
-misc/_last_commit_time	2021-05-11 18:30:30 +0200
+misc/_version_string	g77a6b45
+misc/_last_commit_hash	77a6b45
+misc/_last_commit_time	2021-05-17 16:11:09 +0800
 #
 psd/_version_string	gd681ff7
 psd/_last_commit_hash	d681ff7

@@ -42,7 +42,7 @@ namespace eval ::plugins::SDB {
 			bean shot "" "" "" bean_brand category 0 0 0}
 		bean_type {"Beans type" "Beans types" "Name" "Names" \
 			bean shot "" "" "" bean_type category 0 50 0}
-		bean_notes {"Beans notes" "Beans notes" "Note" "Notes" \
+		bean_notes {"Beans note" "Beans notes" "Note" "Notes" \
 			bean_batch shot "" "" "" bean_notes long_text 0 1000 0}
 		roast_date {"Roast date" "Roast dates" "Date" "Dates" \
 			bean_batch shot "" "" "" roast_date date 0 0 0}
@@ -56,13 +56,13 @@ namespace eval ::plugins::SDB {
 			extraction shot "" "" "" grinder_dose_weight numeric 0 30 1 18 0.1 1.0}
 		drink_weight {"Drink weight" "Drink weights" "Weight" "Weights" \
 			extraction shot "" "" "" drink_weight numeric 0 500 1 36 1.0 10.0}
-		drink_tds {"Total Dissolved Solids (TDS %)" "Total Dissolved Solids %" "TDS" "TDS" \
+		drink_tds {"Total Dissolved Solids" "Total Dissolved Solids %" "TDS" "TDS" \
 			extraction shot "" "" "" drink_tds numeric 0 15 2 8 0.01 0.1}
-		drink_ey {"Extraction Yield (EY %)" "Extraction Yields %" "EY" "EYs" \
+		drink_ey {"Extraction Yield" "Extraction Yields %" "EY" "EYs" \
 			extraction shot "" "" "" drink_ey numeric 0 30 2 20 0.1 1.0}	
 		espresso_enjoyment {"Enjoyment (0-100)" "Enjoyments" "Enjoyment" "Enjoyment" \
 			extraction shot "" "" "" espresso_enjoyment numeric 0 100 0 50 1 10}
-		espresso_notes {"Notes" "Notes" "Notes" "Notes" \
+		espresso_notes {"Espresso note" "Espresso notes" "Notes" "Notes" \
 			extraction shot "" "" "" espresso_notes long_text 0 1000 0}	
 		my_name {"Barista" "Baristas" "Barista" "Baristas" \
 			people shot "" "" "" my_name category 0 100 0 people}
@@ -247,7 +247,7 @@ proc ::plugins::SDB::field_lookup { field {what name} } {
 	if { $field eq "" } return
 	
 	if { ![info exists data_dictionary($field)] } { 
-		msg "WARNING data field '$field' unmatched in proc field_lookup"
+		#msg "WARNING data field '$field' unmatched in proc field_lookup"
 		return {} 
 	}
 	
@@ -266,11 +266,11 @@ proc ::plugins::SDB::field_lookup { field {what name} } {
 	return $result
 }
 
-proc ::plugins::SDB::field_names { {data_types {} } {db_tables {}} } {
+proc ::plugins::SDB::field_names { {data_types {} } {db_tables {}} {desc_sections {}} } {
 	variable data_dictionary
 	variable field_lookup_whats
 	
-	if { $data_types eq "" && $db_tables eq "" } {
+	if { $data_types eq "" && $db_tables eq "" && $desc_sections eq "" } {
 		return [array names data_dictionary]
 	} 
 	
@@ -284,15 +284,26 @@ proc ::plugins::SDB::field_names { {data_types {} } {db_tables {}} } {
 	} else {
 		set tab_idx [lsearch -all $field_lookup_whats "db_table"]
 	}
+	if { $desc_sections eq "" } {
+		set desc_idx -1
+	} else {
+		set desc_idx [lsearch -all $field_lookup_whats "desc_section"]
+	}
 	
 	set fields {}	
 	foreach fn [array names data_dictionary] {
 		set data_type [lindex $data_dictionary($fn) $dt_idx]
 		set db_table [lindex $data_dictionary($fn) $tab_idx]
+		set desc_section [lindex $data_dictionary($fn) $desc_idx]
 		
-		set matches_dt [expr {$dt_idx == -1 || [lsearch -all $data_types $data_type] > -1 }]
-		set matches_tab [expr {$tab_idx == -1 || [lsearch -all $db_tables $db_table] > -1 }]
-		if { $matches_dt && $matches_tab } { lappend fields $fn }
+#		set matches_dt [expr {$dt_idx == -1 || [lsearch -all $data_types $data_type] > -1 }]
+#		set matches_tab [expr {$tab_idx == -1 || [lsearch -all $db_tables $db_table] > -1 }]
+#		set matches_desc [expr {$desc_idx == -1 || [lsearch -all $db_tables $desc_section] > -1 }]
+		set matches_dt [expr {$dt_idx == -1 || $data_type in $data_types }]
+		set matches_tab [expr {$tab_idx == -1 || $db_table in $db_tables }]
+		set matches_desc [expr {$desc_idx == -1 || $desc_section in $desc_sections }]
+		
+		if { $matches_dt && $matches_tab && $matches_desc } { lappend fields $fn }
 	}
 	
 	return $fields
@@ -304,30 +315,40 @@ proc ::plugins::SDB::field_names { {data_types {} } {db_tables {}} } {
 # If the filename does not have ".shot" extension, adds it.
 # If the filename is already a full path and the file exists, returns it. If it's just the filename, checks
 # 	existence of file first in history folder, then in history_archive folder.
-proc ::plugins::SDB::get_shot_file_path { filename } {
+# If relative_path is 1, returns the relative path with respect to [homedir].
+proc ::plugins::SDB::get_shot_file_path { filename {relative_path 0} } {
 	variable filename_clock_format
-	
+	set homedir [homedir]
 	if { $filename eq "" } {
 		msg "WARNING empty filename argument in get_shot_file_path" 
 		return
 	}
 	if { [string is integer $filename] } {
 		set filename "[clock format $filename -format $filename_clock_format].shot"
-	} elseif { [string range $filename end-4 end] ne ".shot" } { append filename ".shot" }
+	} elseif { [string range $filename end-4 end] ne ".shot" } { 
+		append filename ".shot"	
+	}
 	
 	if { [file dirname $filename] eq "." } {
-		if { [file exists "[homedir]/history/$filename"] } {
-			return "[homedir]/history/$filename"
+		if { [file exists "${homedir}/history/$filename"] } {
+			set filename "[homedir]/history/$filename"
 		} elseif { [file exists "[homedir]/history_archive/$filename"] } {
-			return "[homedir]/history_archive/$filename"
+			set filename "${homedir}/history_archive/$filename"
 		} else {
 			msg -NOTICE get_shot_file_path "can't find shot file '$filename'"
+			return ""
 		}
-	} elseif { [file exists $filename] } {
-		return $filename
+	} elseif { ![file exists $filename] } {
+		msg -NOTICE get_shot_file_path "can't find shot file '$filename'"
+		return ""
 	} 
 	
-	return ""
+	if { [string is true $relative_path] } {
+		if { [string range $filename 0 [expr {[string length $homedir]-1}]] eq $homedir } {
+			set filename [string range $filename [string length $homedir] end]
+		}
+	}
+	return $filename
 }
 
 # Loads from a shot file the data we use in the DYE plugin. Returns an array.
@@ -370,6 +391,14 @@ proc ::plugins::SDB::load_shot { filename } {
 		}
 	}
 	
+	foreach field_name {app_version local_time} {
+		if { [info exists file_props($field_name)] } {
+			set shot_data($field_name) $file_props($field_name)
+		} else {
+			set shot_data($field_name) ""
+		}
+	}		
+	
 	array set file_sets $file_props(settings)
 	
 	set text_fields [::plugins::SDB::field_names "category text long_text date" "shot"]
@@ -402,6 +431,14 @@ proc ::plugins::SDB::load_shot { filename } {
 			set shot_data(grinder_dose_weight) $file_sets(dsv2_bean_weight)
 		}
 	}
+
+	foreach field_name {firmware_version_number enabled_plugins skin_version} {
+		if { [info exists file_sets($field_name)] } {
+			set shot_data($field_name) $file_sets($field_name)
+		} else {
+			set shot_data($field_name) ""
+		}
+	}		
 	
 	return [array get shot_data]
 }
@@ -1914,7 +1951,7 @@ proc ::dui::pages::SDB_settings::setup {} {
 #	dui aspect set -type dbutton_label -style insight_ok {font_family notosansuibold font_size 19}
 	
 	# HEADER AND BACKGROUND
-	dui add text $page 1280 100 -tags page_title -text [translate "Shot DataBase Plugin Settings"] -style page_title
+	dui add dtext $page 1280 100 -tags page_title -text [translate "Shot DataBase Plugin Settings"] -style page_title
 		
 	dui add canvas_item rect $page 10 190 2550 1430 -fill "#ededfa" -width 0
 	dui add canvas_item line $page 14 188 2552 189 -fill "#c7c9d5" -width 2
@@ -1926,7 +1963,7 @@ proc ::dui::pages::SDB_settings::setup {} {
 		
 	# LEFT SIDE, FIRST BLOCK
 	set x_label 75; set y 250
-	dui add text $page $x_label $y -text [translate "General options"] -style section_title
+	dui add dtext $page $x_label $y -text [translate "General options"] -style section_title
 	
 	dui add dcheckbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(db_persist_desc) \
 		-tags db_persist_desc -command db_persist_desc_change -label [translate "Store shot descriptions on database"]
@@ -1942,7 +1979,7 @@ proc ::dui::pages::SDB_settings::setup {} {
 	
 	# RIGHT SIDE
 	set x_label 1345; set y 250
-	dui add text $page $x_label $y -text [translate "Manage database"] -style section_title 
+	dui add dtext $page $x_label $y -text [translate "Manage database"] -style section_title 
 	
 	dui add dbutton $page $x_label [incr y 100] -tags resync_db -command resync_db -style insight_settings \
 		-symbol sync -label [translate "Resync database"]

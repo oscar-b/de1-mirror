@@ -16,25 +16,25 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		page.bg_img {}
 		page.bg_color $::DSx_settings(bg_colour)
 		
-		font.font_family $::DSx_settings(font_name)
+		font.font_family "$::DSx_settings(font_name)"
 		font.font_size $default_font_size
 		
-		text.font_family $::DSx_settings(font_name)
-		text.font_size $default_font_size
-		text.fill $::DSx_settings(font_colour)
-		text.disabledfill $disabled_colour
-		text.anchor nw
-		text.justify left
+		dtext.font_family "$::DSx_settings(font_name)"
+		dtext.font_size $default_font_size
+		dtext.fill $::DSx_settings(font_colour)
+		dtext.disabledfill $disabled_colour
+		dtext.anchor nw
+		dtext.justify left
 		
-		text.fill.remark $::DSx_settings(orange)
-		text.fill.error $::DSx_settings(red)
-		text.font_family.section_title $::DSx_settings(font_name)
+		dtext.fill.remark $::DSx_settings(orange)
+		dtext.fill.error $::DSx_settings(red)
+		dtext.font_family.section_title "$::DSx_settings(font_name)"
 		
-		text.font_family.page_title $::DSx_settings(font_name)
-		text.font_size.page_title 24
-		text.fill.page_title $::DSx_settings(heading_colour)
-		text.anchor.page_title center
-		text.justify.page_title center
+		dtext.font_family.page_title "$::DSx_settings(font_name)"
+		dtext.font_size.page_title 24
+		dtext.fill.page_title $::DSx_settings(heading_colour)
+		dtext.anchor.page_title center
+		dtext.justify.page_title center
 					
 		symbol.font_family "Font Awesome 5 Pro-Regular-400"
 		symbol.font_size 55
@@ -82,7 +82,7 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		dbutton.arc_offset.insight_ok 20
 		dbutton.bwidth.insight_ok 480
 		dbutton.bheight.insight_ok 118
-		dbutton_label.font_family.insight_ok $::DSx_settings(font_name)
+		dbutton_label.font_family.insight_ok "$::DSx_settings(font_name)"
 		dbutton_label.font_size.insight_ok 19
 		
 		dclicker.fill $::DSx_settings(font_colour)
@@ -104,7 +104,7 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		multiline_entry.foreground $::DSx_settings(font_colour)
 		multiline_entry.bg $::DSx_settings(bg_colour)
 		multiline_entry.width 2
-		multiline_entry.font_family $::DSx_settings(font_name)
+		multiline_entry.font_family "$::DSx_settings(font_name)"
 		multiline_entry.font_size $default_font_size
 		multiline_entry.width 15
 		multiline_entry.height 5
@@ -112,7 +112,7 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		dcombobox.relief sunken
 		dcombobox.bg $::DSx_settings(bg_colour)
 		dcombobox.width 2
-		dcombobox.font_family $::DSx_settings(font_name)
+		dcombobox.font_family "$::DSx_settings(font_name)"
 		dcombobox.font_size $default_font_size
 		
 		dcombobox_ddarrow.font_size 24
@@ -143,7 +143,7 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		listbox_label.anchor ne
 		listbox_label.justify right
 		
-		listbox_label.font_family.section_title $::DSx_settings(font_name)
+		listbox_label.font_family.section_title "$::DSx_settings(font_name)"
 		
 		scrollbar.orient vertical
 		scrollbar.width 120
@@ -195,6 +195,99 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		graph.plotrelief raised
 		graph.plotpady 0 
 		graph.plotpadx 10
+		
+		text.bg $::DSx_settings(bg_colour)
+		text.foreground $::DSx_settings(font_colour)
+		text.font_size $default_font_size
+		text.relief flat
+		text.highlightthickness 1
+	}]
+	
+	# History Viewer styles
+	set smooth $::settings(live_graph_smoothing_technique)
+	dui aspect set -theme DSx [subst {
+		graph_axis.color.hv_graph_axis $::DSx_settings(x_axis_colour)
+		graph_axis.min.hv_graph_axis 0.0
+		graph_axis.max.hv_graph_axis [expr 12 * 10]
+		
+		graph_xaxis.color.hv_graph_axis $::DSx_settings(x_axis_colour) 
+		graph_xaxis.tickfont.hv_graph_axis "[DSx_font font 7]" 
+		graph_xaxis.min.hv_graph_axis 0.0
+			
+		graph_yaxis.color.hv_graph_axis "#008c4c"
+		graph_yaxis.tickfont.hv_graph_axis "[DSx_font font 7]"
+		graph_yaxis.min.hv_graph_axis 0.0 
+		graph_yaxis.max.hv_graph_axis $::DSx_settings(zoomed_y_axis_max)
+		graph_yaxis.subdivisions.hv_graph_axis 5 
+		graph_yaxis.majorticks.hv_graph_axis {0 1 2 3 4 5 6 7 8 9 10 11 12} 
+		graph_yaxis.hide.hv_graph_axis 0
+		
+		graph_y2axis.color.hv_graph_axis "#206ad4"
+		graph_y2axis.tickfont.hv_graph_axis "[DSx_font font 7]"
+		graph_y2axis.min.hv_graph_axis 0.0 
+		graph_y2axis.max.hv_graph_axis $::DSx_settings(zoomed_y2_axis_max)
+		graph_y2axis.subdivisions.hv_graph_axis 2 
+		graph_y2axis.majorticks.hv_graph_axis {0 1 2 3 4 5 6 7 8 9 10 11 12} 
+		graph_y2axis.hide.hv_graph_axis 0
+
+		graph_grid.color.hv_graph_grid $::DSx_settings(grid_colour)
+		
+		graph_line.linewidth.hv_temperature_goal $::DSx_settings(hist_temp_goal_curve) 
+		graph_line.color.hv_temperature_goal #ffa5a6 
+		graph_line.smooth.hv_temperature_goal $smooth 
+		graph_line.dashes.hv_temperature_goal {5 5}
+		
+		graph_line.linewidth.hv_temperature_basket $::DSx_settings(hist_temp_curve) 
+		graph_line.color.hv_temperature_basket #e73249
+		graph_line.smooth.hv_temperature_basket $smooth 
+		graph_line.dashes.hv_temperature_basket [list $::settings(chart_dashes_temperature)]
+
+		graph_line.linewidth.hv_temperature_mix $::DSx_settings(hist_temp_curve) 
+		graph_line.color.hv_temperature_mix #ff888c
+		graph_line.smooth.hv_temperature_mix $smooth 
+
+		graph_line.linewidth.hv_temperature_goal $::DSx_settings(hist_temp_goal_curve) 
+		graph_line.color.hv_temperature_goal #ffa5a6 
+		graph_line.smooth.hv_temperature_goal $smooth 
+		graph_line.dashes.hv_temperature_goal {5 5}
+
+		graph_line.linewidth.hv_pressure_goal $::DSx_settings(hist_goal_curve) 
+		graph_line.color.hv_pressure_goal #69fdb3
+		graph_line.smooth.hv_pressure_goal $smooth 
+		graph_line.dashes.hv_pressure_goal {5 5}
+
+		graph_line.linewidth.hv_flow_goal $::DSx_settings(hist_goal_curve) 
+		graph_line.color.hv_flow_goal #7aaaff
+		graph_line.smooth.hv_flow_goal $smooth 
+		graph_line.dashes.hv_flow_goal {5 5}
+			
+		graph_line.linewidth.hv_pressure [dui platform rescale_x 8] 
+		graph_line.color.hv_pressure #008c4c
+		graph_line.smooth.hv_pressure $smooth 
+		graph_line.dashes.hv_pressure [list $::settings(chart_dashes_pressure)]
+			
+		graph_line.linewidth.hv_flow [dui platform rescale_x 8] 
+		graph_line.color.hv_flow #4e85f4
+		graph_line.smooth.hv_flow $smooth 
+		graph_line.dashes.hv_flow [list $::settings(chart_dashes_flow)]
+
+		graph_line.linewidth.hv_flow_weight [dui platform rescale_x 8] 
+		graph_line.color.hv_flow_weight #a2693d
+		graph_line.smooth.hv_flow_weight $smooth 
+		graph_line.dashes.hv_flow_weight [list $::settings(chart_dashes_flow)]
+
+		graph_line.linewidth.hv_weight [dui platform rescale_x 8] 
+		graph_line.color.hv_weight #a2693d
+		graph_line.smooth.hv_weight $smooth 
+		graph_line.dashes.hv_weight [list $::settings(chart_dashes_espresso_weight)]
+
+		graph_line.linewidth.hv_state_change $::DSx_settings(hist_goal_curve) 
+		graph_line.color.hv_state_change #AAAAAA
+
+		graph_line.linewidth.hv_resistance $::DSx_settings(hist_resistance_curve) 
+		graph_line.color.hv_resistance #e5e500
+		graph_line.smooth.hv_resistance $smooth 
+		graph_line.dashes.hv_resistance {6 2}		
 	}]
 	
 #	dui aspect set { dbutton.width 3 }
@@ -211,13 +304,13 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		canvas_anchor nw anchor nw dbutton.arc_offset 12 dbutton_label.pos {0.7 0.5} dbutton_label.font_size 14 
 		dbutton_symbol.font_size 24 dbutton_symbol.pos {0.3 0.5} }
 	
-	set bold_font [dui aspect get text font_family -theme default -style bold]
+	set bold_font [dui aspect get dtext font_family -theme default -style bold]
 	dui aspect set -style dsx_done [list dbutton.shape outline dbutton.bwidth 220 dbutton.bheight 140 dbutton.width 5 \
 		dbutton_label.pos {0.5 0.5} dbutton_label.font_size 20 dbutton_label.font_family $bold_font]
 	
 	dui aspect set -type symbol -style dye_main_nav_button { font_size 24 fill "#7f879a" }
 	
-	dui aspect set -type text -style section_header [list font_family $bold_font font_size 20]
+	dui aspect set -type dtext -style section_header [list font_family $bold_font font_size 20]
 	
 	dui aspect set -type dclicker -style dye_double [subst {shape {} fill $::DSx_settings(bg_colour) 
 		disabledfill $::DSx_settings(bg_colour) width 0 orient horizontal use_biginc 1 
@@ -235,6 +328,102 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 	dui aspect set -type dclicker_symbol -style dye_single {pos {0.1 0.5} font_size 24 anchor center fill "#7f879a"} 
 	dui aspect set -type dclicker_symbol1 -style dye_single {pos {0.9 0.5} font_size 24 anchor center fill "#7f879a"} 
 			
+	### DUI V3 STYLES ####
+	# DYE v3
+	set bg_color $::DSx_settings(bg_colour)
+	#[dui aspect get page bg_color]
+	set btn_spacing 100
+	set half_button_width [expr {int(($::dui::pages::DYE_v3::page_coords(panel_width)-$btn_spacing)/2)}]
+	
+	dui aspect set -theme DSx [subst { 
+		dbutton.bheight.dyev3_topnav 90 
+		dbutton.shape.dyev3_topnav rect 
+		dbutton.fill.dyev3_topnav grey
+		dbutton_label.font_size.dyev3_topnav -1 
+		dbutton_label.pos.dyev3_topnav {0.5 0.5} 
+		dbutton_label.anchor.dyev3_topnav center 
+		dbutton_label.justify.dyev3_topnav center 
+	
+		dbutton.bwidth.dyev3_nav_button 100 
+		dbutton.bheight.dyev3_nav_button 120
+		dbutton.fill.dyev3_nav_button {} 		
+		dbutton.symbol_pos.dyev3_nav_button {0.5 0.5} 
+		dbutton.symbol_fill.dyev3_nav_button grey
+		
+		text.font_size.dyev3_top_panel_text -1
+		text.yscrollbar.dyev3_top_panel_text no
+		text.bg.dyev3_top_panel_text $bg_color
+		text.borderwidth.dyev3_top_panel_text 0
+		text.highlightthickness.dyev3_top_panel_text 0
+		text.relief.dyev3_top_panel_text flat
+		
+		text.font_size.dyev3_bottom_panel_text -1
+	
+		dtext.font_family.dyev3_right_panel_title "$::DSx_settings(font_name)" 
+		dtext.font_size.dyev3_right_panel_title +2
+		dtext.fill.dyev3_right_panel_title $::DSx_settings(font_colour)
+		dtext.anchor.dyev3_right_panel_title center
+		dtext.justify.dyev3_right_panel_title center
+		
+		graph.background.dyev3_text_graph $bg_color 
+		graph.plotbackground.dyev3_text_graph $bg_color 
+		graph.borderwidth.dyev3_text_graph 1 
+		graph.plotrelief.dyev3_text_graph flat
+		
+		dtext.font_size.dyev3_chart_stage_title +2 
+		dtext.anchor.dyev3_chart_stage_title center 
+		dtext.justify.dyev3_chart_stage_title center 
+		dtext.fill.dyev3_chart_stage_title $::DSx_settings(font_colour)
+		
+		dtext.anchor.dyev3_chart_stage_colheader center 
+		dtext.justify.dyev3_chart_stage_colheader center
+		
+		dtext.anchor.dyev3_chart_stage_value center
+		dtext.justify.dyev3_chart_stage_value center
+		
+		dtext.anchor.dyev3_chart_stage_comp center
+		dtext.justify.dyev3_chart_stage_comp center
+		dtext.font_size.dyev3_chart_stage_comp -4
+		dtext.fill.dyev3_chart_stage_comp grey
+	
+		line.fill.dyev3_chart_stage_line_sep grey
+
+		dbutton.shape.dyev3_action_half outline
+		dbutton.fill.dyev3_action_half {}
+		dbutton.disabledfill.dyev3_action_half {}
+		dbutton.width.dyev3_action_half [dui platform rescale_x 7]
+		dbutton.outline.dyev3_action_half white
+		dbutton.disabledoutline.dyev3_action_half $disabled_colour
+		dbutton.bwidth.dyev3_action_half $half_button_width
+		dbutton.bheight.dyev3_action_half 125
+		dbutton_symbol.pos.dyev3_action_half {0.2 0.5} 
+		dbutton_label.pos.dyev3_action_half {0.6 0.5}
+		dbutton_label.width.dyev3_action_half [expr {$half_button_width-75}]
+		
+		#text_tag.foregroud.which_shot black
+		text_tag.font.dyev3_which_shot "[dui font get $::DSx_settings(font_name) 15]"
+		text_tag.justify.dyev3_which_shot center
+		
+		text_tag.justify.dyev3_profile_title center
+		
+		text_tag.foreground.dyev3_section $::DSx_settings(font_colour)
+		text_tag.font.dyev3_section "[dui font get $::DSx_settings(font_name) 17]" 
+		text_tag.spacing1.dyev3_section [dui platform rescale_y 20]
+		
+		text_tag.foreground.dyev3_field $::DSx_settings(font_colour) 
+		text_tag.lmargin1.dyev3_field [dui platform rescale_x 35] 
+		text_tag.lmargin2.dyev3_field [dui platform rescale_x 45]
+		
+		text_tag.foreground.dyev3_value #4e85f4
+		
+		text_tag.foreground.dyev3_compare grey
+		
+		text_tag.font.dyev3_field_highlighted "[dui font get $::DSx_settings(font_name) 15]"
+		text_tag.background.dyev3_field_highlighted darkgrey
+		text_tag.font.dyev3_field_nonhighlighted "[dui font get $::DSx_settings(font_name) 15]"
+		text_tag.background.dyev3_field_nonhighlighted {}	
+	}]
+
 	### DE1APP SPLASH PAGE ###
 	#	add_de1_variable "splash" 1280 1200 -justify center -anchor "center" -font [::plugins::DGUI::get_font $::plugins::DGUI::font 12] \
 	#		-fill $::plugins::DYE::settings(orange) -textvariable {$::plugins::DGUI::db_progress_msg}
@@ -259,7 +448,7 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 			-tags launch_dye_next -symbol $settings(describe_icon) -symbol_pos {0.01 0.5} -symbol_anchor w -symbol_justify left \
 			-symbol_font_size 28 -labelvariable {$::plugins::DYE::next_shot_desc} -label_pos {0.575 0.5} -label_anchor center \
 			-label_justify center -label_font_size -2 -label_fill $settings(shot_desc_font_color) -label_width 700 \
-			-command [list dui page load DYE next]
+			-command [list ::plugins::DYE::open -which_shot next]
 	}
 	
 	# Icon and summary of the current (last) shot description below the shot chart and steam chart (right side)
@@ -272,8 +461,7 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 			-tags launch_dye_last -symbol $settings(describe_icon) -symbol_pos {0.99 0.5} -symbol_anchor e -symbol_justify right \
 			-symbol_font_size 28 -labelvariable {$::plugins::DYE::last_shot_desc} -label_pos {0.45 0.5} -label_anchor center \
 			-label_justify center -label_font_size -2 -label_fill $settings(shot_desc_font_color) -label_width 700 \
-			-command { if { $::settings(history_saved) == 1 && [info exists ::DSx_settings(live_graph_time)] } {
-					dui page load DYE current }}
+			-command { if { $::settings(history_saved) == 1 && [info exists ::DSx_settings(live_graph_time)] } { ::plugins::DYE::open -which_shot last }}
 	}
 		
 	### HISTORY VIEWER PAGE ###
@@ -340,7 +528,7 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 
 	set widgets(describe_from_sleep) [dui add dbutton saver {*}$sleep_describe_button_coords -tags saver_to_dye \
 		-symbol $sleep_describe_symbol -symbol_pos {0.5 0.5} -symbol_font_size 45 -symbol_anchor center -symbol_justify center \
-		-command [list dui page load DYE current]]
+		-command [list ::plugins::DYE::open -which_shot last]]
 	
 	### DEBUG TEXT IN SOME PAGES ###
 	# Show the debug text variable. Set it to any value I want to see on screen at the moment.

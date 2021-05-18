@@ -115,6 +115,8 @@ proc make_de1_dir {srcdir destdirs} {
         gui.tcl *
         history_viewer.tcl *
         dui.tcl *
+		metadata.tcl *
+		app_metadata.tcl *
         machine.tcl *
         utils.tcl *
         main.tcl *
@@ -913,6 +915,8 @@ proc make_de1_dir {srcdir destdirs} {
         saver/2560x1600/rainbow_dj.jpg *
 
         profiles/adaptive_allonge.tcl *
+        profiles/best_practice.tcl *
+        profiles/best_practice_light.tcl *
         profiles/flow_calibration.tcl *
         profiles/7g\ basket.tcl *
         profiles/cleaning_forward_flush.tcl *
@@ -1067,10 +1071,10 @@ proc make_de1_dir {srcdir destdirs} {
             if {([info exists lmanifest_sha($file)] == 1) && ($mtime ==  $mtime_saved)} {
                 set sha256 $lmanifest_sha($file)
             } else {
-                puts -nonewline "Calculating SHA256 for $source : "
+                puts -nonewline "Calculating SHA256 for $source ... "
                 set sha256 [calc_sha $source]
 
-                puts $sha256
+                #puts $sha256
                 if {[ifexists lmanifest_sha($file)] == $sha256} {
                     puts "Timestamp changed, file identical, skipping"
                 } else {
@@ -1103,8 +1107,9 @@ proc make_de1_dir {srcdir destdirs} {
                 }
             }
 
-            puts "$file -> $destdir/"
+            puts "Copying $file -> $destdir/"
             file copy -force $source $dest
+            #puts "- done copying $file -> $destdir/"
         }
 
         foreach k [array names lmanifest_sha] {
@@ -1135,6 +1140,7 @@ proc make_de1_dir {srcdir destdirs} {
     }
 
     write_file "$srcdir/complete_manifest.txt" [join [lsort -unique $complete_manifest] \n]
+    return $files_copied
 }
 
 proc write_binary_file {filename data} {
@@ -1147,7 +1153,7 @@ proc write_binary_file {filename data} {
 
 
 
-proc calc_sha {source} {
+proc calc_sha_obsolete {source} {
 
     #return [::crc::crc32 -filename $source]
     return [::sha2::sha256 -hex -filename $source]

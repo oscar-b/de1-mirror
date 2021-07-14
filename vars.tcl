@@ -908,7 +908,8 @@ proc return_off_or_temperature {in} {
 }
 
 proc return_stop_at_weight_measurement {in} {
-	if {$in == 0} {
+
+	if {$in == 0 || $in == ""} {
 		return [translate "off"]
 	} else {
 
@@ -1104,7 +1105,7 @@ proc drink_weight_text {} {
 		return ""
 	}
 
-	return [return_weight_measurement $::settings(drink_weight)]
+	return [return_weight_measurement $::settings(running_weight)]
 }
 
 proc dump_stack {args} {
@@ -1521,6 +1522,10 @@ proc backup_settings {} {
 	#update_de1_explanation_chart
 }
 
+proc refresh_skin_directories {} {
+	unset -nocomplain ::skin_directories_cache
+}
+
 proc skin_directories {} {
 	if {[info exists ::skin_directories_cache] == 1} {
 		return $::skin_directories_cache
@@ -1533,6 +1538,13 @@ proc skin_directories {} {
 			continue
 		}
 	    
+		if {[ifexists ::settings(show_only_most_popular_skins)] == 1 && [ifexists ::settings(most_popular_skins)] != ""} {
+			puts "'$d' '[ifexists ::settings(most_popular_skins)]'"
+			if {[lsearch -exact [ifexists ::settings(most_popular_skins)] $d ] == -1} {
+				continue
+			}
+		}
+
 	    set fn "[homedir]/skins/$d/skin.tcl"
 	    set skintcl [read_file $fn]
 	    #set skintcl ""
@@ -1578,6 +1590,7 @@ proc fill_skin_listbox {} {
 		if {$d == "CVS" || $d == "example"} {
 			continue
 		}
+
 		$widget insert $cnt [translate $d]
 		if {$::settings(skin) == $d} {
 			set ::current_skin_number $cnt
@@ -2374,10 +2387,20 @@ proc save_settings_and_ask_to_restart_app {} {
 	message_page [translate "Please quit and restart this app to apply your changes."] [translate "Quit"];
 }
 
-proc message_page {msg buttonmsg} {
+proc message_page {msg buttonmsg {longertxt {}} } {
+
 	if {[catch {
+
+		if {$longertxt == ""} {
+			.can coords $::message_label [list [rescale_x_skin 1280] [rescale_y_skin 800]]
+		} else {
+			# if there is a longer message, then move the larger font label up, to make room for it
+			.can coords $::message_label [list [rescale_x_skin 1280] [rescale_y_skin 550]]
+		}
+
 		.can itemconfigure $::message_label -text $msg
 		.can itemconfigure $::message_button_label -text $buttonmsg
+		.can itemconfigure $::message_longertxt -text $longertxt
 		set_next_page off message; 
 		page_show message
 	} err] != 0} {
@@ -2515,6 +2538,9 @@ proc select_profile { profile } {
 	set ::settings(maximum_pressure) 0
 	set ::settings(maximum_flow) 0
 
+	# 
+	unset -nocomplain ::settings(profile_video_help)
+
 	load_settings_vars $fn
 
 	set ::settings(profile_filename) $profile
@@ -2548,6 +2574,7 @@ proc select_profile { profile } {
 	# profile needs to sent right away to the DE1, in case the person taps the GH button to start espresso w/o leaving settings
 	send_de1_settings_soon
 }
+
 
 set preview_profile_counter 0
 proc preview_profile {} {
@@ -2715,6 +2742,7 @@ proc profile_has_not_changed_set args {
 
 proc load_settings_vars {fn} {
 
+
 	msg -NOTICE "load_settings_vars $fn"
 
 	# default to no temp steps, so as to migrate older profiles that did not have this setting, and not accidentally enble this feature on them
@@ -2734,6 +2762,7 @@ proc load_settings_vars {fn} {
 			set temp_settings($k) $v
 		}
 	}
+
 
 	if {[ifexists temp_settings(settings_profile_type)] == "settings_2c" && [ifexists temp_settings(final_desired_shot_weight)] != "" && [ifexists temp_settings(final_desired_shot_weight_advanced)] == "" } {
 		msg -NOTICE "load_settings_vars: Using a default" \
@@ -2764,6 +2793,10 @@ proc load_settings_vars {fn} {
 		set temp_settings(saver_brightness) 0		
 	}
 
+
+	# we accidentally saved water temp in profiles for about a year and then decided we didn't want that, so remove it from profiles if it's there
+	unset -nocomplain temp_settings(water_temperature) 
+
 	catch {
 		array set ::settings [array get temp_settings]
 	}
@@ -2772,6 +2805,7 @@ proc load_settings_vars {fn} {
 	set ::setting(disable_long_press) 1
 
 	update_de1_explanation_chart
+
 
 }
 
@@ -2794,7 +2828,7 @@ proc save_settings_vars {fn varlist} {
 }
 
 proc profile_vars {} {
- 	return { advanced_shot espresso_temperature_steps_enabled author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature espresso_temperature_0 espresso_temperature_1 espresso_temperature_2 espresso_temperature_3 settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes water_temperature final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced profile_title profile_language preinfusion_stop_pressure profile_hide final_desired_shot_volume_advanced_count_start beverage_type maximum_pressure maximum_pressure_range_advanced maximum_flow_range_advanced maximum_flow maximum_pressure_range_default maximum_flow_range_default}
+ 	return { advanced_shot espresso_temperature_steps_enabled author espresso_hold_time preinfusion_time espresso_pressure espresso_decline_time pressure_end espresso_temperature espresso_temperature_0 espresso_temperature_1 espresso_temperature_2 espresso_temperature_3 settings_profile_type flow_profile_preinfusion flow_profile_preinfusion_time flow_profile_hold flow_profile_hold_time flow_profile_decline flow_profile_decline_time flow_profile_minimum_pressure preinfusion_flow_rate profile_notes final_desired_shot_volume final_desired_shot_weight final_desired_shot_weight_advanced tank_desired_water_temperature final_desired_shot_volume_advanced profile_title profile_language preinfusion_stop_pressure profile_hide final_desired_shot_volume_advanced_count_start beverage_type maximum_pressure maximum_pressure_range_advanced maximum_flow_range_advanced maximum_flow maximum_pressure_range_default maximum_flow_range_default}
 }
 
 
@@ -2830,10 +2864,24 @@ proc save_profile {} {
 		set profile_filename $::settings(profile_filename) 
 	} else {
 		# if they change the description of the profile, then save it to a new name
-		set profile_filename [clock seconds]
+		# replace prior usage of unformatted seconds with sanitized profile name and append with formatted time if file exists
+		
+		set profile_filename $::settings(profile_title)
+		set profile_timestamp [clock format [clock seconds] -format %Y%m%d_%H%M%S] 
+		regsub -all {\s+} $profile_filename _ profile_filename 
+		regsub -all {\/+} $profile_filename __ profile_filename 
+		regsub -all {[\u0000-\u001f;:?<>(){}\[\]\|!@#$%^&*-\+=~`,.'"]+} $profile_filename "" profile_filename
+		set profile_filename [string range $profile_filename 0 59]
+		if {[file exists "[homedir]/profiles/${profile_filename}.tcl"] == 1} {
+			append profile_filename "_" $profile_timestamp
+			}
 	}
 	
 	set fn "[homedir]/profiles/${profile_filename}.tcl"
+	
+	if {[write_file $fn ""] == 0} {
+		set fn "[homedir]/profiles/${profile_timestamp}.tcl"
+		}
 
 	# set the title back to its title, after we display SAVED for a second
 	# moves the cursor to the end of the seletion after showing the "saved" message.
@@ -2999,6 +3047,19 @@ proc seconds_text {num} {
 		return [translate "1 minute"]
 	} else {
 		return [subst {$num [translate "seconds"]}]
+	}
+}
+
+
+proc seconds_text_abbreviated {num} {
+	if {$num == 0} {
+		return [translate "off"]
+	} elseif {$num == 1} {
+		return [subst {$num [translate "sec"]}]
+	} elseif {$num == 60} {
+		return [translate "1 min"]
+	} else {
+		return [subst {$num [translate "sec"]}]
 	}
 }
 
@@ -3265,6 +3326,14 @@ proc de1_version_string {} {
 		append version ", [translate available]=[ifexists ::de1(Firmware_file_Version)]"
 	}
 
+	if { [package version de1app] ne ""  } {
+		append version ", [translate app]=v[package version de1app]"
+	}
+
+	if { [app_updates_policy_as_text] ne ""  } {
+		append version ", [translate {branch}]=[app_updates_policy_as_text]"
+	}
+	
 	if {[ifexists v(BLE_Sha)] != "" && $::settings(firmware_sha) != [ifexists v(BLE_Sha)] } {
 		set ::settings(firmware_sha) $v(BLE_Sha)
 		save_settings
@@ -3383,7 +3452,7 @@ proc return_steam_flow_calibration {steam_flow} {
 	set in [expr {$steam_flow / 100.0}]
 
 	if {$::settings(enable_fluid_ounces) != 1} {
-		return [subst {[round_to_two_digits $in] [translate "mL/s"]}]
+		return [subst {[round_to_one_digits $in] [translate "mL/s"]}]
 	} else {
 		return [subst {[round_to_two_digits [ml_to_oz $in]] oz/s}]
 	}
@@ -3617,4 +3686,16 @@ proc app_updates_policy_as_text {} {
  	return [translate $progname]
 }
 
+proc set_resolution_height_from_width { {discard {}} } {
+	set ::settings(screen_size_height) [expr {int($::settings(screen_size_width)/1.6)}]
 
+	# check the width and make sure it is a multiple of 160. If not, pick the nearest setting.
+	for {set x [expr {$::settings(screen_size_width) - 0}]} {$x <= 2800} {incr x} {
+		set ratio [expr {$x / 160.0}]
+		if {$ratio == int($ratio)} {
+			set ::settings(screen_size_width) $x
+			set ::settings(screen_size_height) [expr {int($::settings(screen_size_width)/1.6)}]
+			break
+		}
+	}
+}

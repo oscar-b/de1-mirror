@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.06
+	variable version 1.08
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -57,7 +57,7 @@ namespace eval ::plugins::SDB {
 		drink_weight {"Drink weight" "Drink weights" "Weight" "Weights" \
 			extraction shot "" "" "" drink_weight numeric 0 500 1 36 1.0 10.0}
 		drink_tds {"Total Dissolved Solids" "Total Dissolved Solids %" "TDS" "TDS" \
-			extraction shot "" "" "" drink_tds numeric 0 15 2 8 0.01 0.1}
+			extraction shot "" "" "" drink_tds numeric 0 25 2 8 0.01 0.1}
 		drink_ey {"Extraction Yield" "Extraction Yields %" "EY" "EYs" \
 			extraction shot "" "" "" drink_ey numeric 0 30 2 20 0.1 1.0}	
 		espresso_enjoyment {"Enjoyment (0-100)" "Enjoyments" "Enjoyment" "Enjoyment" \
@@ -90,6 +90,7 @@ proc ::plugins::SDB::main {} {
 	msg -INFO "Starting the 'Shots DataBase' plugin"
 	if { ![info exists ::debugging] } { set ::debugging 0 }
 	
+	init_sdb_metadata
 	set is_created [create]	
 	trace add execution app_exit {enter} { ::plugins::SDB::db_close }
 	
@@ -238,6 +239,705 @@ proc ::plugins::SDB::string2sql { text } {
 	#return "'[regsub -all {'} $text {''}]'"
 	return "'[string map {' ''} $text]'"
 } 
+
+
+proc ::plugins::SDB::init_sdb_metadata {} {
+	metadata dictionary add sdb_table
+	metadata dictionary add sdb_column
+	metadata dictionary add sdb_lookup_table
+	metadata dictionary add sdb_lookup_order_by
+	metadata dictionary add sdb_type_column1
+	metadata dictionary add sdb_type_column2
+
+	foreach field [metadata fields -domain shot -category {id description}] {
+		metadata set $field [list sdb_table shot sdb_column $field]
+	}
+	metadata set profile_title [list sdb_table shot sdb_column profile_title]
+#	metadata set bean_type {sdb_type_column1 bean_brand}
+#	metadata set grinder_setting {sdb_type_column1 grinder_model}
+	
+	metadata add drinker_name end {
+		domain shot
+		category description
+		section people
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Drinker"
+		name_plural "Drinkers"
+		short_name "Drinker" 
+		short_name_plural "Drinkers"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column drinker_name
+	}
+	metadata add repository_links end {
+		domain shot
+		category description
+		section id
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Repository link"
+		name_plural "Repository links"
+		short_name "Repo link" 
+		short_name_plural "Repo links"
+		propagate 0
+		data_type complex
+		required 0
+		length list
+		default_dui_widget dcombobox
+	}
+	
+	return
+	
+	metadata add bean_variety end {
+		domain shot
+		category description
+		section beans
+		subsection beans_desc
+		owner_type plugin
+		owner DYE
+		name "Beans variety"
+		name_plural "Beans varieties"
+		short_name "Variety" 
+		short_name_plural "Varieties"
+		propagate 1
+		data_type category
+		required 0
+		length list
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column bean_variety
+		sdb_lookup_table V_variety_all
+	}
+	metadata add bean_country end {
+		domain shot
+		category description
+		section beans
+		subsection beans_desc
+		owner_type plugin
+		owner DYE
+		name "Beans country"
+		name_plural "Beans countries"
+		short_name "Country" 
+		short_name_plural "Countries"
+		propagate 1
+		data_type category
+		required 0
+		length list
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column bean_country
+		sdb_lookup_table V_country_all 
+	}
+	# 		sdb_lookup_order_by
+	metadata add bean_region end {
+		domain shot
+		category description
+		section beans
+		subsection beans_desc
+		owner_type plugin
+		owner DYE
+		name "Beans region"
+		name_plural "Beans regions"
+		short_name "Region" 
+		short_name_plural "Regions"
+		propagate 1
+		data_type category
+		required 0
+		length list
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column bean_region
+	}
+	metadata add bean_altitude end {
+		domain shot
+		category description
+		section beans
+		subsection beans_desc
+		owner_type plugin
+		owner DYE
+		name "Beans altitude"
+		name_plural "Beans altitudes"
+		short_name "Altitude" 
+		short_name_plural "Altitudes"
+		propagate 1
+		data_type text
+		required 0
+		length 1
+		default_dui_widget entry
+	}
+	metadata add bean_producer end {
+		domain shot
+		category description
+		section beans
+		subsection beans_desc
+		owner_type plugin
+		owner DYE
+		name "Beans producer"
+		name_plural "Beans producers"
+		short_name "Producer" 
+		short_name_plural "Producers"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column bean_producer
+	}
+	metadata add bean_processing end {
+		domain shot
+		category description
+		section beans
+		subsection beans_desc
+		owner_type plugin
+		owner DYE
+		name "Beans processing"
+		name_plural "Beans processings"
+		short_name "Processing" 
+		short_name_plural "Processings"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column bean_processing
+		sdb_lookup_table V_processing_all
+	}
+
+	metadata add bean_harvest roast_level {
+		domain shot
+		category description
+		section beans
+		subsection beans_batch
+		owner_type plugin
+		owner DYE
+		name "Beans harvest"
+		name_plural "Beans harvests"
+		short_name "Harvest" 
+		short_name_plural "Harvests"
+		propagate 1
+		data_type text
+		required 0
+		length 1
+		default_dui_widget entry
+		sdb_table shot
+		sdb_column bean_harvest
+	}
+	metadata add bean_price bean_harvest {
+		domain shot
+		category description
+		section beans
+		subsection beans_batch
+		owner_type plugin
+		owner DYE
+		name "Beans price"
+		name_plural "Beans prices"
+		short_name "Price" 
+		short_name_plural "Prices"
+		propagate 1
+		data_type number
+		min 0.0
+		max 1000000.0
+		default 10.0
+		smallincrement 0.10
+		bigincrement 1.0
+		n_decimals 2
+		measure_unit ""
+		required 0
+		length 1
+		default_dui_widget dclicker
+		sdb_table shot
+		sdb_column bean_price
+	}	
+	metadata add bean_quality_score bean_price {
+		domain shot
+		category description
+		section beans
+		subsection beans_batch
+		owner_type plugin
+		owner DYE
+		name "Quality score"
+		name_plural "Quality score"
+		short_name "Quality" 
+		short_name_plural "Qualities"
+		propagate 1
+		data_type number
+		min 0
+		max 100
+		default 85
+		smallincrement 1
+		bigincrement 10
+		n_decimals 0
+		measure_unit ""
+		required 0
+		length 1
+		default_dui_widget dclicker
+		sdb_table shot
+		sdb_column bean_quality_score
+	}
+	metadata add bean_freeze_date bean_quality_score {
+		domain shot
+		category description
+		section beans
+		subsection beans_batch
+		owner_type plugin
+		owner DYE
+		name "Freeze date"
+		name_plural "Freeze dates"
+		short_name "Frozen at" 
+		short_name_plural "Frozen at"
+		propagate 1
+		data_type date
+		required 0
+		length 1
+		default_dui_widget entry
+		sdb_table shot
+		sdb_column bean_freeze_date
+	}		
+	metadata add bean_unfreeze_date bean_freeze_date {
+		domain shot
+		category description
+		section beans
+		subsection beans_batch
+		owner_type plugin
+		owner DYE
+		name "Unfreeze date"
+		name_plural "Unfreeze dates"
+		short_name "Unfrozen at" 
+		short_name_plural "Unfrozen at"
+		propagate 1
+		data_type date
+		required 0
+		length 1
+		default_dui_widget entry
+		sdb_table shot
+		sdb_column bean_unfreeze_date
+	}
+	metadata add bean_open_date bean_unfreeze_date {
+		domain shot
+		category description
+		section beans
+		subsection beans_batch
+		owner_type plugin
+		owner DYE
+		name "Open date"
+		name_plural "Open dates"
+		short_name "Open at" 
+		short_name_plural "Open at"
+		propagate 1
+		data_type date
+		required 0
+		length 1
+		default_dui_widget entry
+		sdb_table shot
+		sdb_column bean_open_date
+	}
+	metadata add grinder_burrs end {
+		domain shot
+		category description
+		section equipment
+		subsection grinder
+		owner_type plugin
+		owner DYE
+		name "Grinder burrs"
+		name_plural "Grinder burrs"
+		short_name "Burrs" 
+		short_name_plural "Burrs"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column grinder_burrs
+	}
+	metadata add grinder_rpm end {
+		domain shot
+		category description
+		section equipment
+		subsection grinder
+		owner_type plugin
+		owner DYE
+		name "Grinder RPM"
+		name_plural "Grinder RPM"
+		short_name "RPM" 
+		short_name_plural "RPM"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column grinder_rpm
+	}
+	metadata add portafilter_model end {
+		domain shot
+		category description
+		section equipment
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Portafilter"
+		name_plural "Portafilters"
+		short_name "PF" 
+		short_name_plural "PFs"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column portafilter
+	}	
+	metadata add portafilter_basket end {
+		domain shot
+		category description
+		section equipment
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Portafilter basket"
+		name_plural "Portafilter baskets"
+		short_name "Basket" 
+		short_name_plural "Baskets"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column portafilter_basket
+	}
+	metadata add filter_top end {
+		domain shot
+		category description
+		section equipment
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Top filter"
+		name_plural "Top filters"
+		short_name "Top filter" 
+		short_name_plural "Top filters"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column filter_top
+	}	
+	metadata add filter_bottom end {
+		domain shot
+		category description
+		section equipment
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Bottom filter"
+		name_plural "Bottom filters"
+		short_name "Bot. filter" 
+		short_name_plural "Bot. filters"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column filter_bottom
+	}	
+	metadata add distribution_tool end {
+		domain shot
+		category description
+		section equipment
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Distribution tool"
+		name_plural "Distribution tools"
+		short_name "Dist. tool" 
+		short_name_plural "Dist. tools"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column distribution_tool
+	}
+	metadata add distribution_technique end {
+		domain shot
+		category description
+		section equipment
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Distrib. technique"
+		name_plural "Distrib. techniques"
+		short_name "Dist. tech." 
+		short_name_plural "Dist. techs."
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column distribution_technique
+	}
+	metadata add tamper end {
+		domain shot
+		category description
+		section equipment
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Tamper"
+		name_plural "Tampers"
+		short_name "Tamper" 
+		short_name_plural "Tampers"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column tamper
+	}
+	metadata add tamping_technique end {
+		domain shot
+		category description
+		section equipment
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Tamping technique"
+		name_plural "Tamping techniques"
+		short_name "Tamp tech." 
+		short_name_plural "Tamp techs."
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column tamping_technique
+	}
+	metadata add calc_ey_from_tds drink_weight {
+		domain shot
+		category description
+		section extraction
+		subsection drink
+		owner_type plugin
+		owner DYE
+		name "Calculate EY from TDS"
+		name_plural "Calculate EYs from TDS"
+		short_name "Calc. EY" 
+		short_name_plural "Calc. EYs"
+		propagate 0
+		data_type boolean
+		default 1
+		required 1
+		length 1
+		default_dui_widget dcheckbox
+		sdb_table shot
+		sdb_column calc_ey_from_tds 
+	}	
+	metadata add drink_brix drink_tds {
+		domain shot
+		category description
+		section extraction
+		subsection drink
+		owner_type plugin
+		owner DYE
+		name "Brix"
+		name_plural "Brix"
+		short_name "Brix" 
+		short_name_plural "Brix"
+		propagate 0
+		data_type number
+		min 0.0
+		max 25.0
+		default 8.0
+		smallincrement 0.01
+		bigincrement 0.1
+		n_decimals 2
+		measure_unit %
+		required 0
+		length 1
+		default_dui_widget dclicker
+		sdb_table shot
+		sdb_column drink_brix
+	}
+	
+	metadata add refractometer_model end {
+		domain shot
+		category description
+		section equipment
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Refractometer model"
+		name_plural "Refractometer models"
+		short_name "Refractometer" 
+		short_name_plural "Refractometers"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column refractometer_model
+	}
+	metadata add refractometer_temp drink_brix {
+		domain shot
+		category description
+		section extraction
+		subsection drink
+		owner_type plugin
+		owner DYE
+		name "Refract. temperature"
+		name_plural "Refract. temperatures"
+		short_name "Refr. temp." 
+		short_name_plural "Refr. temps."
+		propagate 0
+		data_type number
+		min 10.0
+		max 80.0
+		default 24.0
+		smallincrement 0.1
+		bigincrement 5
+		n_decimals 1
+		measure_unit "ºC"
+		required 0
+		length 1
+		default_dui_widget dclicker
+		sdb_table shot
+		sdb_column refractometer_temp
+	}
+	metadata add refractometer_technique refractometer_temp {
+		domain shot
+		category description
+		section extraction
+		subsection drink
+		owner_type plugin
+		owner DYE
+		name "Refract. technique"
+		name_plural "Refract. techniques"
+		short_name "Refr. tech." 
+		short_name_plural "Refr. techs."
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column refractometer_technique
+	}
+	
+	metadata add final_beverage_type end {
+		domain shot
+		category description
+		section beverage
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Beverage type"
+		name_plural "Beverage types"
+		short_name "Beverage" 
+		short_name_plural "Beverage"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column final_beverage_type
+	}
+	metadata add bev_added_liquid_type end {
+		domain shot
+		category description
+		section beverage
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Added liquid"
+		name_plural "Added liquids"
+		short_name "Liquid" 
+		short_name_plural "Liquids"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column bev_added_liquid_type
+	}
+	metadata add bev_added_liquid_weight end {
+		domain shot
+		category description
+		section beverage
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Added liquid weight"
+		name_plural "Added liquid weights"
+		short_name "Liquid weight" 
+		short_name_plural "Liquid weights"
+		propagate 1
+		data_type number
+		min 0.0
+		max 500.0
+		default 50.0
+		smallincrement 1.0
+		bigincrement 10.0
+		n_decimals 1
+		measure_unit g
+		required 0
+		length 1
+		default_dui_widget dclicker
+		sdb_table shot
+		sdb_column bev_added_liquid_weight
+	}
+	metadata add bev_added_liquid_temp end {
+		domain shot
+		category description
+		section beverage
+		subsection ""
+		owner_type plugin
+		owner DYE
+		name "Added liquid temperature"
+		name_plural "Added liquid temperatures"
+		short_name "Liquid temp." 
+		short_name_plural "Liquid temps."
+		propagate 1
+		data_type number
+		min 0.0
+		max 100.0
+		default 50.0
+		smallincrement 1.0
+		bigincrement 10.0
+		n_decimals 1
+		measure_unit "ºC"
+		required 0
+		length 1
+		default_dui_widget dclicker
+		sdb_table shot
+		sdb_column bev_added_liquid_temp
+	}
+	
+	
+#	foreach field {bean_country bean_region bean_variety bean_processing} {
+#		metadata set $field [list sdb_lookup_table [string range $field 5 end]]
+#	}
+}
 
 # Looks up fields metadata in the data dictionary. 'what' can be a list with multiple items, then a list is returned.
 proc ::plugins::SDB::field_lookup { field {what name} } {
@@ -401,18 +1101,20 @@ proc ::plugins::SDB::load_shot { filename } {
 	
 	array set file_sets $file_props(settings)
 	
-	set text_fields [::plugins::SDB::field_names "category text long_text date" "shot"]
-	lappend text_fields profile_title skin beverage_type repository_links
+	#set text_fields [::plugins::SDB::field_names "category text long_text date" "shot"]
+	set text_fields [metadata fields -domain shot -category description -data_type {category text long_text date complex}]
+	lappend text_fields profile_title skin beverage_type
 	foreach field_name $text_fields {
-		if { [info exists file_sets($field_name)] == 1 } {
+		if { [info exists file_sets($field_name)] } {
 			set shot_data($field_name) [string trim $file_sets($field_name)]
 		} else {
 			set shot_data($field_name) {}
 		}
 	}
 	
-	foreach field_name [::plugins::SDB::field_names "numeric" "shot"] {
-		if { [info exists file_sets($field_name)] == 1 && $file_sets($field_name) > 0 } {
+	#  [::plugins::SDB::field_names "numeric" "shot"] 
+	foreach field_name [metadata fields -domain shot -category description -data_type {number boolean}] {
+		if { [info exists file_sets($field_name)]  && $file_sets($field_name) > 0 } {
 			set shot_data($field_name) $file_sets($field_name)
 		} else {
 			# We use {} instead of 0 to get DB NULLs and empty values in entry textboxes
@@ -457,7 +1159,7 @@ proc ::plugins::SDB::modify_shot_file { path arr_new_settings { backup_file {} }
 	if { $backup_file eq {} } {
 		set backup_file $settings(backup_modified_shot_files)
 	}
-msg "modify_shot_file, path=$path"	
+	#msg -INFO [namespace current] "modify_shot_file: path='$path'"	
 	set path [get_shot_file_path $path]
 	
 	array set past_props [encoding convertfrom utf-8 [read_binary_file $path]] 
@@ -495,7 +1197,7 @@ msg "modify_shot_file, path=$path"
 				} else {
 					msg "new_settings($key)='$new_settings($key)' malformed or other_equipment doesn't exist, when modifying shot file '[file tail $path]'"
 					continue
-				}								
+				}
 			} else {
 				msg "key $key in new_settings not recognized when modifying shot file '[file tail $path]'"
 				continue 
@@ -812,6 +1514,225 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 			s.my_name, s.drinker_name, s.beverage_type, s.skin, s.visualizer_link
 		FROM shot s;
 		}
+	}
+
+	# v5 adds the many new description fields.
+	if { $disk_db_version <= 4 } {
+		set progress_msg [translate "Upgrading DB to v5"]
+		if { $update_screen == 1 } update
+		
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_country TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_region TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_altitude TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_producer TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_variety TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_processing TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_harvest TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_price REAL } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_quality_score INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_freeze_date DATE } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_unfreeze_date DATE } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_open_date DATE } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN grinder_burrs TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN grinder_rpm TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN portafilter_model TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN portafilter_basket TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN filter_top TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN filter_bottom TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN distribution_tool TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN distribution_technique TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tamper TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tamping_technique TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN calc_ey_from_tds INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN drink_brix REAL } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN refractometer_model TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN refractometer_temp REAL } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN final_beverage_type TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_type TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_weight REAL } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_temp REAL } }
+	
+		db eval {			
+			CREATE TABLE IF NOT EXISTS country (code TEXT(2) PRIMARY KEY, bean_country TEXT(50) UNIQUE NOT NULL);
+			CREATE TABLE IF NOT EXISTS variety (bean_variety TEXT(50) PRIMARY KEY, species TEXT(20), regions TEXT);
+			CREATE TABLE IF NOT EXISTS processing (bean_processing TEXT(50) PRIMARY KEY, sort INTEGER);
+			
+			CREATE VIEW IF NOT EXISTS V_country_all AS
+			SELECT DISTINCT bean_country FROM 
+				(SELECT bean_country FROM shot WHERE TRIM(COALESCE(bean_country,''))<>''
+				GROUP BY bean_country
+				UNION ALL
+				SELECT bean_country FROM country)
+			ORDER BY bean_country;
+			
+			CREATE VIEW IF NOT EXISTS V_variety_all AS
+			SELECT DISTINCT bean_variety FROM 
+				(SELECT bean_variety FROM shot WHERE TRIM(COALESCE(bean_variety,''))<>''
+				GROUP BY bean_variety
+				UNION ALL
+				SELECT bean_variety FROM variety)
+			ORDER BY bean_variety;
+			
+			CREATE VIEW IF NOT EXISTS V_processing_all AS
+			SELECT DISTINCT bean_processing FROM 
+			(SELECT bean_processing, sort FROM processing
+			UNION ALL
+			SELECT s.bean_processing, 99999 FROM shot s 
+				LEFT JOIN processing p ON s.bean_processing=p.bean_processing
+			WHERE TRIM(COALESCE(s.bean_processing,''))<>'' 
+				AND p.bean_processing IS NULL
+			GROUP BY s.bean_processing
+			)
+			ORDER BY sort;
+		}
+		
+		# See https://3.basecamp.com/3671212/buckets/7351439/messages/3793185604
+		catch { db eval { 
+			INSERT INTO country (code, bean_country) VALUES ('AU','Australia'),('BO','Bolivia'), ('BR','Brazil'), ('BI','Burundi'),
+				('CN','China'), ('CO','Colombia'), ('CD','Congo'), ('CR','Costa Rica'), ('CU','Cuba'), ('DO','Dominican Republic'),
+				('TL','East Timor'),('EC','Ecuador'), ('SV','El Salvador'), ('ET','Ethiopia'), ('GT','Guatemala'), ('HT','Haiti'), ('HN','Honduras'),
+				('IN','India'), ('ID','Indonesia'), ('JM','Jamaica'), ('KE','Kenya'), ('MY','Malaysia'),('MW','Malawi'), ('MX','Mexico'),
+				('MM', 'Myanmar'), ('NI','Nicaragua'), ('PA','Panama'), ('PG','Papua New Guinea'), ('PE','Peru'), ('PH','Philippines (the)'),
+				('RW','Rwanda'), ('ES','Spain'), ('TW', 'Taiwan'), ('TZ','Tanzania'), ('TH','Thailand'), ('UG','Uganda'), 
+				('US','United States of America'), ('VE','Venezuela'), ('VN','Vietnam'), ('YE','Yemen'), ('ZM','Zambia');
+			}}		
+		
+		# Sources:
+		# https://en.wikipedia.org/wiki/List_of_coffee_varieties
+		# https://varieties.worldcoffeeresearch.org/varieties
+		# https://www.trabocca.com/coffee-knowledge/origin/coffee-varieties-library/
+		catch { db eval { 
+			INSERT INTO variety (bean_variety, species, regions) VALUES
+				('74110 (Heirloom)','Arabica','Ethiopia'),
+				('74112 (Heirloom)','Arabica','Ethiopia'),
+				('Acaia','Arabica','Brazil'),
+				('Anacafe 14','Hybrid',''),
+				('Arusha','Arabica','Mount Meru in Tanzania, and Papua New Guinea'),
+				('Autoctonous varieties','Arabica',''),
+				('Batian','Hybrid',''),
+				('Benguet','Arabica','Philippines'),
+				('Bergendal','Arabica','Indonesia'),
+				('Bernardina','Hybrid','El Salvador'),
+				('Blue Mountain','Arabica','Blue Mountains region of Jamaica. Also grown in Kenya, Hawaii, Haiti, Papua New Guinea (where it is known as PNG Gold) and Cameroon (where it is known as Boyo).'),
+				('Bonifieur','Arabica','Guadeloupe'),
+				('Bourbon','Arabica','Réunion, Rwanda, Latin America.'),
+				('Bourbon Mayaguez 71','Arabica','Rwanda and Burundi'),
+				('Brutte','Arabica',''),
+				('Catisic','Hybrid',''),
+				('Casiopea','Arabica',''),
+				('Castillo','Arabica','Colombia'),
+				('Catimor','Hybrid','Latin America, Indonesia, India, Vietnam, China (Yunnan)'),
+				('Catimor 129','Hybrid',''),
+				('Catuai','Arabica','Latin America'),
+				('Catucai','Arabica','Latin America'),
+				('Caturra','Arabica','Latin and Central America'),
+				('Centroamericano','Arabica','Centroamérica / Costa Rica'),
+				('Costa Rica 95','Hybrid',''),
+				('Cuscatleco','Hybrid',''),
+				('Charrier','Charriera,na','Cameroon'),
+				('Dega (Heirloom)','Arabica','Ethiopia'),
+				('Evaluna','Hybrid',''),
+				('French Mission','Arabica','Africa'),
+				('Fronton','Hybrid','Puerto Rico'),
+				('Geisha','Arabica','Ethiopia, Tanzania, Costa Rica, Panama, Colombia, Peru'),
+				('Harar','Arabica','Ethiopia'),
+				('Harrar Rwanda','Arabica','Rwanda'),
+				('Heirloom','Arabica','Ethopia.'),
+				('H3','Hybrid','Centro America'),
+				('Icatu','Hybrid',''),
+				('Illubabor Forest','Arabica','Ethiopia'),
+				('IAPAR 59','Hybrid',''),
+				('IHCAFE 90','Hybrid',''),
+				('Java','Hybrid','Indonesia'),
+				('Jackson','Arabica','Rwanda and Burundi'),
+				('Jackson 2/1257','Arabica','Rwanda and Burundi'),
+				('K7','Arabica','Africa'),
+				('Kona','Arabica','Hawaii'),
+				('KP423','Arabica','Uganda'),
+				('Kurume (Heirloom)','Arabica','Ethiopia'),
+				('Kudhum (Heirloom)','Arabica','Ethiopia'),
+				('Lempira','Hybrid',''),
+				('Limani','Hybrid','Puerto Rico'),
+				('Limu (Heirloom)','Arabica','Ethiopia'),
+				('Maragaturra','Arabica','Latin America'),
+				('Maragogipe','Arabica','Brazil and Central America'),
+				('Marsellesa','Hybrid',''),
+				('Mayagüez','Arabica','Africa'),
+				('Mibirizi','Arabica','Rwanda and Burundi'),
+				('Milenio','',''),
+				('Mejorado','Arabica','Ecuador'),
+				('Mocha','Arabica','Yemen'),
+				('Mundo Novo','Arabica','Latin America'),
+				('Mundo Maya','Hybrid',''),
+				('Nayarita','Hybrid',''),
+				('Nemaya','Robusta',''),
+				('Nyasaland','Arabica','Uganda'),
+				('Obata Rojo','Hybrid','Brazil, Costa Rica'),
+				('Orange Bourbon','Arabica','Latin America, Vietnam'),
+				('Oro Azteca','Hybrid',''),
+				('Pacamara','Arabica','Latin America'),
+				('Pacas','Arabica','Latin America'),
+				('Pache Colis','Arabica','Latin America'),
+				('Pache Comum','Arabica','Latin America'),
+				('Pink Bourbon','Arabica',''),
+				('Parainema', 'Hybrid', 'Latin America'),
+				('Pop3303/21','Arabica','Rwanda'),
+				('Red Bourbon','Arabica',''),
+				('RAB C15','Hybrid','Rwanda'),
+				('Ruiru 11','Arabica','Kenya'),
+				('S795','Arabica','India, Indonesia'),
+				('Sagada','Arabica','Philippines'),
+				('Santos','Arabica','Brazil'),
+				('Sarchimor','Hybrid','Costa Rica, India'),
+				('Selection 9 (Sln 9)','Arabica','India'),
+				('Sidamo','Arabica','Ethiopia'),
+				('Sidikalang','Arabica','Indonesia'),
+				('SL14','Arabica','Kenya, Uganda'),
+				('SL28','Arabica','Kenya, Malawi, Uganda, Zimbabwe'),
+				('SL34','Arabica','Kenya'),
+				('Starmaya','Hybrid',''),
+				('Sulawesi Toraja Kalossi','Arabica','Indonesia'),
+				('Sumatra Lintong','Arabica','Indonesia'),
+				('Sumatra Mandheling','Arabica','Indonesia'),
+				('Timor, Arabusta','Hybrid','Indonesia'),
+				('T5175','Hybrid',''),
+				('T5296','Hybrid',''),
+				('T8667','Hybrid',''),
+				('Tekisic','Arabica','Latin America'),
+				('Tupi','Hybrid',''),
+				('Typica','Arabica','Worldwide'),
+				('Venecia','Arabica',''),
+				('Villa Sarchi','Arabica',''),
+				('Wolisho (Heirloom)','Arabica','Ethiopia'),
+				('Uganda','Hybrid',''),
+				('Yellow Bourbon','Arabica','Latin America, Vietnam'),
+				('Yellow Catuai','Arabica',''),
+				('Yirgacheffe','Arabica','Ethiopia');		
+			}}
+		
+		catch { db eval { 
+			INSERT INTO processing (bean_processing, sort) VALUES 
+				('Washed', 10),
+				('Natural', 20),
+				('Honey / Pulped natural', 30),
+				('Honey - White', 40),
+				('Honey - Yellow', 50),
+				('Honey - Red', 60),
+				('Honey - Black', 70),
+				('Anaerobic', 80),
+				('Carbonic maceration',90),
+				('Controlled fermentation',100),
+				('Semi-washed / Wet hulled / Giling bash',110),
+				('Kopi Luwak',120),
+				('Jacu Bird',130),
+				('Monsooned',140),
+				('Barrel aged',150),
+				('Added crap',160),
+				('Decaf - CO2', 200),
+				('Decaf - Swiss Water', 210),
+				('Decaf - Direct Solvent (Ethyl Acetate)', 220),
+				('Decaf - Indirect Solvent (Methylene Chloride)', 230);
+			}}
 	}
 	
 	db eval "PRAGMA user_version=$db_version"
@@ -1150,6 +2071,19 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 				beverage_type=$shot(beverage_type)
 				WHERE clock=$shot(clock) }
 			
+#			db eval { UPDATE shot SET archived=COALESCE($shot(comes_from_archive),0),
+#				grinder_dose_weight=$shot(grinder_dose_weight),drink_weight=$shot(drink_weight),
+#				bean_brand=$shot(bean_brand),bean_type=$shot(bean_type),
+#				bean_notes=$shot(bean_notes), roast_date=$shot(roast_date),roast_level=$shot(roast_level),
+#				grinder_model=$shot(grinder_model),grinder_setting=$shot(grinder_setting),
+#				drink_tds=$shot(drink_tds),drink_ey=$shot(drink_ey),
+#				espresso_enjoyment=$shot(espresso_enjoyment),espresso_notes=$shot(espresso_notes),
+#				my_name=$shot(my_name),drinker_name=$shot(drinker_name),scentone=$shot(scentone),
+#				file_modification_date=$shot(file_modification_date),skin=$shot(skin),
+#				beverage_type=$shot(beverage_type),bean_country=$shot(bean_country),bean_region=$shot(bean_region),
+#				bean_altitude=$shot(bean_altitude),bean_producer=$shot(bean_producer),bean_processing=$shot(bean_processing)
+#				WHERE clock=$shot(clock) }
+			
 			if { [info exists shot(other_equipment)] } {
 				update_shot_equipment $shot(clock) $shot(other_equipment) 0
 			}						
@@ -1164,7 +2098,23 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 				$shot(extraction_time),$shot(bean_brand),$shot(bean_type),$shot(bean_notes),$shot(roast_date),
 				$shot(roast_level),$shot(grinder_model),$shot(grinder_setting),$shot(drink_tds),$shot(drink_ey),
 				$shot(espresso_enjoyment),$shot(espresso_notes),$shot(my_name),$shot(drinker_name),$shot(scentone),
-				$shot(file_modification_date),$shot(skin),$shot(beverage_type) ) }
+				$shot(file_modification_date),$shot(skin),$shot(beverage_type)) 
+			}
+			
+#			db eval { INSERT INTO shot (clock,filename,archived,
+#				profile_title,grinder_dose_weight,drink_weight,extraction_time,
+#				bean_brand,bean_type,bean_notes,roast_date,roast_level,grinder_model,grinder_setting,
+#				drink_tds,drink_ey,espresso_enjoyment,espresso_notes,my_name,drinker_name,scentone,
+#				file_modification_date,skin,beverage_type,bean_country,bean_region,bean_altitude,bean_producer,
+#				bean_processing)
+#				VALUES ( $shot(clock),$shot(filename),COALESCE($shot(comes_from_archive),0),
+#				$shot(profile_title),$shot(grinder_dose_weight),$shot(drink_weight),
+#				$shot(extraction_time),$shot(bean_brand),$shot(bean_type),$shot(bean_notes),$shot(roast_date),
+#				$shot(roast_level),$shot(grinder_model),$shot(grinder_setting),$shot(drink_tds),$shot(drink_ey),
+#				$shot(espresso_enjoyment),$shot(espresso_notes),$shot(my_name),$shot(drinker_name),$shot(scentone),
+#				$shot(file_modification_date),$shot(skin),$shot(beverage_type),$shot(bean_country),$shot(bean_region),
+#				$shot(bean_altitude),$shot(bean_producer),$shot(bean_processing)) 
+#			}
 			
 			if { [info exists shot(other_equipment)] && $shot(other_equipment) ne "" } {
 				update_shot_equipment $shot(clock) $shot(other_equipment) 0
@@ -1375,7 +2325,10 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 	set db [get_db]	
 	
 	lassign [::plugins::SDB::field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
-		data_type db_table lookup_table db_type_column1 db_type_column2 
+		data_type db_table lookup_table db_type_column1 db_type_column2
+#	lassign [metadata get $field_name {data_type sdb_table sdb_lookup_table sdb_lookup_order_by sdb_type_column1 sdb_type_column2}] \
+#		data_type db_table lookup_table lookup_order_by db_type_column1 db_type_column2 
+	
 	if { $data_type ne "category" } return
 	if { $use_lookup_table == 1 && $lookup_table eq "" } { set use_lookup_table 0 }	
 	
@@ -1391,7 +2344,8 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 		lappend fields "TRIM($db_type_column1) AS $db_type_column1" 
 		lappend grouping_fields "TRIM($db_type_column1)"
 		if { $use_lookup_table == 1 } {							
-			lassign [::plugins::SDB::field_lookup $db_type_column1 {lookup_table}] type1_db_table 
+			lassign [::plugins::SDB::field_lookup $db_type_column1 {lookup_table}] type1_db_table
+#			set type1_db_table [metadata get $db_type_column1 sdb_lookup_table]
 			if { $type1_db_table ne "" } {
 				append extra_from "LEFT JOIN $type1_db_table ON $db_type_column1=${type1_db_table}.$db_type_column1 "
 			}
@@ -1410,10 +2364,10 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 		}
 	}
 	
-	if { $db_table eq "shot" } {
-		set sql "SELECT [join $fields ,] FROM shot "
-	} elseif { $use_lookup_table } {
+	if { $use_lookup_table } {
 		set sql "SELECT [join $fields ,] FROM $lookup_table $extra_from"
+	} elseif { $db_table eq "shot" } {
+		set sql "SELECT [join $fields ,] FROM shot "
 	} else {
 		set sql "SELECT [join $fields ,] FROM $db_table INNER JOIN shot ON ${db_table}.clock=shot.clock "
 	}
@@ -1424,23 +2378,31 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 	if { [llength $extra_wheres] > 0 } { append sql "AND [join $extra_wheres { AND }] "  }
 	
 	if { $use_lookup_table != 1 } {
-		append sql "GROUP BY [join $grouping_fields { AND }] "
+		append sql "GROUP BY [join $grouping_fields ,] "
 	}		
 
-	append sql "ORDER BY "
+	#append sql "ORDER BY "
 	if { $field_name eq "grinder_setting" } {
 		# TODO Include sorting in data dictionary!
-		append sql "TRIM($field_name)"
-	} elseif { $use_lookup_table == 1 }  { 
+		append sql "ORDER BY TRIM($field_name)"
+	} elseif { $use_lookup_table == 1 }  {
+#		if { $lookup_order_by ne "" } {
+#			append sql "ORDER BY $lookup_order_by"
+#		}
 		if { $type1_db_table ne ""} {
-			append sql "${type1_db_table}.sort_number,"
+			append sql "ORDER BY ${type1_db_table}.sort_number,"
 		}
-		append sql "sort_number"
+		if { $lookup_order_by eq "" } {
+			append sql $field_name
+		} else {
+			append sql $lookup_order_by
+		}
 	} else {
-		append sql "MAX(shot.clock) DESC"
+		append sql "ORDER BY MAX(shot.clock) DESC"
 	}
 	
 	if { [llength $fields] == 1 } {
+		msg -INFO [namespace current] "$sql"
 		return [db eval "$sql"]
 	} else {
 		array set result {}
@@ -1449,6 +2411,7 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 		set fields $columns(*)
 		
 		foreach fn $fields { set result($fn) {} }
+		msg -INFO [namespace current] "available_categories: $sql"
 		db eval "$sql" {
 			for {set i 0} {$i < [llength $fields]} {incr i 1} {
 				lappend result([lindex $fields $i]) [subst $[lindex $fields $i]]

@@ -29,11 +29,20 @@ proc scale_enable_lcd {} {
 proc scale_disable_lcd {} {
 	::bt::msg -NOTICE scale_disable_lcd
 	if {$::settings(scale_type) == "atomaxskale"} {
-		skale_disable_lcd
+		set do_this 0
+		if {$do_this == 1} {
+			skale_disable_lcd
+		}
 	} elseif {$::settings(scale_type) == "decentscale"} {
-		decentscale_disable_lcd
-		# double-sending command, half a second later, because sometimes the decent scale command buffer has not finished the previous command and drops the next one
-		after 500 decentscale_disable_lcd
+		
+		set do_this 0
+		if {$do_this == 1} {
+			# disabled the LCD off for Decent Scale, so that we don't give false impression tha the scale is off
+			# ideally in future firmware we can find out if they are on usb power, and disable LEDs if they are
+			decentscale_disable_lcd
+			# double-sending command, half a second later, because sometimes the decent scale command buffer has not finished the previous command and drops the next one
+			after 500 decentscale_disable_lcd
+		}
 	}
 }
 
@@ -552,7 +561,7 @@ proc decent_scale_calc_xor4 {cmdtype cmdddata1 cmdddata2} {
 }
 
 proc decent_scale_make_command {cmdtype cmdddata {cmddata2 {}} } {
-	::bt::msg -DEBUG "decent_scale_make_command $cmdtype $cmdddata $cmddata2\n[stacktrace]"
+	::bt::msg -DEBUG "decent_scale_make_command $cmdtype $cmdddata $cmddata2"
 	if {$cmddata2 == ""} {
 		::bt::msg -DEBUG "1 part decent scale command"
 		set hex [subst {03${cmdtype}${cmdddata}000000[decent_scale_calc_xor "0x$cmdtype" "0x$cmdddata"]}]
@@ -566,6 +575,11 @@ proc decent_scale_make_command {cmdtype cmdddata {cmddata2 {}} } {
 }
 
 proc tare_counter_incr {} {
+
+	# testing that tare counter can in fact be any not-recently-used integer
+	#set ::decent_scale_tare_counter [expr {int(rand() * 255)}]
+	#msg "tare counter is $::decent_scale_tare_counter"	
+
 	if {[info exists ::decent_scale_tare_counter] != 1} {
 		set ::decent_scale_tare_counter 253
 	} elseif {$::decent_scale_tare_counter >= 255} {
@@ -628,9 +642,6 @@ proc decentscale_timer_start {} {
 		::bt::msg -DEBUG "decentscale not connected, cannot start timer"
 		return
 	}
-
-	#set timerreset [decent_scale_make_command 0B 02 00]
-	#userdata_append "decentscale : timer reset" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timerreset]
 
 	::bt::msg -DEBUG "decentscale_timer_start"
 	set timeron [decent_scale_make_command 0B 03 00]
@@ -703,7 +714,7 @@ proc close_all_ble_and_exit {} {
 	###
 
 	::bt::msg -DEBUG "close_all_ble_and_exit, at entrance: [ble info]"
-	if {$::scanning  == 1} {
+	if {$::scanning == 1} {
 		catch {
 			ble stop $::ble_scanner
 		}
@@ -723,6 +734,7 @@ proc close_all_ble_and_exit {} {
 		}
 	}
 
+	close_misc_bluetooth_handles
 
 	catch {
 		if {$::settings(ble_unpair_at_exit) == 1} {
@@ -834,12 +846,28 @@ proc android_8_or_newer {} {
 }
 
 
-set ::ble_scanner {}
-catch  {
-	# this will fail if this package has been loaded before "proc android_specific_stubs {}" has been run
-	set ::ble_scanner [ble scanner de1_ble_handler]
+proc close_misc_bluetooth_handles {} {
+	set count 0
+	foreach handle [ble info] {
+		::bt::msg -NOTICE "Closing misc bluetooth handle $handle"
+		catch {
+			ble close $handle
+		}
+		incr count
+	}
+	return $count
+
 }
+
+set ::ble_scanner {}
 set ::scanning -1
+
+# at startup, if we have any hanldes, close them
+set blecount [close_misc_bluetooth_handles]
+if {$blecount != 0} {
+	::bt::msg -NOTICE "Closed $blecount misc bluetooth handles"
+}
+
 
 proc check_if_initial_connect_didnt_happen_quickly {} {
 	::bt::msg -NOTICE "check_if_initial_connect_didnt_happen_quickly"
@@ -889,22 +917,9 @@ proc check_if_initial_connect_didnt_happen_quickly {} {
 
 }
 
-
-proc ble_find_de1s {} {
-
-	return
-	if {$::android != 1} {
-		ble_connect_to_de1
-	}
-
-	after 30000 stop_scanner
-	::bt::msg -NOTICE "Starting ble_scanner from ::ble_find_de1s"
-	ble start $::ble_scanner
-}
-
 proc stop_scanner {} {
 
-	if {$::scanning == 0} {
+	if {$::scanning != 1} {
 		return
 	}
 
@@ -917,7 +932,6 @@ proc stop_scanner {} {
 	set ::scanning 0
 	::bt::msg -NOTICE "Stopping ble_scanner from ::stop_scanner"
 	ble stop $::ble_scanner
-	#userdata_append "stop scanning" [list ble stop $::ble_scanner]
 }
 
 proc bluetooth_connect_to_devices {} {
@@ -1318,7 +1332,7 @@ proc de1_ble_handler { event data } {
 					#set ::de1(scale_type) ""
 
 						set ::de1(wrote) 0
-						::bt::msg -NOTICE "$::settings(scale_type) disconnected $data_for_log"
+						::bt::msg -NOTICE "scale $::settings(scale_type) disconnected $data_for_log"
 						#catch {
 							ble close $handle
 						#}
@@ -1375,6 +1389,11 @@ proc de1_ble_handler { event data } {
 					#ble_connect_to_de1
 				} elseif {$state eq "connected"} {
 
+					if {[info exists address] != 1} {
+						# this is very odd, no address yet connected
+						::bt::msg -NOTICE "full bluetooth log: $full_data_for_log"
+					}
+
 					if {$::de1(device_handle) == 0 && $address == $::settings(bluetooth_address)} {
 						::bt::msg -NOTICE "de1 connected $event $data_for_log"
 
@@ -1411,14 +1430,11 @@ proc de1_ble_handler { event data } {
 						#set ::de1(scale_type) [ifexists ::scale_types($address)]
 						if {$::settings(scale_type) == "decentscale"} {
 							append_to_scale_bluetooth_list $address $::settings(scale_bluetooth_name) "decentscale"
-							#after 500 decentscale_enable_lcd
-							decentscale_tare
-
-							after 2000 decentscale_enable_lcd
-							#after 2000 decentscale_timer_start
-							after 4000 decentscale_enable_notifications
-							#after 4000 decentscale_timer_stop
-							#after 5000 decentscale_timer_off
+							decentscale_enable_lcd
+							after 2000 decentscale_enable_notifications
+							
+							# in case the first request was dropped
+							after 4000 decentscale_enable_lcd
 
 						} elseif {$::settings(scale_type) == "atomaxskale"} {
 							append_to_scale_bluetooth_list $address $::settings(scale_bluetooth_name) "atomaxskale"
@@ -2114,5 +2130,10 @@ proc scanning_restart {} {
 
 	set ::scanning 1
 	::bt::msg -NOTICE "Starting ble_scanner from ::scanning_restart"
+
+	if {$::ble_scanner == ""} {
+		set ::ble_scanner [ble scanner de1_ble_handler]
+	}
+
 	ble start $::ble_scanner
 }

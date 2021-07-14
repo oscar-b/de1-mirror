@@ -4,14 +4,16 @@ package require de1_logging 1.0
 package require de1_updater 1.1
 package require de1_utils 1.1
 
-# tksvg breaks all images loading in the older Androwish distributions of the first DE1 tablets.
-#catch { package require tksvg }
+# These needs to be catched because some libraries are not present in the build server
 catch {
 	# tkblt has replaced BLT in current TK distributions, not on Androwish, they still use BLT and it is preloaded
 	package require tkblt
 	package require Tk
 	package require snit
 	namespace import blt::*
+	# tksvg breaks all images loading in the older Androwish distributions of the first DE1 tablets.
+	# so, at the moment it's disabled.
+	package require tksvg
 }
 
 # from https://developer.android.com/reference/android/view/View.html#SYSTEM_UI_FLAG_IMMERSIVE
@@ -53,6 +55,8 @@ namespace eval ::dui {
 		enable_spoken_prompts 1
 		speaking_pitch 1.0
 		speaking_rate 1.5
+		date_input_format "%d/%m/%Y"
+		preload_images 0
 	}
 
 	# Store in namespace variables and not in settings what are internal parameters that are not to be modified by client code.
@@ -194,11 +198,11 @@ namespace eval ::dui {
 				#set fontw 2
 			}
 	
-			# HOW TO HANDLE THIS?
-			if {[file exists "skins/default/${screen_size_width}x${screen_size_height}"] != 1} {
-				set ::rescale_images_x_ratio [expr {$screen_size_height / $::dui::_base_screen_height}]
-				set ::rescale_images_y_ratio [expr {$screen_size_width / $::dui::_base_screen_width}]
-			}
+			# NOT NEEDED ANYMORE
+#			if {[file exists "skins/default/${screen_size_width}x${screen_size_height}"] != 1} {
+#				set ::rescale_images_x_ratio [expr {$screen_size_height / $::dui::_base_screen_height}]
+#				set ::rescale_images_y_ratio [expr {$screen_size_width / $::dui::_base_screen_width}]
+#			}
 	
 			set global_font_size 18
 			
@@ -278,10 +282,10 @@ namespace eval ::dui {
 			wm minsize . $screen_size_width $screen_size_height
 
 			# TBD WHAT TO DO WITH THIS 
-			if {[file exists "skins/default/${screen_size_width}x${screen_size_height}"] != 1} {
-				set ::rescale_images_x_ratio [expr {$screen_size_height / $::dui::_base_screen_height}]
-				set ::rescale_images_y_ratio [expr {$screen_size_width / $::dui::_base_screen_width}]
-			}
+#			if {[file exists "skins/default/${screen_size_width}x${screen_size_height}"] != 1} {
+#				set ::rescale_images_x_ratio [expr {$screen_size_height / $::dui::_base_screen_height}]
+#				set ::rescale_images_y_ratio [expr {$screen_size_width / $::dui::_base_screen_width}]
+#			}
 	
 			# EB: Is this installed by default on PC/Mac/Linux?? No need to sdltk add it?
 			set helvetica_font "notosansuiregular"
@@ -294,6 +298,7 @@ namespace eval ::dui {
 				#set fontm [expr {($fontm * 1.20)}]
 			} 
 		}
+		
 
 		set fontawesome_brands [dui::font::add_or_get_familyname "Font Awesome 5 Brands-Regular-400.otf"]
 		set fontawesome_pro [dui::font::add_or_get_familyname "Font Awesome 5 Pro-Regular-400.otf"]
@@ -312,10 +317,21 @@ namespace eval ::dui {
 
 		# Try to locate image folders automatically, in case they're not declared explicitly by the skin
 		set skin_img_dir [file normalize "${skin_dir}/${screen_size_width}x${screen_size_height}/"]
-		if { [file exists $skin_img_dir] && $skin_dir ni [dui item image_dirs] } {
-			dui image add_dirs $skin_dir
+		if { $skin_dir ni [dui item image_dirs] } {
+			if { [file exists $skin_img_dir] } {
+				dui image add_dirs $skin_dir
+			} elseif { [file exists "${skin_dir}/[expr {int($::dui::_base_screen_width)}]x[expr {int($::dui::_base_screen_height)}]/"] } {
+				try {
+					file mkdir $skin_img_dir
+					dui image add_dirs $skin_dir
+				} on error err {
+					msg -ERROR [namespace current] init: "can't create or folder '$skin_img_dir': $err"
+				}
+			} else {
+				msg -WARNING [namespace current] init: "skin default image directory '$skin_img_dir' not found, was not added"
+			}
 		}
-	
+		
 		# log dui settings for eventual debugging
 		msg -INFO "Platform data: tcl_platform=$::tcl_platform(platform), android=$android, undroid=$undroid, some_droid=$::some_droid"
 		msg -INFO "Screen data: width=$screen_size_width, height=$screen_size_height"
@@ -366,7 +382,7 @@ namespace eval ::dui {
 		}
 		
 		# Launch setup methods of pages created as sub-namespaces of ::dui::pages (which do not require 'dui add page')
-		# TBD: Disable at the moment, as this would run the setup method of pages in disabled plugins...
+		# TBD: Disabled at the moment, as this would run the setup method of pages in disabled plugins...
 #		foreach ns [namespace children ::dui::pages] {
 #			if { $ns ni $applied_ns } {
 #				if { [info proc ${ns}::setup] eq "" } {
@@ -664,22 +680,6 @@ namespace eval ::dui {
 		namespace ensemble create
 		
 		variable aspects
-		# TBD default.button_label.activefill needed? On buttons the invisible rectangle "hides" the text and
-		#	it seems they never become active.
-		# $::helvetica_font
-		
-		#"Font Awesome 5 Pro-Regular-400"
-		#default.button_label.font_family notosansuiregular
-		#default.page.bg_color "#edecfa"
-#		default.listbox.highlightthickness 1
-#		default.listbox.highlightcolor orange
-#		default.listbox.foreground "#7f879a"
-#		default.symbol.font_family "Font Awesome 5 Pro"
-#		default.entry.font_family notosansuiregular
-#		default.entry.font_size 16
-		#default.button.disabledfill "#ddd"
-		#default.button.radius 40 -- only include if the button style has shape=round
-		#default.button.arc_offset 50 -- only include if the button style has shape=outline
 		
 		array set aspects {
 			default.page.bg_img {}
@@ -721,7 +721,6 @@ namespace eval ::dui {
 			default.dbutton.disabledfill "#ddd"
 			default.dbutton.outline white
 			default.dbutton.disabledoutline "#ddd"
-			default.dbutton.activeoutline "orange"
 			default.dbutton.width 0
 			
 			default.dbutton_label.pos {0.5 0.5}
@@ -743,7 +742,7 @@ namespace eval ::dui {
 			default.dbutton_symbol.font_size 28
 			default.dbutton_symbol.anchor center
 			default.dbutton_symbol.justify center
-			default.dbutton_symbol.fill white
+			default.dbutton_symbol.fill "#7f879a"
 			default.dbutton_symbol.disabledfill "#ccc"
 			
 			default.dbutton.shape.insight_ok round
@@ -782,8 +781,18 @@ namespace eval ::dui {
 			default.dcombobox.font_family notosansuiregular
 			default.dcombobox.font_size 16
 			
-			default.dcombobox_ddarrow.font_size 24
-			default.dcombobox_ddarrow.disabledfill "#ccc"
+			default.dbutton_dda.shape {}
+			default.dbutton_dda.fill {}
+			default.dbutton_dda.bwidth 70
+			default.dbutton_dda.bheight 65
+			default.dbutton_dda.symbol "sort-down"
+			
+			default.dbutton_dda_symbol.pos {0.5 0.25}
+			default.dbutton_dda_symbol.font_size 24
+			default.dbutton_dda_symbol.anchor center
+			default.dbutton_dda_symbol.justify center
+			default.dbutton_dda_symbol.fill "#7f879a"
+			default.dbutton_dda_symbol.disabledfill "#ddd"
 			
 			default.dcheckbox.font_family "Font Awesome 5 Pro"
 			default.dcheckbox.font_size 18
@@ -873,8 +882,30 @@ namespace eval ::dui {
 			default.text.font_size 16
 			default.text.relief flat
 			default.text.highlightthickness 1
+			
+			default.dbutton.shape.dne_clicker round 
+			default.dbutton.bwidth.dne_clicker 120 
+			default.dbutton.bheight.dne_clicker 140 
+			default.dbutton.radius.dne_clicker 20 
+			default.dbutton.anchor.dne_clicker center
+			default.dbutton_symbol.pos.dne_clicker {0.5 0.4} 
+			default.dbutton_symbol.anchor.dne_clicker center 
+			default.dbutton_symbol.font_size.dne_clicker 20
+			default.dbutton_label.pos.dne_clicker {0.5 0.8} 
+			default.dbutton_label.font_size.dne_clicker 10 
+			default.dbutton_label.anchor.dne_clicker center
+	
+			default.dbutton.shape.dne_pad_button round 
+			default.dbutton.bwidth.dne_pad_button 280 
+			default.dbutton.bheight.dne_pad_button 220 
+			default.dbutton.radius.dne_pad_button 20 
+			default.dbutton.anchor.dne_pad_button nw
+			default.dbutton_label.pos.dne_pad_button {0.5 0.5} 
+			default.dbutton_label.font_family.dne_pad_button notosansuibold 
+			default.dbutton_label.font_size.dne_pad_button 24 
+			default.dbutton_label.anchor.dne_pad_button center
 		}
-		
+
 		# Named options:
 		# 	-theme theme_name: to add to a theme different than the current one.
 		#	-type type_name: adds this type for all added aspects.
@@ -899,16 +930,14 @@ namespace eval ::dui {
 			}
 			for { ::set i 0 } { $i < [llength $args] } { incr i 2 } {
 				::set var "$prefix[lindex $args $i]$suffix"
-#				if { $style ne "" && [string range $var end-[string length $style] end] ne ".$style" } {
-#					append var ".$style"
-#				}
+				
 				::set value [lindex $args [expr {$i+1}]]
 				if { [info exists aspects($var)] } {
 					if { $aspects($var) eq $value } {
 						#msg -INFO [namespace current] "aspect '$var' already exists, new value is equal to old"
 					} else {
 						msg -NOTICE [namespace current] "aspect '$var' already exists, old value='$aspects($var)', new value='$value'"
-						if { [ifexists ::debugging 0]} { msg -DEBUG [stacktrace] }
+						#if { [ifexists ::debugging 0]} { msg -DEBUG [stacktrace] }
 					}
 				}
 				::set aspects($var) $value
@@ -969,7 +998,7 @@ namespace eval ::dui {
 		
 		# Check that an aspect exists EXACTLY as requested. That is, this doesn't search for non-style nor default theme,
 		#	like 'dui aspect get' does.
-		# TBD: Add an option to mimic the search that dui::aspect::get does?
+		# TBD: Add an option to mimic exactly the search that dui::aspect::get does?
 		# Named options:
 		#	-theme theme_name to check for a theme different than the current one
 		#	-style style_name to query only that style
@@ -1021,7 +1050,6 @@ namespace eval ::dui {
 				# Return aspects with the requested style AND with no style
 				append pattern "\[0-9a-zA-Z_\]+(\\.${style})?\$"
 			}
-			#msg -DEBUG [namespace current] list "pattern='$pattern'"
 			
 			::set use_full_aspect [string is true [dui::args::get_option -full_aspect 0]]
 			::set inc_values [string is true [dui::args::get_option -values 0]]
@@ -3255,12 +3283,25 @@ namespace eval ::dui {
 	
 	### IMAGES SUB-ENSEMBLE ###
 	namespace eval image {
-		namespace export add_dirs dirs photoscale add find
+		namespace export add_dirs dirs add 
+		# photoscale find load is_loaded get set_delayed exists_delayed get_delayed load_delayed rm_delayed
 		namespace ensemble create
 		
 		# A list of paths where to look for image files
 		variable img_dirs {}
-				
+		
+		# A dictionary of loaded images. Remembers whether an image has already been loaded to avoid doing it more than 
+		# once, and allows deferred loading until the page is actually shown.
+		# Indexed by the normalized image path, the value is an empty string if it has not been loaded yet, and the
+		# image name (<first_page>-<main_tag>) if it has been.
+		variable images
+		set images [dict create]
+		
+		# A dictionary of images whose loading is delayed, to make startup faster. Indexed by the canvas ID of the 
+		# image, each value is a list with 1) the normalized image path; 2) the image type; 3) any extra named options
+		variable delayed_images
+		set delayed_images [dict create]
+		
 		proc add_dirs { args } {
 			variable img_dirs
 			
@@ -3356,7 +3397,7 @@ namespace eval ::dui {
 				}
 			}
 			
-			if { [string is true $rescale] } {
+			if { [string is true $rescale] && [file pathtype $filename] in {relative volumerelative} } {
 				set src_filename ""
 				foreach dir [dui image dirs] {
 					set full_fn [file join $dir "[expr {int($::dui::_base_screen_width)}]x[expr {int($::dui::_base_screen_height)}]" $filename]
@@ -3369,12 +3410,12 @@ namespace eval ::dui {
 				if { $src_filename eq "" } {
 					msg -WARNING [namespace current] "image file '$filename' not found"
 					return ""
-				} else {
+				} else {					
+					set filename [file join $dir "${screen_size_width}x${screen_size_height}" $filename]
 					catch {
-						file mkdir [file join $dir "${screen_size_width}x${screen_size_height}"]
+						file mkdir [file dirname $filename]
 					}
 					
-					set filename  [file join $dir "${screen_size_width}x${screen_size_height}" [file tail $filename]]
 					msg -DEBUG [namespace current] "resizing image $src_filename to $filename"
 					dui say [translate "Resizing image"]
 					
@@ -3403,6 +3444,85 @@ namespace eval ::dui {
 			
 			return ""
 		}
+		
+		# Note that filename can be an empty string (adding it empty and later reading the image file is a trick used
+		#	in several places, e.g. for DSx backgrounds) 
+		proc load { type name filename {preload 1} args } {
+			set filename [file normalize "$filename"]
+			
+			if { [string is true $preload] } {
+				try {
+					::image create $type $name -file "$filename" {*}$args
+					if { $filename ne "" } {
+						dict set dui::image::images "$filename" $name
+					}
+				} on error err {
+					msg -ERROR [namespace current] "load: can't preload $type image '$filename' with name '$name': $err"
+					return "" 
+				}
+			} else {
+				try {
+					::image create $type $name {*}$args
+					if { $filename ne "" } {
+						dict set dui::image::images "$filename" $name
+						dui::image::set_delayed $name $filename $type {*}$args
+					}
+				} on error err {
+					msg -ERROR [namespace current] "load: can't delay-load $type image '$filename' with name '$name': $err"
+					return "" 
+				}
+			}
+			return $name
+		}
+		
+		proc is_loaded { filename } {
+			set filename [file normalize "$filename"]
+			if { [dict exists $::dui::image::images "$filename"] } {
+				return [expr {[dict get $::dui::image::images "$filename"] ne ""}]
+			} else {
+				return 0
+			}
+		}
+		
+		proc get { filename } {
+			set filename [file normalize "$filename"]
+			return [dict get $::dui::image::images "$filename"]
+		}
+		
+		proc set_delayed { img_name filename type args } {
+			dict set ::dui::image::delayed_images $img_name [list [file normalize $filename] $type {*}$args]
+		}
+
+		proc exists_delayed { img_name } {
+			return [dict exists $::dui::image::delayed_images $img_name]
+		}
+		
+		proc get_delayed { img_name } {
+			if { [exists_delayed $img_name] } {
+				return [dict get $::dui::image::delayed_images $img_name]
+			} else {
+				return ""
+			}
+		}
+
+		proc load_delayed { img_name } {
+			set dd [get_delayed $img_name]
+			if { [llength $dd] > 0 } {
+				try {
+					$img_name read [lindex $dd 0]
+				} on error err {
+					msg [namespace current] "load_delayed: can't load file '[lindex $dd 0]', $err"
+				}
+				
+				rm_delayed $img_name
+				return $img_name
+			}
+		}
+		
+		proc rm_delayed { img_name } {
+			set ::dui::image::delayed_images [dict remove $::dui::image::delayed_images $img_name] 
+		}
+		
 	}
 	
 	### ARGS SUB-ENSEMBLE ###
@@ -3495,9 +3615,6 @@ namespace eval ::dui {
 		}
 		
 		
-		### NON-EXPORTED COMMANDS TO PARSE AND PROCESS ITEM CREATION args ###
-		### These are used from most 'dui add *' commands, for homogeneous handling of the same types of named options.
-		
 		# Complete the tags and -<type>variable arguments in the args list in a standard way.
 		# If -tags is in the args, use the first tag as main tag, otherwise assigns an auto-increment counter.
 		# Raises an error if a main tag already exists in the same page, as no duplicates are allowed.
@@ -3535,7 +3652,7 @@ namespace eval ::dui {
 			}
 			# Main tags must be unique per-page.
 			foreach page $pages {
-				if { [dui page has_item $page $main_tag] ne "" } {
+				if { [dui page has_item $page $main_tag] } {
 					set msg "process_tags_and_var: main tag '$main_tag' already exists in page '$page', duplicates are not allowed"
 					msg -ERROR [namespace current] $msg
 					info_page $msg
@@ -3753,9 +3870,7 @@ namespace eval ::dui {
 					set ylabel_offset [dui platform rescale_y [lindex $label_pos 2]] 
 				}				
 				foreach page $pages {
-#					set after_show_cmd "dui item relocate_text_wrt $page ${main_tag}-lbl $wrt_tag [lindex $label_pos 0] \
-#						$xlabel_offset $ylabel_offset [get_option -anchor nw 0 label_args]"
-					set after_show_cmd [list dui item relocate_text_wrt $page ${main_tag}-lbl $wrt_tag [lindex $label_pos 0] \
+					set after_show_cmd [list dui::item::relocate_text_wrt $page ${main_tag}-lbl $wrt_tag [lindex $label_pos 0] \
 						$xlabel_offset $ylabel_offset [get_option -anchor nw 0 label_args]]	
 					dui page add_action $page show $after_show_cmd
 				}
@@ -3840,10 +3955,9 @@ namespace eval ::dui {
 	}
 
 	### PAGE SUB-ENSEMBLE ###
-	# AT THE MOMENT ONLY page_add SHOULD BE USED AS OTHERS MAY BREAK BACKWARDS COMPATIBILITY #
 	namespace eval page {
 		namespace export add current exists is_setup is_drawn is_visible list theme retheme delete get_namespace \
-			load show add_action actions items has_item add_items add_variable update_onscreen_variables	
+			load show add_action actions items has_item	update_onscreen_variables add_items
 		namespace ensemble create
 		
 		# Metadata for every added page. Array keys have the form '<page_name>,<type>', where <type> can be:
@@ -3855,7 +3969,7 @@ namespace eval ::dui {
 		#	'hide': List of Tcl callbacks to run just after the page is hidden.
 		#	'setup': List of Tcl callbacks to run just after the page is setup
 		#	'variables': List of canvas_ids-tcl_code variable pairs to update on the page while it's visible.
-		#  	'state': a list of booleans that contains {<is_setup> <is_drawn>}
+		#  	'state': a list with 2 booleans that contains {<is_setup> <is_drawn>}
 		variable pages_data 
 		array set pages_data {}
 
@@ -3916,16 +4030,32 @@ namespace eval ::dui {
 			}
 			
 			set bg_img [dui::args::get_option -bg_img [dui aspect get page bg_img -style $style]]
+			set img_name ""
 			if { $bg_img ne "" } {
-				::add_de1_page $pages $bg_img [dui::args::get_option -skin ""]
+				#::add_de1_page $pages $bg_img [dui::args::get_option -skin ""]
 				#add_de1_image $page 0 0 $bg_img
-			} else {
+				set preload_images [dui cget preload_images]
+				set bg_img [dui::image::find $bg_img 1]
+				if { $bg_img ne "" && [dui::image::is_loaded "$bg_img"] } {
+					set img_name [dui::image::get "$bg_img"]
+				} 
+				if { $bg_img ne "" && $img_name eq "" } {
+					set img_name [dui::image::load photo [lindex $pages 0] $bg_img $preload_images]
+				}
+				if { $img_name ne "" } {
+					foreach page $pages {
+						$can create image {0 0} -anchor nw -image $img_name -tags [::list pages $page] -state "hidden"
+					}
+				}
+			} 
+			
+			if { $bg_img eq "" } {
 				set bg_color [dui::args::get_option -bg_color [dui aspect get page bg_color -theme $theme -style $style]]
 				if { $bg_color ne "" } {
 					foreach page $pages {
 						$can create rect 0 0 [dui platform rescale_x $::dui::_base_screen_width] \
 							[dui platform rescale_y $::dui::_base_screen_height] -fill $bg_color \
-							-width 0 -tags "pages $page" -state "hidden"
+							-width 0 -tags [::list pages $page] -state "hidden"
 					}
 				}
 			}
@@ -3989,7 +4119,6 @@ namespace eval ::dui {
 		}
 		
 		proc current {} {
-			# Later on dui will keep the current page. At the moment, just use the global variable
 			variable current_page
 			return $current_page
 		}
@@ -4039,7 +4168,7 @@ namespace eval ::dui {
 			return $pages
 		}
 				
-		# Returns a boolean list telling which of the pages could be deleted
+		# Returns a boolean list telling which of the pages have been deleted.
 		proc delete { pages {keep_data 0} } {
 			variable pages_data
 			set can [dui canvas]
@@ -4087,9 +4216,9 @@ namespace eval ::dui {
 			return $is_deleted
 		}
 		
-		proc theme { page } {
+		proc theme { page {default {}} } {
 			variable pages_data
-			return [value_or_default pages_data(${page},theme) ""]
+			return [value_or_default pages_data(${page},theme) $default]
 		}
 
 		# Returns a boolean list telling which of the pages could be rethemed
@@ -4097,13 +4226,18 @@ namespace eval ::dui {
 			variable pages_data
 			set is_rethemed [lrepeat [llength $pages] 0]
 			
+			if { ![dui theme exists $new_theme] } {
+				msg -ERROR [namespace current] retheme: "new theme '$new_theme' is not a valid theme"
+				return $is_rethemed
+			}
+			
 			set i 0
 			foreach page $pages {
 				if { ![exists $page] } {
 					msg -WARNING [namespace current] "retheme: page '$page' does not exist"
 					continue
 				}
-				if { [theme $page] eq $new_theme } {
+				if { [theme $page "default"] eq $new_theme } {
 					continue
 				}
 				
@@ -4244,14 +4378,27 @@ namespace eval ::dui {
 				# TBD: Pass $args to load actions???
 				foreach action [actions $page_to_show load] {
 					lappend action $page_to_hide $page_to_show
-					uplevel #0 $action
-					#eval $action
+					set action_result [uplevel #0 $action]
+					if { $action_result ne "" && $action_result != 1 } {
+						if { $action_result == 0 } {
+							msg -NOTICE [namespace current] "loading of page '$page_to_show' interrupted"
+							return
+						} else {
+							msg -NOTICE [namespace current] "CHANGING page_to_show from '$page_to_show' to '$action_result'"
+							set page_to_show $action_result	
+						} 
+					}
 				}
 				if { $show_ns ne "" && [info procs ${show_ns}::load] ne "" } {
-					set page_loaded [${show_ns}::load $page_to_hide $page_to_show {*}$args]
-					if { ![string is true $page_loaded] } {
-						# Interrupt the loading: don't show the new page
-						return
+					set action_result [${show_ns}::load $page_to_hide $page_to_show {*}$args]
+					if { $action_result ne "" && $action_result != 1 } {
+						if { $action_result == 0 } {
+							msg -NOTICE [namespace current] "loading of page '$page_to_show' interrupted"
+							return
+						} else {
+							msg -NOTICE [namespace current] "CHANGING page_to_show from '$page_to_show' to '$action_result'"
+							set page_to_show $action_result	
+						} 
 					}
 				}
 			}
@@ -4261,52 +4408,21 @@ namespace eval ::dui {
 			if { [info exists ::de1(current_context)] } {
 				set ::de1(current_context) $page_to_show
 			}
-		
-#			try {
-#				$can itemconfigure $page_to_hide -state hidden
-#			} on error err {
-#				msg -ERROR [namespace current] display_change "error hiding $page_to_hide: $err"
-#			}
-		
-			if {[info exists ::delayed_image_load($page_to_show)] == 1} {
-				set pngfilename	$::delayed_image_load($page_to_show)
-				msg "Loading skin image from disk: $pngfilename"
-				
-				set errcode [catch {
-					# this can happen if the image file has been moved/deleted underneath the app
-					#fallback is to at least not crash
-					msg "page_display_change image create photo $page_to_show -file $pngfilename" 
-					image create photo $page_to_show -file $pngfilename
-					#msg "image create photo $page_to_show -file $pngfilename"
-				}]
-		
-				if {$errcode != 0} {
-					catch {
-						msg "image create photo error: $::errorInfo"
-					}
-				}
-		
-				foreach {page img} [array get ::delayed_image_load] {
-					if {$img == $pngfilename} {
-						
-						# Matching delayed image load to every page that references it
-						# this avoids loading the same iamge over and over, for each page referencing it
-		
-						set errcode [catch {
-							# this error can happen if the image file has been moved/deleted underneath the app, fallback is to at least not crash
-							$can itemconfigure $page -image $page_to_show -state hidden	
-						}]
-		
-						if {$errcode != 0} {
-							catch {
-								msg "$can itemconfigure page_to_show ($page/$page_to_show) error: $::errorInfo"
-							}
+
+			# check if page background is an image with delayed loading that requires firt-time-use loading now
+			set preload_images [dui cget preload_images]
+			set page_bg "" 
+			if { !$preload_images } {
+				set page_bg [$can find withtag $page_to_show]
+				if { $page_bg ne "" } {
+					if { [$can type $page_bg] eq "image" } {
+						set img_name [$can itemcget $page_to_show -image]
+						msg -INFO [namespace current] load: "loading delayed page image background for page '$page_to_show', with img_name=$img_name"
+						if { [dui::image::exists_delayed $img_name] } {
+							dui::image::load_delayed $img_name
 						}
-		
-						unset -nocomplain ::delayed_image_load($page)
 					}
 				}
-		
 			}
 
 			# run hide actions
@@ -4338,7 +4454,7 @@ namespace eval ::dui {
 				#$can itemconfigure pages&&$page_to_show -state normal
 				$can itemconfigure $page_to_show -state normal
 			} on error err {
-				msg -ERROR [namespace current] display_change "showing page $page_to_show: $err"
+				msg -ERROR [namespace current] load: "showing page $page_to_show: $err"
 			}
 						
 			# show page items using the "p:<page_name>" tags, unless the have a "st:hidden" tag.
@@ -4361,6 +4477,14 @@ namespace eval ::dui {
 			}
 			
 			foreach item $items_to_show {
+				set item_type [$can type $item]
+				if { !$preload_images && $item_type eq "image" } {
+					set img_name [$can itemcget $item -image]
+					if { [dui::image::exists_delayed $img_name] } {
+						set img_name [dui::image::load_delayed $img_name]
+					}
+				}
+				
 				set state [lsearch -glob -inline [$can gettags $item] {st:*}]
 				if { $state eq "" } {
 					set state normal
@@ -4373,11 +4497,11 @@ namespace eval ::dui {
 				
 				if { $state in {normal disabled} } {
 					if { $::android == 1 && [dui cget use_finger_down_for_tap] } {
-						if { [$can type $item] eq "window" } {
+						if { $item_type eq "window" } {
 							$can itemconfigure $item -state disabled
 							if { $state eq "normal" } {
 								# Do NOT just show the items. We need to check we're still in the same page after the 400 ms
-								after 400 dui::item::show $page_to_show $item 1
+								after 400 dui::item::show $page_to_show $item
 							}
 						} else {
 							$can itemconfigure $item -state $state
@@ -4395,12 +4519,12 @@ namespace eval ::dui {
 				set pages_data(${page_to_show},state) {0 1}
 			}
 			
-			# It's critical to call 'update' here and give it a bit of time, otherwise the 'show' actions afterwards 
-			# may not get the right dimensions of widgets that have never been painted during the session.
-			# That's also why the show actions are triggered "after iddle".
-			# TBD: update is considered harmful (see https://wiki.tcl-lang.org/page/Update+considered+harmful), once 
-			#	all hide/show actions are triggered "after idle" and controls dynamic relocation/redimensioning is done
-			#	on Configure event bindings, it should not be necessary any more.
+			# Originally (before DUI) it was critical to call 'update' here and give it a bit of time, otherwise the 
+			# 'show' actions afterwards may not get the right dimensions of widgets that have never been painted during 
+			# the session. That's also why the show actions are triggered "after iddle".
+			# BUT update is considered harmful (see https://wiki.tcl-lang.org/page/Update+considered+harmful), so NOW 
+			#	all hide/show actions in DUI are triggered "after idle" and controls dynamic relocation/redimensioning is 
+			#	done on Configure event bindings, so calling "update" should not be necessary any more.
 			#update
 			
 			# run show actions
@@ -4418,7 +4542,7 @@ namespace eval ::dui {
 			#set end [clock milliseconds]
 			#puts "elapsed: [expr {$end - $start}]"
 			
-			dui page update_onscreen_variables
+			dui::page::update_onscreen_variables
 			dui platform hide_android_keyboard
 			#msg [namespace current] "Switched to page: $page_to_show [stacktrace]"
 		}
@@ -4463,8 +4587,9 @@ namespace eval ::dui {
 		proc has_item { page tag } {
 			if { [llength $page] > 1 } {
 				set page [lindex $page 0]
-			}			
-			return [[dui canvas] find withtag $tag&&p:$page]
+			}
+			set items [[dui canvas] find withtag $tag&&p:$page]
+			return [expr {$items ne ""}]
 		}
 		
 		# Keep track of what labels are displayed in what pages. This is done through the "p:<page_name>" canvas tags 
@@ -4508,7 +4633,8 @@ namespace eval ::dui {
 			}
 		}
 		
-		# NOTE: state argument not used in the command, need to keep it???
+		# NOTE: Original implementation (before DUI) had a 'state' argument that was not used in the command, 
+		# so it has been removed.
 		proc update_onscreen_variables { } {
 			variable update_onscreen_variables_alarm_handle
 			variable pages_data
@@ -4580,7 +4706,7 @@ namespace eval ::dui {
 	namespace eval item {
 		namespace export add get get_widget config cget enable_or_disable enable disable \
 			show_or_hide show hide add_image_dirs image_dirs listbox_get_selection listbox_set_selection \
-			relocate_text_wrt
+			relocate_text_wrt moveto pages
 		namespace ensemble create
 	
 		variable sliders
@@ -4673,20 +4799,6 @@ namespace eval ::dui {
 				}
 			}
 			return ""
-			
-#			if { $page eq "" } {
-#				set widget [lindex $tag_or_widget 0]
-#				if { winfo exists $widget } {
-#					return $widget
-#				}
-#			} else {
-#				set can [dui canvas]
-#				set item [get [lindex $page 0] [lindex $tag_or_widget 0]]
-#				if { [$can type $item] eq "window" } {
-#					return [$can itemcget $item -window]
-#				}
-#			}
-#			return ""
 		}
 		
 		# Provides a single interface to configure options for both canvas items (text, arcs...) and canvas widgets 
@@ -4704,17 +4816,44 @@ namespace eval ::dui {
 				set args [lrange $args 1 end]
 			}
 				
+			set istate [dui::args::get_option -initial_state "" 1]
+			
 			# Passing '$tags' directly to itemconfigure when it contains multiple tags not always works, iterating
 			#	is often needed.
 			foreach item $items {
 				#msg [namespace current] "config:" "item '$item' of type '[$can type $tag]' with '$args'"
-				if { [winfo exists $item] } {
-					$item configure {*}$args
-				} elseif { [$can type $item] eq "window" } {
-					[$can itemcget $item -window] configure {*}$args
-				} else {
-					$can itemconfigure $item {*}$args
+				if { $istate ne "" } {
+					_config_initial_state $item $istate
 				}
+				
+				if { [llength $args] > 0 } {
+					if { [winfo exists $item] } {
+						$item configure {*}$args
+					} elseif { [$can type $item] eq "window" } {
+						[$can itemcget $item -window] configure {*}$args
+					} else {
+						$can itemconfigure $item {*}$args
+					}
+				}
+			}
+		}
+		
+		proc _config_initial_state { item state } {
+			set can [dui canvas]
+			if { $state ni {hidden disabled normal} } {
+				msg -WARNING [namespace current] "_config_initial_state: state '$state' not supported, assuming 'normal'"
+				set state normal
+			}
+			set current_istate [_cget_initial_state $item]
+			if { $current_istate eq $state } {
+				return
+			}
+
+			if { $current_istate ne "normal" } {
+				$can dtag $item st:$current_istate
+			}
+			if { $state ne "normal" } {
+				$can addtag st:$state withtag $item
 			}
 		}
 		
@@ -4731,24 +4870,64 @@ namespace eval ::dui {
 			#	is often needed.
 			set result {}
 			foreach item $items {
-				#msg [namespace current] "config:" "item '$item' of type '[$can type $tag]' with '$args'"
-				if { [winfo exists $item] } {
-					lappend result [$item cget {*}$args]
-				} elseif { [$can type $item] eq "window" } {
-					lappend result [[$can itemcget $item -window] cget {*}$args]
-				} else {
-					lappend result [$can itemcget $item {*}$args]
+				if { "-initial_state" in $args } {
+					set args [list_remove_element $args -initial_state]
+					lappend result [_cget_initial_state $item]
+				}
+				
+				if { [llength $args] > 0 } {
+					#msg [namespace current] "config:" "item '$item' of type '[$can type $tag]' with '$args'"
+					if { [winfo exists $item] } {
+						lappend result [$item cget {*}$args]
+					} elseif { [$can type $item] eq "window" } {
+						lappend result [[$can itemcget $item -window] cget {*}$args]
+					} else {
+						lappend result [$can itemcget $item {*}$args]
+					}
 				}
 			}
 			return $result
+		}
+				
+		proc _cget_initial_state { item } {
+			set can [dui canvas]
+			set tags [$can gettags $item]
+			if { "st:hidden" in $tags } {
+				return "hidden"
+			} elseif { "st:disabled" in $tags } {
+				return "disabled"
+			} else {
+				return "normal"
+			}
+		}
+		
+		# Returns the list of pages where the specified item appears
+		proc pages { page_or_id_or_widget {tag {}} } {
+			set can [dui canvas]
+			set ids [get $page_or_id_or_widget $tag]
+			if { [llength $ids] == 0} {
+				msg -WARNING [namespace current] "pages: can't find item with page_or_id_or_widget='$page_or_id_or_widget' and tag '$tag'"
+				return ""
+			}
+			
+			set tags [$can gettags [lindex $ids 0]]
+			set pages [list]
+			foreach page [lsearch -inline -all $tags {p:*}] {
+				lappend pages [string range $page 2 end]
+			}
+			
+			return $pages
 		}
 		
 		# "Smart" widgets enabler or disabler. 'enabled' can take any value equivalent to boolean (1, true, yes, etc.) 
 		# For text, changes its fill color to the default or provided font or disabled color.
 		# For other widgets like rectangle "clickable" button areas, enables or disables them.
 		# Does nothing if the widget is hidden.
-		proc enable_or_disable { enabled page_or_ids_or_widgets {tags {}} } {
+		proc enable_or_disable { enabled page_or_ids_or_widgets {tags {}} args } {
 			set can [dui canvas]
+			array set opts $args
+			set do_current [string is true [dui::args::get_option -current 1]]
+			set do_initial [string is true [dui::args::get_option -initial 0]]
 			
 			if { [string is true $enabled] || $enabled eq "enable" } {
 				set state normal
@@ -4756,9 +4935,14 @@ namespace eval ::dui {
 				set state disabled
 			}
 						
-			foreach item [get $page_or_ids_or_widgets $tags] {
-				if { [$can itemcget $item -state] ne "hidden" } {
-					$can itemconfigure $item -state $state
+			foreach id [get $page_or_ids_or_widgets $tags] {
+				if { $do_current } {
+					if { [$can itemcget $id -state] ne "hidden" } {
+						$can itemconfigure $id -state $state
+					}
+				}
+				if { $do_initial } {
+					dui item config $id -initial_state $state
 				}
 			}
 		} 
@@ -4767,23 +4951,31 @@ namespace eval ::dui {
 		# For text, changes its fill color to the default or provided disabled color.
 		# For other widgets like rectangle "clickable" button areas, disables them.
 		# Does nothing if the widget is hidden. 
-		proc disable { page_or_ids_or_widgets {tags {}} } {
-			enable_or_disable 0 $page_or_ids_or_widgets $tags
+		proc disable { page_or_ids_or_widgets {tags {}} args } {
+			enable_or_disable 0 $page_or_ids_or_widgets $tags {*}$args
 		}
 		
-		proc enable { page_or_ids_or_widgets {tags {}} } {
-			enable_or_disable 1 $page_or_ids_or_widgets $tags
+		proc enable { page_or_ids_or_widgets {tags {}} args } {
+			enable_or_disable 1 $page_or_ids_or_widgets $tags {*}$args
 		}
 		
 		# "Smart" widgets shower or hider. 'show' can take any value equivalent to boolean (1, true, yes, etc.)
-		# If check_page=1, only hides or shows if the items page is the currently active page. This is useful,
+		# Named options:
+		# -check_page (default 1): Only hides or shows if the items page is the currently active page. This is useful,
 		#	for example, if you're showing after a delay, as the page/page may have been changed in between.
-		proc show_or_hide { show page_or_ids_or_widgets {tags {}} { check_page 1 } } {
-			if { $tags eq "" && [llength $page_or_ids_or_widgets] == 1 && [dui page exists $page_or_ids_or_widgets] && $check_page } {
-				if { $page_or_ids_or_widgets ne [dui page current] } {
-					return
-				}
-			}
+		# -current (default 1): Shows or hides in the currently active page.
+		# -initial (default 0): Sets the initial state when the page is shown the next time, i.e. modifiess the
+		#	item -initial_state option.
+		proc show_or_hide { show page_or_ids_or_widgets {tags {}} args } {
+#			if { $tags eq "" && [llength $page_or_ids_or_widgets] == 1 && [dui page exists $paGranadage_or_ids_or_widgets] && $check_page } {
+#				if { $page_or_ids_or_widgets ne [dui page current] } {
+#					return
+#				}
+#			}
+			array set opts $args
+			set check_page [string is true [dui::args::get_option -check_page 1]]
+			set do_current [string is true [dui::args::get_option -current 1]]
+			set do_initial [string is true [dui::args::get_option -initial 0]]
 			
 			if { [string is true $show] || $show eq "show" } {
 				set state normal
@@ -4792,16 +4984,27 @@ namespace eval ::dui {
 			}
 			
 			foreach id [get $page_or_ids_or_widgets $tags] {
-				[dui canvas] itemconfigure $id -state $state
+				if { $do_current } {
+					if { $check_page } {
+						if { [dui page current] in [dui item pages $id] } {
+							[dui canvas] itemconfigure $id -state $state
+						}						
+					} else {
+						[dui canvas] itemconfigure $id -state $state
+					}
+				}
+				if { $do_initial } {
+					dui item config $id -initial_state $state
+				}
 			}
 		}
 		
-		proc show { page tags { check_page 1} } {
-			show_or_hide 1 $page $tags $check_page
+		proc show { page tags args } {
+			show_or_hide 1 $page $tags {*}$args
 		}
 		
-		proc hide { page tags { check_page 1} } {
-			show_or_hide 0 $page $tags $check_page
+		proc hide { page tags args } {
+			show_or_hide 0 $page $tags {*}$args
 		}
 
 		proc add_image_dirs { args } {
@@ -4835,6 +5038,39 @@ namespace eval ::dui {
 		proc sound_dirs {} {
 			variable sound_dirs
 			return $sound_dirs
+		}
+		
+		# Moves canvas items or compounds to a new screen location
+		proc moveto { page_or_id_or_widget tag x y } {
+			set can [dui canvas]
+			set tag [lindex $tag 0]
+			set items [dui item get $page_or_id_or_widget $tag]
+			set x [dui platform rescale_x $x]
+			set y [dui platform rescale_y $y]
+			
+			if { [string range $tag end-1 end] eq "*" } {
+				set refitem [dui item get $page_or_id_or_widget [string range $tag 0 end-1]]
+			} else {
+				set refitem [lindex $items end]
+			}
+			if { $refitem eq "" } {
+				msg -WARNING [namespace current] "moveto: cannot locate reference item ${page_or_id_or_widget}::${tag}"
+				return
+			}
+			
+			lassign [$can coords $refitem] rx0 ry0 rx1 ry1
+			foreach id $items {
+				lassign [$can coords $id] x0 y0 x1 y1
+				set nx0 [expr {$x+$x0-$rx0}]
+				set ny0 [expr {$y+$y0-$ry0}]
+				if { $x1 eq "" || $y1 eq "" } {
+					$can coords $id $nx0 $ny0
+				} else {
+					set nx1 [expr {$nx0+($x1-$x0)}]
+					set ny1 [expr {$ny0+($y1-$y0)}]
+					$can coords $id $nx0 $ny0 $nx1 $ny1 
+				}
+			}
 		}
 		
 		# Moves a text canvas item with respect to another item or widget, i.e. to a position relative to another one.
@@ -4911,8 +5147,15 @@ namespace eval ::dui {
 				# Embedded in catch as widgets like rectangles don't support -anchor
 				catch { $can itemconfigure $tag -anchor $anchor }
 			}
-			# Don't use command 'moveto' as then -anchor is not acknowledged
-			$can coords $tag "$newx $newy"
+			
+			# Don't use command 'moveto' as then -anchor is not acknowledged for text items
+			set lcoords [llength [$can coords $tag]]
+			
+			if { $lcoords == 2 } {
+				$can coords $tag [list $newx $newy]
+			} elseif { $lcoords == 4 } {
+				$can coords $tag [list $newx $newy [expr {$newx+($wx1-$wx0)}] [expr {$newy+($wy1-$wy0)}]]
+			}
 			
 			if { $move_too ne "" } {
 				lassign [$can bbox $tag] newx newy
@@ -4923,16 +5166,39 @@ namespace eval ::dui {
 					set mtyoffset [expr {[lindex $mtcoords 1]-$wy0}]
 					
 					if { [llength $mtcoords] == 2 } {
-						$can coords $w "[expr {$newx+$mtxoffset}] [expr {$newy+$mtyoffset}]"
+						$can coords $w [list [expr {$newx+$mtxoffset}] [expr {$newy+$mtyoffset}]]
 					} elseif { [llength $mtcoords] == 4 } {
-						$can coords $w "[expr {$newx+$mtxoffset}] [expr {$newy+$mtyoffset}] \
+						$can coords $w [list [expr {$newx+$mtxoffset}] [expr {$newy+$mtyoffset}] \
 							[expr {$newx+$mtxoffset+[lindex $mtcoords 2]-[lindex $mtcoords 0]}] \
-							[expr {$newy+$mtyoffset+[lindex $mtcoords 3]-[lindex $mtcoords 1]}]"
+							[expr {$newy+$mtyoffset+[lindex $mtcoords 3]-[lindex $mtcoords 1]}]]
 					}
 				}
 			}
 					
-			return "$newx $newy"
+			return [list $newx $newy]
+		}
+		
+		proc relocate_dropdown_arrow { page tag  } {
+			set can [dui canvas]
+			set page [lindex $page 0]
+			set tag [lindex $tag 0]
+			
+			lassign [$can bbox [get $page $tag]] x0 y0 x1 y1 
+						
+			set dda_box_id [get $page "${tag}-dda"]
+			lassign [$can coords $dda_box_id] ax0 ay0
+			
+			foreach id [get $page "${tag}-dda-btn"] { 
+				lassign [$can coords $id] ix0 iy0
+				$can moveto $id [expr {$x1+($ix0-$ax0)}] [expr {$y0+($iy0-$ay0)}]
+			}
+			
+			set dda_sym_id [get $page "${tag}-dda-sym"]
+			# This only works correctly with bbox, not with coords, so it cannot be included in the loop above
+			lassign [$can bbox $dda_sym_id] ix0 iy0
+			$can moveto $dda_sym_id [expr {$x1+($ix0-$ax0)}] [expr {$y0+($iy0-$ay0)}]
+			
+			$can moveto $dda_box_id $x1 $y0
 		}
 		
 		# Ensures a minimum or maximum size of a widget in pixels. This is normally useful for text base entries like 
@@ -5071,11 +5337,6 @@ namespace eval ::dui {
 				}
 			}	
 			
-		#	if { [llength $result] == 1 } {
-		#		return [lindex $result 0]
-		#	} else {
-		#		return $result
-		#	}
 			return $result	
 		}
 		
@@ -5150,22 +5411,27 @@ namespace eval ::dui {
 			set x1 [dui platform rescale_x $x1] 
 			set y1 [dui platform rescale_y $y1]
 		
-			lappend ids [$can create arc [expr $x0] [expr $y0+$arc_offset] [expr $x0+$arc_offset] [expr $y0] -style arc -outline $colour \
-				-width [expr $width-1] -tags $tags -start 90 -disabledoutline $disabled -state "hidden"]
-			lappend ids [$can create arc [expr $x0] [expr $y1-$arc_offset] [expr $x0+$arc_offset] [expr $y1] -style arc -outline $colour \
-				-width [expr $width-1] -tags $tags -start 180 -disabledoutline $disabled -state "hidden"]
-			lappend ids [$can create arc [expr $x1-$arc_offset] [expr $y0] [expr $x1] [expr $y0+$arc_offset] -style arc -outline $colour \
-				-width [expr $width-1] -tags $tags -start 0 -disabledoutline $disabled -state "hidden"]
-			lappend ids [$can create arc [expr $x1-$arc_offset] [expr $y1] [expr $x1] [expr $y1-$arc_offset] -style arc -outline $colour \
-				-width [expr $width-1] -tags $tags -start -90 -disabledoutline $disabled -state "hidden"]
+			if { $width > 1 } {
+				set arc_width [expr {$width-1}]
+			} else {
+				set arc_width $width
+			}
+			lappend ids [$can create arc [expr $x0] [expr $y0+$arc_offset+1] [expr $x0+$arc_offset+1] [expr $y0] -style arc -outline $colour \
+				-width $arc_width -tags $tags -start 90 -disabledoutline $disabled -state "hidden"]
+			lappend ids [$can create arc [expr $x0] [expr $y1-$arc_offset-1] [expr $x0+$arc_offset+1] [expr $y1] -style arc -outline $colour \
+				-width $arc_width -tags $tags -start 180 -disabledoutline $disabled -state "hidden"]
+			lappend ids [$can create arc [expr $x1-$arc_offset-1] [expr $y0] [expr $x1] [expr $y0+$arc_offset+1] -style arc -outline $colour \
+				-width $arc_width -tags $tags -start 0 -disabledoutline $disabled -state "hidden"]
+			lappend ids [$can create arc [expr $x1-$arc_offset-1] [expr $y1] [expr $x1] [expr $y1-$arc_offset+1] -style arc -outline $colour \
+				-width $arc_width -tags $tags -start -90 -disabledoutline $disabled -state "hidden"]
 			
-			lappend ids [$can create line [expr $x0+$arc_offset/2] [expr $y0] [expr $x1-$arc_offset/2] [expr $y0] -fill $colour \
+			lappend ids [$can create line [expr $x0+$arc_offset/2-1] [expr $y0] [expr $x1-$arc_offset/2+1] [expr $y0] -fill $colour \
 				-width $width -tags $tags -disabledfill $disabled -state "hidden"]
-			lappend ids[$can create line [expr $x1] [expr $y0+$arc_offset/2] [expr $x1] [expr $y1-$arc_offset/2] -fill $colour \
+			lappend ids[$can create line [expr $x1] [expr $y0+$arc_offset/2-1] [expr $x1] [expr $y1-$arc_offset/2+1] -fill $colour \
 				-width $width -tags $tags -disabledfill $disabled -state "hidden"]
-			lappend ids[$can create line [expr $x0+$arc_offset/2] [expr $y1] [expr $x1-$arc_offset/2] [expr $y1] -fill $colour \
+			lappend ids[$can create line [expr $x0+$arc_offset/2-1] [expr $y1] [expr $x1-$arc_offset/2+1] [expr $y1] -fill $colour \
 				-width $width -tags $tags -disabledfill $disabled -state "hidden"]
-			lappend ids[$can create line [expr $x0] [expr $y0+$arc_offset/2] [expr $x0] [expr $y1-$arc_offset/2] -fill $colour \
+			lappend ids[$can create line [expr $x0] [expr $y0+$arc_offset/2-1] [expr $x0] [expr $y1-$arc_offset/2+1] -fill $colour \
 				-width $width -tags $tags -disabledfill $disabled -state "hidden"]
 			return $ids
 		}
@@ -5424,7 +5690,7 @@ namespace eval ::dui {
 				uplevel #0 $callback_cmd
 			}
 			
-			dui page update_onscreen_variables
+			dui::page::update_onscreen_variables
 			return
 		}
 
@@ -5514,7 +5780,7 @@ namespace eval ::dui {
 				uplevel #0 $callback_cmd
 			}
 			
-			dui page update_onscreen_variables
+			dui::page::update_onscreen_variables
 			return
 		}
 						
@@ -5641,7 +5907,7 @@ namespace eval ::dui {
 		
 		# Not needed at the moment. For basic operation we don't need to keep the dscale state anywhere. The
 		# 	calls in the bind events are enough, as they include all the info in their arguments.
-		# This may be needed in the future if we want client code to invoke methods on dscales easilyt.
+		# This may be needed in the future if we want client code to invoke methods on dscales easily.
 #		::variable dscales
 #		array set dscales {}
 		
@@ -5796,7 +6062,7 @@ namespace eval ::dui {
 			set varcode [dui::args::get_option -textvariable "" 1]
 	
 			set id [dui add dtext $pages $x $y {*}$args]
-			dui page add_variable $pages $id $varcode
+			dui::page::add_variable $pages $id $varcode
 			return $id
 		}
 		
@@ -5825,8 +6091,8 @@ namespace eval ::dui {
 		# Invisible buttons can show their clickable area while debugging, by setting namespace variable debug_buttons=1.
 		#	In that case, the outline color is given by aspect 'button.debug_outline' (or black if undefined).
 		# Generates up to 3 canvas items/tags per page. Default one is named upon the provided -tags and corresponds to 
-		#	the invisible "clickable" area. If a visible button is generated, it its assigned tag "<tag>.button".
-		#	If a label is specified, it gets tag "<tag>.label". Returns the list of all added tags.
+		#	the invisible "clickable" area. If a visible button is generated, it its assigned tag "<tag>-btn".
+		#	If a label is specified, it gets tag "<tag>-lbl". Returns the canvas ID of the invisible clickable rectangle.
 		#
 		# Named options:  
 		#	If the first two arguments are integer numbers, they are interpreted as the absolute bottom-right coordinates
@@ -5836,7 +6102,9 @@ namespace eval ::dui {
 		#	-bheight to set the height of the button. If this is provided, y1 is ignored and height is added to y0 instead.
 		#		Normally bwidth and bheight are used when defining a button style in the theme aspects, so that buttons
 		#		using a given style always have the same size.
-		#	-shape any of 'rect', 'rounded' (Barney/MimojaCafe style) or 'outline' (DSx style)
+		#	-shape: empty string for an invisible rectangle, or any of 'rect', 'oval', 'rounded' (Barney/MimojaCafe style),
+		#		'outline' (rounded rectangle outline without a fill, DSx style), or 'rounded_outline' (rounded rectangle
+		#		outline with a fill color).
 		#	-style to apply the default aspects of the provided style
 		#	-command tcl code to be run when the button is clicked
 		#	-label, -label1, -label2... label text, in case a label is to be shown inside the button
@@ -6004,8 +6272,21 @@ namespace eval ::dui {
 					
 					set ids [dui::item::rounded_rectangle_outline $x $y $x1 $y1 $arc_offset $outline $disabledoutline \
 						$width $button_tags]
+				} elseif { $shape eq "round_outline" } {
+					set fill [dui::args::get_option -fill [dui aspect get dbutton fill -style $style]]
+					set disabledfill [dui::args::get_option -disabledfill [dui aspect get dbutton disabledfill -style $style]]
+					set radius [dui::args::get_option -radius [dui aspect get dbutton radius -style $style -default 40]]
+					set outline [dui::args::get_option -outline [dui aspect get dbutton outline -style $style]]
+					set disabledoutline [dui::args::get_option -disabledoutline [dui aspect get dbutton disabledoutline -style $style]]
+					set width [dui::args::get_option -width [dui aspect get dbutton width -style $style -default 3]]
+					
+					set ids [dui::item::rounded_rectangle $x $y $x1 $y1 $radius $fill $disabledfill $button_tags]
+					set outline_tags [list ${main_tag}-out {*}[lrange $tags 1 end]]
+					set ids [dui::item::rounded_rectangle_outline $x $y $x1 $y1 $radius $outline \
+						$disabledoutline $width $outline_tags]
+				} elseif { $shape eq "oval" } {
+					set ids [$can create oval $rx $ry $rx1 $ry1 -tags $button_tags -state hidden {*}$args]
 				} else {
-if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}					
 					set ids [$can create rect $rx $ry $rx1 $ry1 -tags $button_tags -state hidden {*}$args]
 				}
 			}
@@ -6017,7 +6298,7 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			set i 0
 			set suffix ""
 			while { [info exists image$suffix] && [subst \$image$suffix] ne "" } {
-				dui add image $pages [subst \$xsymbol$suffix] [subst \$ysymbol$suffix] -text [subst \$image$suffix] \
+				dui add image $pages [subst \$ximage$suffix] [subst \$yimage$suffix] [subst \$image$suffix] \
 					-tags [subst \$image${suffix}_tags] -aspect_type "dbutton_image$suffix" \
 					-style $style {*}[subst \$image${suffix}_args]
 				set suffix [incr i]
@@ -6032,7 +6313,6 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 					-style $style {*}[subst \$symbol${suffix}_args]
 				set suffix [incr i]
 			}
-			
 			
 			# Add each of the (possibly several) labels
 			set i 0
@@ -6101,6 +6381,7 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			set ns [dui page get_namespace $pages]
 				
 			set style [dui::args::get_option -style "" 0]
+			set theme [dui::args::get_option -theme [dui page theme [lindex $pages 0] "default"] 0]
 			set var [dui::args::get_option -variable "" 1]
 			dui::args::process_aspects dclicker $style
 			
@@ -6124,9 +6405,8 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 				} 
 				set editor_args [dui::args::extract_prefixed -editor_ ]
 				
-				set editor_cmd [list dui page load $editor_page $var -n_decimals $n_decimals -min $min \
-					-max $max -default $default -smallincrement $smallincrement -bigincrement $bigincrement \
-					{*}$editor_args ]
+				set editor_cmd [list dui page load $editor_page $var -n_decimals $n_decimals -min $min -max $max \
+					-default $default -smallincrement $smallincrement -bigincrement $bigincrement -theme $theme {*}$editor_args]
 				#set editor_cmd "if \{ \[dui item cget [lindex $pages 0] $main_tag -state\] eq \"normal\" \} \{ $editor_cmd \};"
 #				bind $widget <Double-Button-1> $editor_cmd
 			}
@@ -6149,7 +6429,7 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			set can [dui canvas]
 
 			if { $filename ne "" } {
-				set filename [dui image find $filename yes]
+				set filename [dui::image::find $filename yes]
 				if { $filename eq "" } {
 					return
 				}
@@ -6169,30 +6449,31 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			dui::args::add_option_if_not_exists -anchor nw canvas_args
 			
 			dui::args::remove_options -tags
-			try {
-				set w [::image create $type $main_tag -file "$filename" {*}$args]
-			} on error err {
-				set msg "can't create image '$main_tag' in page(s) '$pages': $err"
-				msg -ERROR [namespace current] $msg
-				error $msg
-				return	
+			
+			set preload_images [dui cget preload_images]
+			set img_name ""
+			if { $filename ne "" && [dui::image::is_loaded "$filename"] } {
+				set img_name [dui::image::get "$filename"]
+			} 
+			if { $img_name eq "" } {
+				set img_name "[lindex $pages 0]-$main_tag"
+				set img_name [dui::image::load $type $img_name $filename $preload_images {*}$args]
+				if { $img_name eq "" } return
 			}
 			
 			try {
-				[dui canvas] create image $x $y -image $main_tag -tags $tags -state hidden {*}$canvas_args
+				[dui canvas] create image $x $y -image $img_name -tags $tags -state hidden {*}$canvas_args
 			} on error err {
-				set msg "can't add image '$main_tag' in page(s) '$pages' to canvas: $err"
-				msg -ERROR [namespace current] $msg
-				error $msg
+				msg -ERROR [namespace current] "image: can't add image '$filename' with tag '$main_tag' to canvas page(s) '$pages' : $err"
 				return
 			}
-	
+			
 			set ns [dui page get_namespace $pages]
 			if { $ns ne "" } {
-				set ${ns}::widgets($main_tag) $w
+				set ${ns}::widgets($main_tag) $img_name
 			}			
-			#msg -INFO [namespace current] image "add '$main_tag' to page(s) '$pages' with args '$args'"			
-			return $main_tag
+			#msg -INFO [namespace current] image "add '$main_tag' to page(s) '$pages' with args '$args' (img_name=$img_name)"
+			return $img_name
 		}
 				
 		# Named options:
@@ -6333,6 +6614,9 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			set tags [dui::args::process_tags_and_var $pages entry -textvariable 1]
 			set main_tag [lindex $tags 0]
 			
+			set style [dui::args::get_option -style "" 0]
+			dui::args::process_aspects entry $style
+			
 			# Data type and validation
 			set data_type [dui::args::get_option -data_type "text" 1]
 			set n_decimals [dui::args::get_option -n_decimals 0 1]
@@ -6353,11 +6637,19 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 				set vcmd ""
 				if { $data_type eq "numeric" } {
 					set vcmd [list ::dui::validate_numeric %P $n_decimals $min $max]
+					set validate [dui::args::get_option -validate key 1]
+				} elseif { $data_type eq "date" } {
+					set dateformat [dui cget date_input_format]
+					regsub -all "%" $dateformat "%%" dateformat
+					set fg [dui::args::get_option -foreground [dui aspect get entry foreground -style $style -default black] 0]
+					set error_fg [dui aspect get dtext fill -style error -default red] 
+					set vcmd [list ::dui::validate_date %P %W $dateformat $fg $error_fg]
+					set validate [dui::args::get_option -validate focus 1]
 				}
 				
 				if { $vcmd ne "" } {
 					dui::args::add_option_if_not_exists -vcmd $vcmd
-					dui::args::add_option_if_not_exists -validate key
+					dui::args::add_option_if_not_exists -validate $validate
 				}
 			}
 					
@@ -6483,7 +6775,8 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			set main_tag [lindex $tags 0]
 			set ns [dui page get_namespace $pages]
 			set style [dui::args::get_option -style "" 0]
-
+			set theme [dui::args::get_option -theme [dui page theme [lindex $pages 0] "default"] 0]
+			
 			set values [dui::args::get_option -values {} 1]
 			#set values_ids [dui::args::get_option -values_ids {} 1]
 			#set item_type [dui::args::get_option -item_type {} 1]
@@ -6491,9 +6784,6 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			set textvariable [dui::args::get_option -textvariable {} 0]
 			set callback_cmd [dui::args::get_option -callback_cmd {} 1]
 			if { $callback_cmd ne "" } {
-#				if { $ns ne "" && [namespace which -command "${ns}::select_${main_tag}_callback"] ne "" } {
-#					set callback_cmd "${ns}::select_${main_tag}_callback"
-#				}
 				if { $ns ne "" && [string is wordchar $callback_cmd] && [namespace which -command "${ns}::$callback_cmd"] ne "" } {
 					set callback_cmd "${ns}::$callback_cmd"
 				} else {
@@ -6504,14 +6794,13 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			set cmd [dui::args::get_option -command {} 1]
 			set expand_cmd 0
 			if { $cmd eq "" } {
-				set cmd [list dui page load dui_item_selector]
+				set cmd [list dui::page::load dui_item_selector]
 				set expand_cmd 1
 			} elseif { $ns ne "" && [string is wordchar $cmd] && [namespace which -command ${ns}::$cmd] ne "" } {
 				set cmd "${ns}::$cmd"
 				set expand_cmd 1
 			} else {
 				regsub -all {%NS} $cmd $ns cmd
-				
 			}
 			if { $expand_cmd } {
 				lappend cmd $textvariable $values
@@ -6523,6 +6812,7 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 						lappend cmd -$fn [dui::args::get_option -$fn {} 1]
 					}
 				}
+				lappend cmd -theme $theme
 				#set cmd [list say "select" $::settings(sound_button_in) \; {*}$cmd ]
 			}
 #			dui::args::process_font dcombobox $style
@@ -6532,18 +6822,8 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			
 			# Dropdown selection arrow
 			set arrow_tags [list ${main_tag}-dda {*}[lrange $tags 1 end]]
-			set arrow_id [dui add symbol $pages 10000 $y -symbol sort-down -tags $arrow_tags -anchor w -justify left \
-				-aspect_type dcombobox_ddarrow -command $cmd] 
-			#[dui canvas] bind $arrow_id [dui platform button_press] $select_cmd
-			
-			bind $w <Configure> [list dui::item::relocate_text_wrt [lindex $pages 0] ${main_tag}-dda $main_tag e 20 -12 w]
-#			foreach page $pages {
-#				set after_show_cmd [list dui item relocate_text_wrt $page ${main_tag}-dda $main_tag e 20 -12 w]
-#				dui page add_action $page show $after_show_cmd
-#			}
-			
-#			dui add dbutton $pages [expr {$x-5}] [expr {$y+}]  -command $select_cmd  \
-#				[expr {$x_widget+360}] [expr {$y_widget+68}] ]
+			dui add dbutton $pages [expr {$x+650}] $y -tags $arrow_tags -aspect_type dbutton_dda -command $cmd -symbol sort-down
+			bind $w <Configure> [list dui::item::relocate_dropdown_arrow [lindex $pages 0] $main_tag]
 			
 			return $w
 		}
@@ -6562,7 +6842,6 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			set checkvar [dui::args::get_option -textvariable "" 1]			
 			set cmd [dui::args::get_option -command "" 1]
 			
-			#set first_page [lindex $pages 0]
 			set ns [dui::page::get_namespace [lindex $pages 0]]
 			if { $ns ne "" } { 
 				if { [string is wordchar $cmd] && [info proc ${ns}::$cmd] ne "" } {
@@ -6579,10 +6858,6 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			dui add variable $pages $x $y -aspect_type dcheckbox -command $cmd -textvariable \
 				"\[lindex \$::dui::symbol::dcheckbox_symbols_map \[string is true \$$checkvar\]\]" {*}$args
 	
-#			set button_tags [list ${main_tag}-btn {*}[lrange $tags 1 end]]		
-#			dui add dbutton $pages [expr {$x-5}] [expr {$y-5}] [expr {$x+60}] [expr {$y+60}] ] -tags $button_tags \
-#				-command $cmd
-			
 			return $main_tag
 		}
 		
@@ -6606,7 +6881,6 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 
 			set ysb [dui::args::get_option -yscrollbar 0 1]
 			set sb_args [dui::args::extract_prefixed -yscrollbar_]
-#			set ysb [dui::args::process_yscrollbar $pages $x $y listbox $style]
 			if { $ysb != 0 && ![dui::args::has_option -yscrollcommand] } {
 				set first_page [lindex $pages 0]
 				dui::args::add_option_if_not_exists -yscrollcommand \
@@ -6639,7 +6913,6 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 		# This is not normally invoked directly by client code, but from other 'add' commands like 'dui add listbox'.
 		# Tags should be those of the original scrolled widget.
 		proc yscrollbar { pages x y args } {
-			#set tags [dui::args::process_tags_and_var $pages yscrollbar -variable 0]
 			set tags [dui::args::get_option -tags {} 1]
 			set main_tag [lindex $tags 0]
 			if { $main_tag eq "" } return
@@ -6675,15 +6948,9 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 			set can [dui canvas]			
 			set tags [dui::args::process_tags_and_var $pages scale -variable 1]
 			set main_tag [lindex $tags 0]
-			#set ns [dui page get_namespace $pages]
 
 			set style [dui::args::get_option -style "" 0]
-			
 			dui::args::process_aspects scale $style
-#			foreach a [dui aspect list -type scale -style $style] {
-#				dui::args::add_option_if_not_exists -$a [dui aspect get scale $a -style $style]
-#			}
-#			dui::args::process_font scale $style
 			
 			set orient [dui::args::get_option -orient h]
 			set sliderlength [dui::args::get_option -sliderlength {} 1]
@@ -7194,6 +7461,29 @@ if { $main_tag eq "match_current_btn" } { msg "BUTTON ARGS: $args "}
 		return 1
 	}
 	
+	proc validate_date { value widget {format {}} {fg black} {fg_error red} } {	
+		if { $format eq "" } {
+			set format [dui cget date_input_format]
+			if { $format eq "" } {
+				set format "%d/%m/%Y"
+			}
+		}
+
+		set result 1
+		if { $value ne "" } {
+			try { 
+				set check [clock scan $value -format $format]
+			} on error err {
+				set result 0
+			}
+		}
+		if { $result } {
+			$widget configure -foreground $fg
+		} else {
+			$widget configure -foreground $fg_error
+		}
+		return $result
+	}
 
 }
 
@@ -7317,13 +7607,7 @@ namespace eval ::dui::pages::dui_number_editor {
 		set x 625; set y 390
 		dui add entry $page $x $y -tags value -width 6 -data_type numeric -font_size +6 -canvas_anchor center \
 			-justify center
-				
-		# Increment/decrement clicker buttons style
-		dui aspect set -style dne_clicker {dbutton.shape round dbutton.bwidth 120 dbutton.bheight 140 
-			dbutton.radius 20 dbutton.anchor center
-			dbutton_symbol.pos {0.5 0.4} dbutton_symbol.anchor center dbutton_symbol.font_size 20
-			dbutton_label.pos {0.5 0.8} dbutton_label.font_size 10 dbutton_label.anchor center}
-		
+
 		# Decrement value arrows		
 		set hoffset 45; set bspace 140
 		dui add dbutton $page [expr {$x-$hoffset-$bspace}] $y -tags small_decr -style dne_clicker \
@@ -7359,12 +7643,6 @@ namespace eval ::dui::pages::dui_number_editor {
 		dui add listbox $page 450 780 -tags previous_values -canvas_width 350 -canvas_height 550 -yscrollbar 1 \
 			-label [translate "Previous values"] -label_style section_font_size -label_pos {450 700} -label_anchor nw 
 		bind $widgets(previous_values) <<ListboxSelect>> ::dui::pages::dui_number_editor::previous_values_select
-		
-#		# Numeric type pad
-		dui aspect set -style dne_pad_button {dbutton.shape round dbutton.bwidth 280 dbutton.bheight 220 
-			dbutton.radius 20 dbutton.anchor nw
-			button_label.pos {0.5 0.5} button_label.font_family notosansuibold 
-			button_label.font_size 24 button_label.anchor center}
 		
 		set x_base 1425; set y_base 290
 		set width 280; set height 220; set hspace 80; set vspace 60
@@ -7406,12 +7684,17 @@ namespace eval ::dui::pages::dui_number_editor {
 			msg -WARN [namespace current] load: "num_variable is required"
 			return 0
 		}
+		
+		if { [info exists opts(-theme)] } {
+			dui page retheme $page_to_show $opts(-theme)
+		}
+		
 		if { ![info exists $num_variable] } {
 			set $num_variable ""
 		}
 		
 		set data(previous_page) $page_to_hide
-		
+				
 		set fields {page_title callback_cmd previous_values default min max n_decimals smallincrement bigincrement}
 		foreach fn $fields {
 			set data($fn) [ifexists opts(-$fn)]
@@ -7672,7 +7955,7 @@ namespace eval ::dui::pages::dui_item_selector {
 	#	-selectmode: single, browse, multiple or extended.
 	#	-empty_items_msg: text to show if there are no items to select.
 	#	-listbox_width: the width in pixels of the filter entry and the items listbox.
-	
+	#	-theme: If provided and the current theme for the page is not the requested one, rethemes the page.
 	proc load { page_to_hide page_to_show variable values args } {
 		variable data
 		variable widgets
@@ -7682,6 +7965,11 @@ namespace eval ::dui::pages::dui_item_selector {
 			msg -WARN [namespace current] load "NO PAGE TO HIDE"
 		}
 		set data(previous_page) $page_to_hide
+		
+		if { [info exists opts(-theme)] } {
+			dui page retheme $page_to_show $opts(-theme)
+		}
+		
 		set data(page_title) [ifexists opts(-page_title) [translate "Select an item"]]
 				
 		# If no selected is given, but variable is given and it has a current value, use it as selected.
@@ -7693,18 +7981,11 @@ namespace eval ::dui::pages::dui_item_selector {
 		# Add the current/selected value if not included in the list of available items
 		set values [subst $values]
 		set data(item_ids) [ifexists opts(-values_ids)]
-		if { $selected ne "" } {
-			if { $selected ni $values } {
-				if { [llength $data(item_ids)] > 0 } { 
-					lappend data(item_ids) -1 
-				}
-				lappend values $selected
-			}
-		}
 		set data(item_values) $values		
 		set data(item_type) [ifexists opts(-category_name)]
 		set data(callback_cmd) [ifexists opts(-callback_cmd)]
 		set data(selectmode) [ifexists opts(-selectmode) "browse"]
+		dui item config $page_to_show items -selectmode $data(selectmode)
 		set data(empty_items_msg) [ifexists opts(-empty_items_msg) [translate "There are no available items to show"]]
 		set data(listbox_width) [number_in_range [ifexists opts(-listbox_width) 1775] {} 200 2100 {} 0]
 		set data(filter_string) {}
@@ -7715,11 +7996,30 @@ namespace eval ::dui::pages::dui_item_selector {
 		$widgets(items) delete 0 end
 		$widgets(items) insert 0 {*}$values
 		
-		if { $selected ne "" } {		
-			set idx [lsearch -exact $values $selected]
-			if { $idx >= 0 } {
+		if { $selected ne "" } {
+			if { $data(selectmode) in {browse single} } {
+				set idx [lsearch -exact $values $selected]
+				if { $idx < 0 } {
+					$widgets(items) insert end $selected
+					lappend $data(item_values) $selected
+					lappend $data(item_ids) -1
+					set idx [$widgets(items) index end]
+				}
 				$widgets(items) selection set $idx
 				$widgets(items) see $idx
+				items_select
+			} else {
+				foreach sel [split $selected ";"] {
+					set idx [lsearch -exact $values $sel]
+					if { $idx < 0 } {
+						$widgets(items) insert end $sel
+						lappend $data(item_values) $sel
+						lappend $data(item_ids) -1
+						set idx [$widgets(items) index end]
+					}
+					$widgets(items) selection set $idx
+					$widgets(items) see $idx
+				}
 				items_select
 			}
 		}
@@ -7812,8 +8112,8 @@ namespace eval ::dui::pages::dui_item_selector {
 		say [translate {done}] $::settings(sound_button_in)
 
 		set items_widget $widgets(items)
-		set item_values {}
-		set item_ids {}
+		set item_values [list]
+		set item_ids [list]
 		
 		if {[$items_widget curselection] ne ""} {
 			set sel_idx [$items_widget curselection]

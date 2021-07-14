@@ -1,5 +1,5 @@
 # Barney's Metric skin
-package provide metric 2.6
+package provide metric 2.8
 package require de1plus 1.0
 
 set ::skindebug 0
@@ -33,9 +33,6 @@ source "[homedir]/skins/default/standard_includes.tcl"
 set_next_page "tankempty" "off"
 # tap to close screen saver
 add_de1_button "saver" {say [translate "wake"] $::settings(sound_button_in); metric_jump_to "off"} 0 0 2560 1600
-
-# include the settings screens.  
-source "[homedir]/skins/default/de1_skin_settings.tcl"
 
 # debug info
 if {$::debugging == 1} {

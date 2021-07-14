@@ -3,6 +3,9 @@ set espresso_setting_contexts "off espresso_menu_grind espresso_menu_dose espres
 add_background $espresso_contexts
 add_page_title $espresso_contexts [translate "decent espresso"]
 
+create_symbol_button $espresso_contexts 2040 60 20 [translate "settings"] $::symbol_settings $::color_menu_background { say [translate "settings"] $::settings(sound_button_in); show_settings; metric_load_current_profile }
+create_symbol_button $espresso_contexts 2300 60 20 [translate "sleep"] $::symbol_power $::color_menu_background { say [translate "sleep"] $::settings(sound_button_in); start_sleep}
+
 proc create_dropdown_button {contexts_closed context_open x y width label symbol color value action_open action_close} {
 	set contexts "$context_open $contexts_closed"
 	set font_value [get_font "Mazzard Regular" 22]
@@ -58,25 +61,27 @@ proc create_arrow_buttons { contexts x y varname smalldelta largedelta minval ma
 	create_arrow_button $contexts [expr $x + 200] [expr $y + 220] 100 12 -1 "say \"down\" $::settings(sound_button_in); adjust_setting $varname -$largedelta $minval $maxval; $after_adjust_action"
 }
 
-create_dropdown_button "$espresso_setting_contexts espresso_menu_profile" "espresso_menu_beans" 80 260 1170 [translate "beans"] $::symbol_bean $::color_dose {$::settings(bean_brand)\n$::settings(bean_type)} {say [translate "beans"] $::settings(sound_button_in); metric_jump_to "espresso_menu_beans"; focus $::metric_bean_name_editor} {say [translate "close"] $::settings(sound_button_in); metric_jump_to "off"}
+set dropdown_y 320
 
-rounded_rectangle "espresso_menu_beans" .can [rescale_x_skin 80] [rescale_y_skin 470] [rescale_x_skin 2480] [rescale_y_skin 1200] [rescale_x_skin 30] $::color_menu_background
-add_de1_text "espresso_menu_beans" 130 560 -text [translate "Roaster name:"] -font [get_font "Mazzard Regular" 22] -fill $::color_text -anchor "w" -state "hidden"
-add_de1_widget "espresso_menu_beans" entry 780 530 {
+create_dropdown_button "$espresso_setting_contexts espresso_menu_profile" "espresso_menu_beans" 80 $dropdown_y 1170 [translate "beans"] $::symbol_bean $::color_dose {$::settings(bean_brand)\n$::settings(bean_type)} {say [translate "beans"] $::settings(sound_button_in); metric_jump_to "espresso_menu_beans"; focus $::metric_bean_name_editor} {say [translate "close"] $::settings(sound_button_in); metric_jump_to "off"}
+
+rounded_rectangle "espresso_menu_beans" .can [rescale_x_skin 80] [rescale_y_skin [expr $dropdown_y + 220]] [rescale_x_skin 2480] [rescale_y_skin [expr $dropdown_y + 800]] [rescale_x_skin 80] $::color_menu_background
+add_de1_text "espresso_menu_beans" 130 [expr $dropdown_y + 300] -text [translate "Roaster name:"] -font [get_font "Mazzard Regular" 22] -fill $::color_text -anchor "w" -state "hidden"
+add_de1_widget "espresso_menu_beans" entry 780 [expr $dropdown_y + 280] {
 		set ::metric_bean_name_editor $widget
 		bind $widget <Leave> { hide_android_keyboard; metric_bean_details_changed }
 		bind $widget <Return> { hide_android_keyboard; metric_bean_details_changed }
 	} -width [expr {int(22 * $::globals(entry_length_multiplier))}]  -font [get_font "Mazzard Regular" 22] -borderwidth 1 -bg $::color_menu_background -foreground $::color_text -textvariable ::settings(bean_brand) -relief flat -highlightthickness 1 -selectbackground $::color_background 
 
-add_de1_text "espresso_menu_beans" 130 680 -text [translate "Bean type:"] -font [get_font "Mazzard Regular" 22] -fill $::color_text -anchor "w" -state "hidden"
-add_de1_widget "espresso_menu_beans" entry 780 650 {
+add_de1_text "espresso_menu_beans" 130 [expr $dropdown_y + 420] -text [translate "Bean type:"] -font [get_font "Mazzard Regular" 22] -fill $::color_text -anchor "w" -state "hidden"
+add_de1_widget "espresso_menu_beans" entry 780 [expr $dropdown_y + 400] {
 		set ::metric_bean_name_editor $widget
 		bind $widget <Leave> { hide_android_keyboard; metric_bean_details_changed }
 		bind $widget <Return> { hide_android_keyboard; metric_bean_details_changed }
 	} -width [expr {int(22 * $::globals(entry_length_multiplier))}]  -font [get_font "Mazzard Regular" 22] -borderwidth 1 -bg $::color_menu_background -foreground $::color_text -textvariable ::settings(bean_type) -relief flat -highlightthickness 1 -selectbackground $::color_background 
 
 
-create_dropdown_button "$espresso_setting_contexts espresso_menu_beans" "espresso_menu_profile" 1310 260 1170 [translate "profile"] $::symbol_menu $::color_profile {$::settings(profile_title)} {say [translate "profile"] $::settings(sound_button_in); fill_metric_profiles_listbox; metric_jump_to "espresso_menu_profile"; set_metric_profiles_scrollbar_dimensions; select_metric_profile} {say [translate "close"] $::settings(sound_button_in); metric_jump_to "off"}
+create_dropdown_button "$espresso_setting_contexts espresso_menu_beans" "espresso_menu_profile" 1310 $dropdown_y 1170 [translate "profile"] $::symbol_menu $::color_profile {$::settings(profile_title)} {say [translate "profile"] $::settings(sound_button_in); fill_metric_profiles_listbox; metric_jump_to "espresso_menu_profile"; set_metric_profiles_scrollbar_dimensions; select_metric_profile} {say [translate "close"] $::settings(sound_button_in); metric_jump_to "off"}
 
 proc get_profile_title { profile_filename } {
 	set file_path "[homedir]/profiles/$profile_filename.tcl"
@@ -135,12 +140,12 @@ proc fill_metric_profiles_listbox { } {
 	select_metric_profile
 }
 
-rounded_rectangle "espresso_menu_profile" .can [rescale_x_skin 80] [rescale_y_skin 470] [rescale_x_skin 2480] [rescale_y_skin 1200] [rescale_x_skin 30] $::color_menu_background
-add_de1_widget "espresso_menu_profile" listbox 105 500 {
+rounded_rectangle "espresso_menu_profile" .can [rescale_x_skin 80] [rescale_y_skin [expr $dropdown_y + 220]] [rescale_x_skin 2480] [rescale_y_skin [expr $dropdown_y + 800]] [rescale_x_skin 80] $::color_menu_background
+add_de1_widget "espresso_menu_profile" listbox 105 [expr $dropdown_y + 260] {
 		set ::globals(metric_profiles_listbox) $widget
 	 	fill_metric_profiles_listbox
 		bind $::globals(metric_profiles_listbox) <<ListboxSelect>> ::metric_profile_selected
-	 } -background $::color_menu_background -foreground $::color_text -selectbackground $::color_text -selectforeground $::color_background -font [get_font "Mazzard Regular" 32] -bd 0 -height [expr {int(8 * $::globals(listbox_length_multiplier))}] -width 44 -borderwidth 0 -selectborderwidth 0  -relief flat -highlightthickness 0 -selectmode single -xscrollcommand {scale_prevent_horiz_scroll $::globals(metric_profiles_listbox)} -yscrollcommand {scale_scroll_new $::globals(metric_profiles_listbox) ::metric_profiles_slider}   
+	 } -background $::color_menu_background -foreground $::color_text -selectbackground $::color_text -selectforeground $::color_background -font [get_font "Mazzard Regular" 32] -bd 0 -height [expr {int(6 * $::globals(listbox_length_multiplier))}] -width 44 -borderwidth 0 -selectborderwidth 0  -relief flat -highlightthickness 0 -selectmode single -xscrollcommand {scale_prevent_horiz_scroll $::globals(metric_profiles_listbox)} -yscrollcommand {scale_scroll_new $::globals(metric_profiles_listbox) ::metric_profiles_slider}   
 
 set ::metric_profiles_slider 0
 
@@ -168,7 +173,7 @@ proc get_mantissa {value} {
 
 # config
 set x 80
-set y 800
+set y 830
 
 create_arrow_buttons "espresso_menu_grind" $x $y "::settings(grinder_setting)" 0.5 1 $::metric_setting_grind_min $::metric_setting_grind_max metric_grind_changed
 create_2value_button $espresso_setting_contexts $x [expr $y -90] 400 [translate "grind"] $::symbol_grind $::color_grind {[get_mantissa $::settings(grinder_setting)]} {.[get_exponent $::settings(grinder_setting)]} {say [translate "grind"] $::settings(sound_button_in); metric_jump_to "espresso_menu_grind"}
@@ -196,15 +201,49 @@ create_2value_button $espresso_setting_contexts $x [expr $y -90] 400 [translate 
 add_de1_button "espresso_menu_temperature" {say [translate "close"] $::settings(sound_button_in); metric_jump_to "off"} $x [expr $y - 90] [expr $x + 400] [expr $y + 90]
 
 
-set ::espresso_action_button_id [create_action_button $espresso_setting_contexts 1280 1340 [translate "start"] $::font_action_label $::color_text $::symbol_espresso $::font_action_button $::color_action_button_start $::color_action_button_text {say [translate {start}] $::settings(sound_button_in); do_start_espresso} ""]
+# Function bar
 
-proc update_espresso_button {} {
+rounded_rectangle $espresso_contexts .can [rescale_x_skin 500] [rescale_y_skin 1210] [rescale_x_skin 1010] [rescale_y_skin 1470] [rescale_x_skin 50] $::color_menu_background
+set ::steam_button_id [create_symbol_button $espresso_contexts 540 1250 30 [translate "steam"] $::symbol_steam $::color_menu_background {say [translate "steam"] $::settings(sound_button_in); do_start_steam}]
+set ::water_button_id [create_symbol_button $espresso_contexts 790 1250 30 [translate "hot water"] $::symbol_water $::color_menu_background {say [translate "hot water"] $::settings(sound_button_in); do_start_water}]
+
+set ::espresso_action_button_id [create_action_button $espresso_contexts 1280 1340 [translate "start"] $::font_action_label $::color_text $::symbol_espresso $::font_action_button $::color_action_button_start $::color_action_button_text {say [translate {start}] $::settings(sound_button_in); do_start_espresso} ""]
+
+rounded_rectangle $espresso_contexts .can [rescale_x_skin 1550] [rescale_y_skin 1210] [rescale_x_skin 2060] [rescale_y_skin 1470] [rescale_x_skin 50] $::color_menu_background
+set ::flush_button_id [create_symbol_button $espresso_contexts 1590 1250 30 [translate "flush"] $::symbol_flush $::color_menu_background {say [translate "flush"] $::settings(sound_button_in); do_start_flush}]
+set ::lastshot_button_id [create_symbol_button $espresso_contexts 1840 1250 30 [translate "analysis"] $::symbol_chart $::color_menu_background {say [translate "analysis"] $::settings(sound_button_in); do_show_last_shot }]
+
+proc update_function_buttons {} {
+	if { [can_start_water] } {
+		.can itemconfigure $::water_button_id -fill $::color_text
+	} else {
+		.can itemconfigure $::water_button_id -fill $::color_grey_text
+	}
+
+	if { [can_start_steam] } {
+		.can itemconfigure $::steam_button_id -fill $::color_text
+	} else {
+		.can itemconfigure $::steam_button_id -fill $::color_grey_text
+	}	
+
 	if { [can_start_espresso] } {
 		update_button_color $::espresso_action_button_id $::color_action_button_start
 	} else {
 		update_button_color $::espresso_action_button_id $::color_action_button_disabled
 	}
+
+	if { [can_start_flush] } {
+		.can itemconfigure $::flush_button_id -fill $::color_text
+	} else {
+		.can itemconfigure $::flush_button_id -fill $::color_grey_text
+	}
+
+	if { [can_show_last_shot] } {
+		.can itemconfigure $::lastshot_button_id -fill $::color_text
+	} else {
+		.can itemconfigure $::lastshot_button_id -fill $::color_grey_text
+	}
 }
-add_de1_variable $espresso_setting_contexts -100 -100 -textvariable {[update_espresso_button]} 
+add_de1_variable $espresso_contexts -100 -100 -textvariable {[update_function_buttons]}
 
 #create_button "off" 2280 60 2480 180 [translate "debug"] $::font_button $::color_button $::color_button_text { say [translate "debug"] $::settings(sound_button_in); metric_jump_to "debug"}

@@ -17,14 +17,17 @@ proc setup_environment {} {
 		}
 	}
 	dui config language [language]
-	dui font add_dirs "[homedir]/fonts/"
-	dui image add_dirs "[homedir]/skins/default/"
+	dui font add_dirs "[homedir]/fonts/"	
+	dui config preload_images $::settings(preload_all_page_images)
 	dui sound set button_in "[homedir]/sounds/KeypressStandard_120.ogg" \
 		button_out "[homedir]/sounds/KeypressDelete_120.ogg" \
 		page_change "[homedir]/sounds/KeypressDelete_120.ogg"
 	
 	dui init $settings(screen_size_width) $settings(screen_size_height) $settings(orientation)
 	
+	# Do this after dui init, so if the same image is on the current skin and in default, the one in the skin directory takes precedence
+	dui image add_dirs "[homedir]/skins/default/"
+
 	source "bluetooth.tcl"
 	
 	# Configure actions on specific pages (this was previously hardcoded on page_display_change, and should be moved 
@@ -45,6 +48,12 @@ proc setup_environment {} {
 		set settings(screen_size_height) $::screen_size_height
 		save_settings
 #	}
+	# Enrique: This shouldn't be necessary anymore but still the $::rescale_*_ratio vars are used in a couple of procs
+	if { ![file exists "skins/default/${::screen_size_width}x${::screen_size_height}"] } {
+		set ::rescale_images_x_ratio [expr {$::screen_size_height / $::dui::_base_screen_height}]
+		set ::rescale_images_y_ratio [expr {$::screen_size_width / $::dui::_base_screen_width}]
+	}
+
 
 	# Re-store what are now DUI namespace variables into the original global variables to ensure backwards-compatibility
 	# with existing code, until all code is migrated.
@@ -1041,19 +1050,20 @@ proc get_set_tablet_brightness { {setting ""} } {
 }
 
 
-proc settings_directory_graphics {} {
-    
-    global screen_size_width
-    global screen_size_height
-
-    set settingsdir "[homedir]/skins"
-    set dir "$settingsdir/$::settings(skin)/${screen_size_width}x${screen_size_height}"
-    
-    if {[info exists ::rescale_images_x_ratio] == 1} {
-        set dir "$settingsdir/$::settings(skin)/2560x1600"
-    }
-    return $dir
-}
+# Enrique: Not used anywhere in the code as of 25/06/2021, image directories now managed by DUI, so commenting 
+#proc settings_directory_graphics {} {
+#    
+#    global screen_size_width
+#    global screen_size_height
+#
+#    set settingsdir "[homedir]/skins"
+#    set dir "$settingsdir/$::settings(skin)/${screen_size_width}x${screen_size_height}"
+#    
+#    if {[info exists ::rescale_images_x_ratio] == 1} {
+#        set dir "$settingsdir/$::settings(skin)/2560x1600"
+#    }
+#    return $dir
+#}
 
 proc skin_directory_graphics {} {
     global screen_size_width
@@ -1403,7 +1413,7 @@ proc load_settings {} {
     set ::settings(log_enabled) True
 
 
-    blt::vector create espresso_elapsed god_espresso_elapsed god_espresso_pressure steam_pressure steam_temperature steam_flow steam_elapsed espresso_pressure espresso_flow god_espresso_flow espresso_flow_weight god_espresso_flow_weight espresso_flow_weight_2x god_espresso_flow_weight_2x espresso_flow_2x god_espresso_flow_2x espresso_flow_delta espresso_pressure_delta espresso_temperature_mix espresso_temperature_basket god_espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_weight espresso_weight_chartable espresso_resistance_weight espresso_resistance
+    blt::vector create espresso_elapsed god_espresso_elapsed god_espresso_pressure steam_pressure steam_temperature steam_temperature100th steam_flow steam_elapsed espresso_pressure espresso_flow god_espresso_flow espresso_flow_weight god_espresso_flow_weight espresso_flow_weight_2x god_espresso_flow_weight_2x espresso_flow_2x god_espresso_flow_2x espresso_flow_delta espresso_pressure_delta espresso_temperature_mix espresso_temperature_basket god_espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_weight espresso_weight_chartable espresso_resistance_weight espresso_resistance
     blt::vector create espresso_de1_explanation_chart_pressure espresso_de1_explanation_chart_flow espresso_de1_explanation_chart_elapsed espresso_de1_explanation_chart_elapsed_flow espresso_water_dispensed espresso_flow_weight_raw espresso_de1_explanation_chart_temperature  espresso_de1_explanation_chart_temperature_10 espresso_de1_explanation_chart_selected_step
     blt::vector create espresso_de1_explanation_chart_flow_1 espresso_de1_explanation_chart_elapsed_flow_1 espresso_de1_explanation_chart_flow_2 espresso_de1_explanation_chart_elapsed_flow_2 espresso_de1_explanation_chart_flow_3 espresso_de1_explanation_chart_elapsed_flow_3
     blt::vector create espresso_de1_explanation_chart_elapsed_1 espresso_de1_explanation_chart_elapsed_2 espresso_de1_explanation_chart_elapsed_3 espresso_de1_explanation_chart_pressure_1 espresso_de1_explanation_chart_pressure_2 espresso_de1_explanation_chart_pressure_3
@@ -1685,6 +1695,45 @@ proc load_font_obsolete {name fn pcsize {androidsize {}} } {
 proc list_remove_element {list toremove} {
     set newlist [lsearch -all -inline -not -exact $list $toremove]
     return $newlist
+}
+
+proc any_in_list { x list } {
+	if { $x eq "" } {
+		return 0
+	}	
+	set match 0
+	set i 0
+	while { !$match && $i < [llength $x] } {
+		set match [expr {[lindex $x $i] in $list}]
+		incr i
+	}
+	return $match
+}
+
+proc all_in_list { x list } {
+	if { $x eq "" } {
+		return 0
+	}
+	set match 1
+	set i 0
+	while { $match && $i < [llength $x] } {
+		set match [expr {[lindex $x $i] in $list}]
+		incr i
+	}
+	return $match
+}
+
+proc launch_os_wifi_setting {} {
+	if { $::android == 1 } {
+		borg activity android.settings.WIFI_SETTINGS {} {} {} {} {}
+	}
+}
+
+proc launch_os_time_setting {} {
+	if { $::android == 1 } {
+		borg activity android.settings.DATE_SETTINGS {} {} {} {} {}
+	}
+
 }
 
 proc web_browser {url} {

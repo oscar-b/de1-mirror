@@ -115,9 +115,19 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		dcombobox.font_family "$::DSx_settings(font_name)"
 		dcombobox.font_size $default_font_size
 		
-		dcombobox_ddarrow.font_size 24
-		dcombobox_ddarrow.disabledfill $disabled_colour
+		dbutton_dda.shape {}
+		dbutton_dda.fill {}
+		dbutton_dda.bwidth 70
+		dbutton_dda.bheight 65
+		dbutton_dda.symbol "sort-down"
 		
+		dbutton_dda_symbol.pos {0.5 0.2}
+		dbutton_dda_symbol.font_size 24
+		dbutton_dda_symbol.anchor center
+		dbutton_dda_symbol.justify center
+		dbutton_dda_symbol.fill $::DSx_settings(font_colour)
+		dbutton_dda_symbol.disabledfill $disabled_colour
+				
 		dcheckbox.font_family "Font Awesome 5 Pro"
 		dcheckbox.font_size 18
 		dcheckbox.fill $::DSx_settings(font_colour)
@@ -202,6 +212,33 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		text.relief flat
 		text.highlightthickness 1
 	}]
+	
+	# dui_number_editor page styles
+	dui aspect set -theme DSx {
+		dbutton.shape.dne_clicker outline 
+		dbutton.bwidth.dne_clicker 120 
+		dbutton.bheight.dne_clicker 140 
+		dbutton.fill.dne_clicker {}
+		dbutton.width.dne_clicker 3
+		dbutton.anchor.dne_clicker center
+		dbutton_symbol.pos.dne_clicker {0.5 0.4} 
+		dbutton_symbol.anchor.dne_clicker center 
+		dbutton_symbol.font_size.dne_clicker 20
+		dbutton_label.pos.dne_clicker {0.5 0.8} 
+		dbutton_label.font_size.dne_clicker 10 
+		dbutton_label.anchor.dne_clicker center
+		
+		dbutton.shape.dne_pad_button outline 
+		dbutton.bwidth.dne_pad_button 280 
+		dbutton.bheight.dne_pad_button 220
+		dbutton.fill.dne_pad_button {}
+		dbutton.width.dne_pad_button 3
+		dbutton.anchor.dne_pad_button nw
+		dbutton_label.pos.dne_pad_button {0.5 0.5} 
+		dbutton_label.font_family.dne_pad_button notosansuibold 
+		dbutton_label.font_size.dne_pad_button 24 
+		dbutton_label.anchor.dne_pad_button center
+	}
 	
 	# History Viewer styles
 	set smooth $::settings(live_graph_smoothing_technique)
@@ -291,7 +328,7 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 	}]
 	
 #	dui aspect set { dbutton.width 3 }
-	# DUI-specific styles
+	# DYE-specific styles
 	dui aspect set -style dsx_settings {dbutton.shape outline dbutton.bwidth 384 dbutton.bheight 192 dbutton.width 3 
 		dbutton_symbol.pos {0.2 0.5} dbutton_symbol.font_size 37 
 		dbutton_label.pos {0.65 0.5} dbutton_label.font_size 17 
@@ -328,8 +365,7 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 	dui aspect set -type dclicker_symbol -style dye_single {pos {0.1 0.5} font_size 24 anchor center fill "#7f879a"} 
 	dui aspect set -type dclicker_symbol1 -style dye_single {pos {0.9 0.5} font_size 24 anchor center fill "#7f879a"} 
 			
-	### DUI V3 STYLES ####
-	# DYE v3
+	### DYE V3 STYLES ####
 	set bg_color $::DSx_settings(bg_colour)
 	#[dui aspect get page bg_color]
 	set btn_spacing 100
@@ -346,9 +382,10 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 	
 		dbutton.bwidth.dyev3_nav_button 100 
 		dbutton.bheight.dyev3_nav_button 120
-		dbutton.fill.dyev3_nav_button {} 		
-		dbutton.symbol_pos.dyev3_nav_button {0.5 0.5} 
-		dbutton.symbol_fill.dyev3_nav_button grey
+		dbutton.fill.dyev3_nav_button {} 
+		dbutton.disabledfill.dyev3_nav_button {}
+		dbutton_symbol.pos.dyev3_nav_button {0.5 0.5} 
+		dbutton_symbol.fill.dyev3_nav_button #ccc
 		
 		text.font_size.dyev3_top_panel_text -1
 		text.yscrollbar.dyev3_top_panel_text no

@@ -94,6 +94,7 @@ array set ::de1 {
 	widget_current_profile_name_color_changed "#969eb1"
 	water_level_mm_correction 5
 	app_autostop_triggered True
+	app_stepskip_triggered False
 	water_level_full_point 40
 	connect_time 0
 	water_level 20
@@ -396,6 +397,8 @@ array set ::settings {
 	flow_rate_transition "smooth"
 	water_speed_type "flow"
 	speaking_pitch 1.0
+	show_only_most_popular_skins 1
+	most_popular_skins {Insight MimojaCafe metric DSx SWDark4}
 	sound_button_in 8
 	sound_button_out 11
 	profile_notes {}
@@ -416,6 +419,7 @@ array set ::settings {
 	flow_hold_stop_volumetric 100
 	flow_decline_stop_volumetric 100
 	pressure_decline_stop_volumetric 100
+	running_weight 0
 	steam_temperature 160
 	steam_timeout 120
 	skin "default"
@@ -556,8 +560,53 @@ array set ::de1_substate_types {
 	211 "Error_Flash"
 	212 "Error_OOM"
 	213 "Error_Deadline"
-	216 "Error_Pump"
+	214 "Error_HiCurrent"
+	215 "Error_LoCurrent"
+	216 "Error_BootFill"
 }
+
+
+
+array set ::de1_substate_type_description {
+	-   "starting"
+	0	"State is not relevant"
+	1	"Cold water is not hot enough. Heating hot water tank."
+	2	"Warm up hot water heater for shot."
+	3	"Stabilize mix temp and get entire water path up to temperature."
+	4	"Espresso only. Hot Water and Steam will skip this state."
+	5	"Water is flowing, in espresso, hot water or steam"
+	6	"The flush valve is now activated, only occurs in espresso"
+	7	"Steam only"
+	8	"Starting descale"
+	9	"get some descaling solution into the group and let it sit"
+	10	"descaling internals"
+	11	"descaling group"
+	12	"descaling steam"
+	13	"Starting clean"
+	14	"Fill the group"
+	15	"Wait for 60 seconds so we soak the group head"
+	16	"Flush through group"
+	17  "Have we given up on a refill"
+	18	"Are we paused in steam?"
+	200 "Something died with a NaN"
+	201 "Something died with an Inf"
+	202 "An error for which we have no more specific description"
+	203 "ACC not responding, unlocked, or incorrectly programmed"
+	204 "We are getting an error that is probably a broken temperature sensor"
+	205 "Pressure sensor error"
+	206 "Water level sensor error"
+	207 "DIP switches told us to wait in the error state."
+	208 "Assertion failed"
+	209 "Unsafe value assigned to variable"
+	210 "Invalid parameter passed to function"
+	211 "Error accessing external flash"
+	212 "Could not allocate memory"
+	213 "Realtime deadline missed"
+	214 "Measured a current that is out of bounds."
+	215 "Not enough current flowing, despite something being turned on."
+	216 "Could not get up to pressure during boot pressure test, possibly because no water"
+}
+
 
 array set ::de1_substate_types_reversed [reverse_array ::de1_substate_types]
 
@@ -763,17 +812,25 @@ proc reset_gui_starting_espresso {} {
 	set ::de1(final_espresso_weight) 0
 
 	############
-	# clear any description of the previous espresso
-	set ::settings(scentone) ""
-	set ::settings(espresso_enjoyment) 0
-
 	# this sets the time the espresso starts, used for recording this espresso to a history file
 	set ::settings(espresso_clock) [clock seconds]
 
-	set ::settings(espresso_notes) ""
-	set ::settings(drink_tds) 0
-	set ::settings(drink_weight) 0
-	set ::settings(drink_ey) 0
+	# clear any description of the previous espresso
+#	set ::settings(scentone) ""
+#	set ::settings(espresso_enjoyment) 0	
+#	set ::settings(espresso_notes) ""
+#	set ::settings(drink_tds) 0
+#	set ::settings(drink_weight) 0
+#	set ::settings(drink_ey) 0
+	foreach field [metadata fields -domain shot -category description -propagate 0] {
+		set data_type [metadata get $field data_type]
+		if { $data_type eq "number" } {
+			set ::settings($field) 0
+		} else {
+			set ::settings($field) {}
+		}
+	}
+	
 	############
 
 

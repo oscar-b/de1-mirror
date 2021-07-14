@@ -6,3 +6,4 @@ steam_key s
 steam_keycode 115
 water_key w
 water_keycode 119
+enable_next_step_tap 0

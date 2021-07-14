@@ -32,12 +32,17 @@ proc load_skin {} {
 			}
 		}
 		catch {
-			message_page [subst {[translate "Your choice of skin had an error and cannot be used."]\n\n$err}] [translate "Ok"]
+			message_page [subst {[translate "Your choice of skin had an error and cannot be used."]}] [translate "Ok"] [strip_crlf $err]
 		}
 		msg -ERROR "Failed to 'load_skin' because: '$err'"
 		after 10000 exit
 	}
 
+}
+
+proc strip_crlf {in} {
+	regsub -all {\r|\n} $in {} out
+	return $out
 }
 
 proc page_change_due_to_de1_state_change {textstate} {
@@ -119,7 +124,15 @@ proc photoscale_not_android {img sx {sy ""} } {
         foreach {sy_m sy_f} [Double2Fraction $sy] break
     }
     set tmp [image create photo]
-    $tmp copy $img -zoom $sx_m $sy_m -compositingrule set
+
+	if {[catch {
+	    catch {$tmp copy $img -zoom $sx_m $sy_m -compositingrule set} 
+	} err] != 0} {
+		# note that not all resolution resizes will work. Some take more memory than is available, 
+		# especially if the resolution change is a long float, and not an even number (ie, 2560->2559)
+		msg -ERROR "photoscale_not_android failed because: '$err'"
+	}
+
     $img blank
     $img copy $tmp -shrink -subsample $sx_f $sy_f -compositingrule set
     image delete $tmp
@@ -149,67 +162,68 @@ proc photoscale_android {img sx {sy ""} } {
 }
 
 proc add_de1_page {names filename {skin ""} } {
-
-	set ::settings(preload_all_page_images) 0
-
-	if {$skin == ""} {
-		set skin $::settings(skin)
-	}
-
-	set pngfilename "[homedir]/skins/$skin/${::screen_size_width}x${::screen_size_height}/$filename"
-	set srcfilename "[homedir]/skins/$skin/2560x1600/$filename"
-
-	set make_new_image 0
-	if {$::screen_size_width == 1280 && $::screen_size_height == 800} {
-		# no redoing, as these are shipping with the app
-	} elseif {$::screen_size_width == 2560 && $::screen_size_height == 1600} {
-		# no redoing, as these are shipping with the app
-	} elseif {[file exists $pngfilename] != 1} {
-		set make_new_image 1
-		msg -DEBUG "Making new image because destination image does not exist: $pngfilename"
-	} elseif {[file mtime $srcfilename] > [file mtime $pngfilename]} {
-		# if the source image is newer than the target image, 
-		set make_new_image 1
-		msg -DEBUG "Making new image because date of src image is newer: $srcfilename"
-	}
-
-	if {$make_new_image == 1} {
-        borg toast [subst {[translate "Resizing image"]\n\n[file tail $filename]}]
-		borg spinner on
-    	catch {
-    		file mkdir "[homedir]/skins/$skin/${::screen_size_width}x${::screen_size_height}/"
-    	}
-
-
-        set rescale_images_x_ratio [expr {$::screen_size_height / 1600.0}]
-        set rescale_images_y_ratio [expr {$::screen_size_width / 2560.0}]
-
-		image create photo $names -file $srcfilename
-		photoscale $names $rescale_images_y_ratio $rescale_images_x_ratio
-		borg spinner off
-		$names write $pngfilename  -format {jpeg -quality 90}
-		image delete $names
-
-	} else {
-		if {$::settings(preload_all_page_images) == 1} {
-			set iname [image create photo $names -file $pngfilename]
-			msg -DEBUG "loading page: '$names' with image '$pngfilename' with tclname: '$iname'"
-			#image create photo $names 			$names -file $pngfilename
-		}
-	}
-
-	#.can create image {0 0} -anchor nw -image $names -tag [list pages $name] -state hidden 
-	foreach name $names {
-		.can create image {0 0} -anchor nw  -tag [list pages $name] -state hidden 
-		if {$::settings(preload_all_page_images) == 1} {
-			#.can itemconfigure $names -image $names 
-			.can itemconfigure $name -image $names
-		} else {
-			set ::delayed_image_load($name) $pngfilename
-		}
-	}
-
-	#set ::image_to_page($pngfilename) $names
+	dui page add $names -bg_img $filename
+	
+#	set ::settings(preload_all_page_images) 0
+#
+#	if {$skin == ""} {
+#		set skin $::settings(skin)
+#	}
+#
+#	set pngfilename "[homedir]/skins/$skin/${::screen_size_width}x${::screen_size_height}/$filename"
+#	set srcfilename "[homedir]/skins/$skin/2560x1600/$filename"
+#
+#	set make_new_image 0
+#	if {$::screen_size_width == 1280 && $::screen_size_height == 800} {
+#		# no redoing, as these are shipping with the app
+#	} elseif {$::screen_size_width == 2560 && $::screen_size_height == 1600} {
+#		# no redoing, as these are shipping with the app
+#	} elseif {[file exists $pngfilename] != 1} {
+#		set make_new_image 1
+#		msg -DEBUG "Making new image because destination image does not exist: $pngfilename"
+#	} elseif {[file mtime $srcfilename] > [file mtime $pngfilename]} {
+#		# if the source image is newer than the target image, 
+#		set make_new_image 1
+#		msg -DEBUG "Making new image because date of src image is newer: $srcfilename"
+#	}
+#
+#	if {$make_new_image == 1} {
+#        borg toast [subst {[translate "Resizing image"]\n\n[file tail $filename]}]
+#		borg spinner on
+#    	catch {
+#    		file mkdir "[homedir]/skins/$skin/${::screen_size_width}x${::screen_size_height}/"
+#    	}
+#
+#
+#        set rescale_images_x_ratio [expr {$::screen_size_height / 1600.0}]
+#        set rescale_images_y_ratio [expr {$::screen_size_width / 2560.0}]
+#
+#		image create photo $names -file $srcfilename
+#		photoscale $names $rescale_images_y_ratio $rescale_images_x_ratio
+#		borg spinner off
+#		$names write $pngfilename  -format {jpeg -quality 90}
+#		image delete $names
+#
+#	} else {
+#		if {$::settings(preload_all_page_images) == 1} {
+#			set iname [image create photo $names -file $pngfilename]
+#			msg -DEBUG "loading page: '$names' with image '$pngfilename' with tclname: '$iname'"
+#			#image create photo $names 			$names -file $pngfilename
+#		}
+#	}
+#
+#	#.can create image {0 0} -anchor nw -image $names -tag [list pages $name] -state hidden 
+#	foreach name $names {
+#		.can create image {0 0} -anchor nw  -tag [list pages $name] -state hidden 
+#		if {$::settings(preload_all_page_images) == 1} {
+#			#.can itemconfigure $names -image $names 
+#			.can itemconfigure $name -image $names
+#		} else {
+#			set ::delayed_image_load($name) $pngfilename
+#		}
+#	}
+#
+#	#set ::image_to_page($pngfilename) $names
 }	
 
 proc set_de1_screen_saver_directory {{dirname {}}} {
@@ -699,7 +713,7 @@ proc platform_button_unpress {} {
 
 
 proc add_variable_item_to_context {context label_name varcmd} {
-	msg -WARN "add_variable_item_to_context is OBSOLETE, please use DUI instead"
+	msg -WARNING "add_variable_item_to_context is DEPRECATED, please use 'dui page add_variable' instead"
 	# This may or may not work as dui::page::add_variable takes canvas IDs instead of labels.
 	dui::page::add_variable $context $label_name $varcmd
 	
@@ -735,7 +749,7 @@ proc add_de1_action {context tclcmd} {
 }
 
 proc add_de1_button {displaycontexts tclcode x0 y0 x1 y1 {options {}}} {
-	dui add dbutton $displaycontexts $x0 $y0 $x1 $y1 -command $tclcode -theme none 
+	return [dui add dbutton $displaycontexts $x0 $y0 $x1 $y1 -command $tclcode -theme none]
 	
 #	global button_cnt
 #
@@ -1179,6 +1193,7 @@ proc display_popup_android_message_if_necessary {intxt} {
 	if {$msg != ""} {
 		# post the message 1 second after the start, so that there's a slight delay 
 		after 1000 [list borg toast $msg 1]
+		msg -DEBUG "Popup: $msg"
 	}
 	
 }
@@ -1457,6 +1472,12 @@ proc show_settings { {tab_to_show ""} } {
 
 	msg -INFO "show_settings"
 
+    if {$::android == 1} {
+		if {[borg networkinfo] == "none"} {
+        	set ::de1(app_update_button_label) [translate "No Wifi network"];
+    	}	
+    }
+
 	if {$tab_to_show == ""} {
 		page_to_show_when_off $::settings(active_settings_tab)
 		scheduler_feature_hide_show_refresh
@@ -1470,7 +1491,6 @@ proc show_settings { {tab_to_show ""} } {
 
 	update_de1_explanation_chart
 
-	#preview_profile 
 }
 
 proc page_to_show_when_off {page_to_show args} {
@@ -2954,8 +2974,8 @@ proc handle_keypress {keycode} {
 		# e = espresso (emulate GUI button press)
 		start_espresso
 
-	} elseif {($::some_droid != 1 && $keycode == 105) || ($::some_droid == 1 && $keycode == 12)} {
-		# i = idle (emulate GUI button press)
+	} elseif {($::some_droid != 1 && $keycode == 105) || ($::some_droid != 1 && $keycode == 32) || ($::some_droid == 1 && $keycode == 12) || ($::some_droid == 1 && $keycode == 44)} {
+		# i (or space bar) = idle (emulate GUI button press) 
 		start_idle
 
 	} elseif {($::some_droid != 1 && $keycode == 102) || ($::some_droid == 1 && $keycode == 9)} {
@@ -3204,6 +3224,10 @@ namespace eval ::gui::notify {
 				borg toast [translate {Stopping for weight}]
 			}
 
+			saw_skip {
+				borg toast [translate {Advancing to next step}]
+			}
+
 			default {
 
 				msg -ERROR "::gui::notify::scale_event called without matching event_id: $event_id $args"
@@ -3248,6 +3272,8 @@ namespace eval ::gui::update {
 
 			# The following logic, retained from prior versions, is likely a noop
 			# as the updates from the DE1 will set the framenumber to 0 or higher
+
+			set ::de1(app_stepskip_triggered) False
 
 			if {[::gui::state::previous_framenumber] >= 0} {
 				# don't draw a line a the first frame change
@@ -3555,10 +3581,11 @@ namespace eval ::gui::update {
 						steam_flow append [round_to_two_digits $GroupFlow]
 
 						if {$::settings(enable_fahrenheit) == 1} {
-							steam_temperature append \
-								[round_to_integer [celsius_to_fahrenheit $SteamTemp]]
+							steam_temperature append [round_to_integer [celsius_to_fahrenheit $SteamTemp]]
+							steam_temperature100th append [round_to_two_digits [expr {[celsius_to_fahrenheit $SteamTemp] / 100.00}]]
 						} else {
 							steam_temperature append [round_to_integer $SteamTemp]
+							steam_temperature100th append [round_to_two_digits [expr {$SteamTemp / 100.00}]]
 						}
 
 						steam_elapsed append [expr {[steam_pour_millitimer $update_received]/1000.0}]

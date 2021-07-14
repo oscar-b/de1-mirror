@@ -42,15 +42,14 @@
 ### By Enrique Bengoechea <enri.bengoechea@gmail.com> 
 ### (with lots of copy/paste/tweak from Damian, John and Johanna's code!)
 ########################################################################################################################
-
 #set ::skindebug 1 
 #plugins enable DYE
-fconfigure $::logging::_log_fh -buffering line
+#fconfigure $::logging::_log_fh -buffering line
 
 namespace eval ::plugins::DYE {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 2.03
+	variable version 2.06
 	variable github_repo ebengoechea/de1app_plugin_DYE
 	variable name [translate "Describe Your Espresso"]
 	variable description [translate "Describe any shot from your history and plan the next one: beans, grinder, extraction parameters and people."]
@@ -99,8 +98,8 @@ proc ::plugins::DYE::main {} {
 		dui page add $page -namespace ::dui::pages::DYE_v3
 	}
 	
-	# Update the describe settings when the a shot is started 
-	trace add execution ::reset_gui_starting_espresso enter ::plugins::DYE::reset_gui_starting_espresso_enter_hook
+	# Update/propagate the describe settings when the a shot is started 
+	#trace add execution ::reset_gui_starting_espresso enter ::plugins::DYE::reset_gui_starting_espresso_enter_hook
 	trace add execution ::reset_gui_starting_espresso leave ::plugins::DYE::reset_gui_starting_espresso_leave_hook
 	
 	# Ensure the description summary is updated whenever last shot is saved to history.
@@ -130,11 +129,10 @@ proc ::plugins::DYE::preload {} {
 	
 	# Because DUI calls the page setup commands automatically we need to initialize stuff here
 	dui add image_dirs "[homedir]/[plugin_directory]/DYE/"
-		
+
 	check_settings
 	plugins save_settings DYE
-
-	#init_dye_metadata
+	
 	setup_default_aspects
 	dui page add DYE_settings -namespace true -theme default
 	return DYE_settings
@@ -207,32 +205,47 @@ proc ::plugins::DYE::check_settings {} {
 	ifexists settings(propagate_previous_shot_desc) 1
 	ifexists settings(backup_modified_shot_files) 0
 	ifexists settings(use_stars_to_rate_enjoyment) 1
-	ifexists settings(next_shot_DSx_home_coords) {500 1165}
-	ifexists settings(last_shot_DSx_home_coords) {2120 1165}
+	if { [info exists ::DSx_settings(next_shot_DSx_home_coords)] } {
+		set settings(next_shot_DSx_home_coords) $::DSx_settings(next_shot_DSx_home_coords)
+	} else {
+		ifexists settings(next_shot_DSx_home_coords) {500 1165}
+	}
+	if { [info exists ::DSx_settings(last_shot_DSx_home_coords)] } {
+		set settings(last_shot_DSx_home_coords) $::DSx_settings(last_shot_DSx_home_coords)
+	} else {
+		ifexists settings(last_shot_DSx_home_coords) {2120 1165}
+	}
 	ifexists settings(github_latest_url) "https://api.github.com/repos/ebengoechea/de1app_plugin_DYE/releases/latest"
 	ifexists settings(use_dye_v3) 0
 	
 	# Propagation mechanism 
 	ifexists settings(next_modified) 0
-	foreach field_name "$::plugins::DYE::propagated_fields espresso_notes" {
+	set propagated_fields [metadata fields -domain shot -category description -propagate 1]
+	# "$::plugins::DYE::propagated_fields espresso_notes"
+	foreach field_name [concat $propagated_fields espresso_notes] {
 		if { ! [info exists settings(next_$field_name)] } {
 			set settings(next_$field_name) {}
 		}
 	}
 	if { $settings(next_modified) == 0 } {
 		if { $settings(propagate_previous_shot_desc) == 1 } {
-			foreach field_name $::plugins::DYE::propagated_fields {
-				set settings(next_$field_name) $::settings($field_name)
+			foreach field_name $propagated_fields {
+				if { [info exists ::settings($field_name)] } {
+					set settings(next_$field_name) $::settings($field_name)
+				} else {
+					set settings(next_$field_name) {}
+				}
 			}
 			set settings(next_espresso_notes) {}
 		} else {
-			foreach field_name "$::plugins::DYE::propagated_fields next_espresso_notes" {
+			foreach field_name [concat $propagated_fields next_espresso_notes] {
 				set settings(next_$field_name) {}
 			}
 		}
 	}
 	
-	ifexists settings(summary_fields) {bean_brand bean_type roast_date grinder_setting espresso_notes espresso_enjoyment}
+	ifexists settings(summary_fields) {bean_brand bean_type roast_date "" grinder_setting "" espresso_notes "" espresso_enjoyment}
+	ifexists settings(next_summary_fields) {grinder_dose_weight drink_weight "" bean_brand bean_type roast_date "" grinder_setting espresso_notes}
 	
 #	ifexists settings(visualizer_url) "visualizer.coffee"
 #	ifexists settings(visualizer_endpoint) "api/shots/upload"
@@ -331,9 +344,11 @@ proc ::plugins::DYE::setup_default_aspects { args } {
 	
 		dbutton.bwidth.dyev3_nav_button 100 
 		dbutton.bheight.dyev3_nav_button 120
-		dbutton.fill.dyev3_nav_button {} 		
-		dbutton.symbol_pos.dyev3_nav_button {0.5 0.5} 
-		dbutton.symbol_fill.dyev3_nav_button grey
+		dbutton.fill.dyev3_nav_button {}
+		dbutton.disabledfill.dyev3_nav_button {}
+		dbutton_symbol.pos.dyev3_nav_button {0.5 0.5} 
+		dbutton_symbol.fill.dyev3_nav_button grey
+		dbutton_symbol.disabledfill.dyev3_nav_button #ccc
 		
 		text.font_size.dyev3_top_panel_text -1
 		text.yscrollbar.dyev3_top_panel_text no
@@ -395,7 +410,7 @@ proc ::plugins::DYE::setup_default_aspects { args } {
 		text_tag.lmargin2.dyev3_field [dui platform rescale_x 45]
 		
 		text_tag.foreground.dyev3_value blue
-		
+		text_tag.foreground.dyev3_measure_unit blue
 		text_tag.foreground.dyev3_compare grey
 		
 		text_tag.font.dyev3_field_highlighted "[dui font get notosansuibold 15]"
@@ -411,45 +426,9 @@ proc ::plugins::DYE::setup_default_aspects { args } {
 #	::logging::flush_log
 }
 
-proc ::plugins::DYE::init_dye_metadata {} {
-	metadata add drinker_name {
-		domain shot
-		category description
-		section people
-		subsection ""
-		owner_type plugin
-		owner DYE
-		name "Drinker"
-		name_plural "Drinkers"
-		short_name "Drinker" 
-		short_name_plural "Drinkers"
-		propagate 1
-		data_type category
-		required 0
-		length 1
-		default_dui_widget dcombobox
-	}
-	metadata add repository_links {
-		domain shot
-		category description
-		section id
-		subsection ""
-		owner_type plugin
-		owner DYE
-		name "Repository link"
-		name_plural "Repository links"
-		short_name "Repo link" 
-		short_name_plural "Repo links"
-		propagate 0
-		data_type complex
-		required 1
-		length list
-		default_dui_widget dcombobox
-	}
-}
-
 # Update the current shot description from the "next" description when doing a new espresso, if it has been
 # modified by the user.
+# NOT INVOKED ANYMORE, EVERYTHING CAN BE DONE ON THE LEAVE EVENT
 proc ::plugins::DYE::reset_gui_starting_espresso_enter_hook { args } { 
 	msg "DYE: reset_gui_starting_espresso_enter_hook"
 	set propagate $::plugins::DYE::settings(propagate_previous_shot_desc)
@@ -472,17 +451,22 @@ proc ::plugins::DYE::reset_gui_starting_espresso_enter_hook { args } {
 
 # Reset the "next" description and update the current shot summary description
 proc ::plugins::DYE::reset_gui_starting_espresso_leave_hook { args } {
+	variable settings
 #	msg "DYE: reset_gui_starting_espresso_leave_hook, ::android=$::android, ::undroid=$::undroid"	
 #	msg "DYE: reset_gui_starting_espresso_leave - DSx settings bean_weight=$::DSx_settings(bean_weight), settings grinder_dose_weight=$::settings(grinder_dose_weight), DSx_settings live_graph_beans=$::DSx_settings(live_graph_beans)"
 #	msg "DYE: reset_gui_starting_espresso_leave - settings drink_weight=$::settings(drink_weight), DSx_settings saw=$::DSx_settings(saw), settings final_desired_shot_weight=$::settings(final_desired_shot_weight), DSx_settings live_graph_weight=$::DSx_settings(live_graph_weight), DE1 scale_sensor_weight $::de1(scale_sensor_weight)"
 #	msg "DYE: reset_gui_starting_espresso_leave - DYE_settings next_modified=$::plugins::DYE::settings(next_modified)"
 	
-#	if { $::plugins::DYE::settings(next_modified) == 1 } {
+	foreach field [concat [metadata fields -domain shot -category description -propagate 1] espresso_notes] {
+		set ::settings($field) $settings(next_$field)
+	}
+	
+##	if { $::plugins::DYE::settings(next_modified) == 1 } {
 		# This can't be set on <enter> as it is blanked in reset_gui_starting_espresso
-		set ::settings(espresso_notes) $::plugins::DYE::settings(next_espresso_notes)
-		set ::plugins::DYE::settings(next_espresso_notes) {}
-		set ::plugins::DYE::settings(next_modified) 0
-#	}
+#		set ::settings(espresso_notes) $::plugins::DYE::settings(next_espresso_notes)
+		set settings(next_espresso_notes) {}
+		set settings(next_modified) 0
+##	}
 
 	if { $::settings(skin) eq "DSx" } {
 		if { [info exists ::DSx_settings(live_graph_beans)] && $::DSx_settings(live_graph_beans) > 0 } {
@@ -517,8 +501,8 @@ proc ::plugins::DYE::reset_gui_starting_espresso_leave_hook { args } {
 		}
 	}
 
-	::plugins::DYE::define_last_shot_desc
-	::plugins::DYE::define_next_shot_desc
+	define_last_shot_desc
+	define_next_shot_desc
 	
 	# Settings already saved in reset_gui_starting_espresso, but as we have redefined them...
 	::save_settings
@@ -683,16 +667,16 @@ proc ::plugins::DYE::load_next_shot { } {
 		repository_links {}
 	}
 		
-	set text_fields [::plugins::SDB::field_names "category text long_text date" "shot"]
-	foreach field_name $text_fields {
+	#set text_fields [::plugins::SDB::field_names "category text long_text date" "shot"]
+	foreach field_name [metadata fields -domain shot -category description -data_type "category text long_text complex"] {
 		if { [info exists ::plugins::DYE::settings(next_$field_name)] } {
 			set shot_data($field_name) [string trim $::plugins::DYE::settings(next_$field_name)]
 		} else {
 			set shot_data($field_name) {}
 		}
 	}
-	
-	foreach field_name [::plugins::SDB::field_names "numeric" "shot"] {
+	#[::plugins::SDB::field_names "numeric" "shot"]
+	foreach field_name [metadata fields -domain shot -category description -data_type "number boolean"] {
 		if { [info exists ::plugins::DYE::settings(next_$field_name)] && $::plugins::DYE::settings(next_$field_name) > 0 } {
 			set shot_data($field_name) $::plugins::DYE::settings(next_$field_name)
 		} else {
@@ -3068,7 +3052,8 @@ namespace eval ::dui::pages::DYE_v3 {
 	}
 	
 	variable pages
-	set pages {DYE_v3 DYE_v3_bean DYE_v3_equipment DYE_v3_extraction DYE_v3_other DYE_v3_chart DYE_v3_manage DYE_v3_compare}
+	set pages {DYE_v3 DYE_v3_next DYE_v3_beans_desc DYE_v3_beans_batch DYE_v3_equipment DYE_v3_extraction DYE_v3_beverage
+		DYE_v3_tasting DYE_v3_chart DYE_v3_manage DYE_v3_compare}
 		
 	variable page_coords
 	array set page_coords {
@@ -3131,7 +3116,7 @@ proc ::dui::pages::DYE_v3::setup {} {
 	set x $page_coords(margin_width)
 	set y 50
 	set bar_width [expr {$dui::_base_screen_width-$x*2}]
-	set btn_width [expr {int($bar_width/9)}]
+	set btn_width [expr {int($bar_width/11)}]
 	set btn_height 90
 	# Summary Chart Profile Beans Equipment Extraction Other | Compare Search
 	
@@ -3142,14 +3127,18 @@ proc ::dui::pages::DYE_v3::setup {} {
 		-label [translate Chart] -command {%NS::navigate_to chart} 
 	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_profile -style dyev3_topnav \
 		-label [translate Profile] -command {%NS::navigate_to profile} -label_fill "#ddd" 	
-	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_bean -style dyev3_topnav \
-		-label [translate Beans] -command {%NS::navigate_to bean}
+	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_beans_desc -style dyev3_topnav \
+		-label [translate Beans] -command {%NS::navigate_to beans_desc}
+	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_beans_batch -style dyev3_topnav \
+		-label [translate Batch] -command {%NS::navigate_to beans_batch}
 	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_equipment -style dyev3_topnav \
 		-label [translate Equipment] -command {%NS::navigate_to equipment} 
 	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_extraction -style dyev3_topnav \
-		-label [translate Extraction] -command {%NS::navigate_to extraction} 
-	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_other -style dyev3_topnav \
-		-label [translate Other] -command {%NS::navigate_to other}
+		-label [translate Extraction] -command {%NS::navigate_to extraction}
+	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_beverage -style dyev3_topnav \
+	-label [translate Beverage] -command {%NS::navigate_to beverage}	
+	dui add dbutton $pages [expr {$x+$btn_width*[incr i]}] $y -bwidth $btn_width -tags nav_tasting -style dyev3_topnav \
+		-label [translate Tasting] -command {%NS::navigate_to tasting} 	
 	
 	dui add dbutton $pages [expr {$x+$btn_width*($i+2)-75}] $y -tags nav_compare -style dyev3_topnav -label [translate Compare] \
 		-command {%NS::navigate_to compare} -shape round -bwidth [expr {$btn_width+60}] -label_pos {0.55 0.5}
@@ -3179,16 +3168,15 @@ proc ::dui::pages::DYE_v3::setup {} {
 	bind $widget [dui platform button_press] [list ::dui::pages::DYE_v3::navigate_to chart]
 		
 	### RIGHT PANELS ###
-	setup_right_panel $page "Summary" $::plugins::DYE::settings(summary_fields)
-	setup_right_panel DYE_v3_bean "Beans" [metadata fields -domain shot -category description -section beans]
-	setup_right_panel DYE_v3_equipment "Equipment" [metadata fields -domain shot -category description -section equipment]
-	setup_right_panel DYE_v3_extraction "Extraction" [metadata fields -domain shot -category description -section extraction]
-	setup_right_panel DYE_v3_other "People & Others" [metadata fields -domain shot -category description -section people]
+	setup_right_panel $page "Summary" [page_fields $page]
+	setup_right_panel DYE_v3_next "Summary" [page_fields DYE_v3_next]
+	setup_right_panel DYE_v3_beans_desc "Beans" [page_fields DYE_v3_beans_desc]
+	setup_right_panel DYE_v3_beans_batch "Beans batch" [page_fields DYE_v3_beans_batch]
+	setup_right_panel DYE_v3_equipment "Equipment" [page_fields DYE_v3_equipment]
+	setup_right_panel DYE_v3_extraction "Extraction" [page_fields DYE_v3_extraction]
+	setup_right_panel DYE_v3_beverage "People & Beverage" [page_fields DYE_v3_beverage]
+	setup_right_panel DYE_v3_tasting "Tasting" [page_fields DYE_v3_tasting]
 	
-#	setup_right_panel DYE_v3_bean "Beans" [::plugins::SDB::field_names "" "" {bean bean_batch}]
-#	setup_right_panel DYE_v3_equipment "Equipment" [::plugins::SDB::field_names "" "" equipment]
-#	setup_right_panel DYE_v3_extraction "Extraction" [::plugins::SDB::field_names "" "" extraction]
-#	setup_right_panel DYE_v3_other "People & Others" [::plugins::SDB::field_names "" "" people]
 	setup_chart_page
 	setup_manage_page
 	setup_compare_page
@@ -3240,6 +3228,7 @@ proc ::dui::pages::DYE_v3::init_shot_arrays {} {
 # overflow the page space on top of the text widget when it is scrolled (which seems like a bug in Tk::Text or Androwish)
 proc ::dui::pages::DYE_v3::text_scale_scroll { {target edited} args } {
 	variable widgets
+	variable data
 	if { $target eq "compare" } {
 		set page "DYE_v3_compare"
 	} else {
@@ -3257,7 +3246,7 @@ proc ::dui::pages::DYE_v3::text_scale_scroll { {target edited} args } {
 	if { $ygraph ne "" } {
 		if { $ygraph < -1 } {
 			$widgets(${target}_graph) configure -height 0
-		} elseif { $ygraph >=0 } {
+		} elseif { $ygraph >=0 && $data(which_shot) ne "next" } {
 			$widgets(${target}_graph) configure -height [dui platform rescale_y 600]
 		}
 	}
@@ -3265,6 +3254,7 @@ proc ::dui::pages::DYE_v3::text_scale_scroll { {target edited} args } {
 
 proc ::dui::pages::DYE_v3::text_scroll_moveto { {target edited} args } {
 	variable widgets
+	variable data
 	if { $target eq "compare" } {
 		set page "DYE_v3_compare"
 	} else {
@@ -3282,7 +3272,7 @@ proc ::dui::pages::DYE_v3::text_scroll_moveto { {target edited} args } {
 	if { $ygraph ne "" } {
 		if { $ygraph < -1 } {
 			$widgets(${target}_graph) configure -height 0
-		} elseif { $ygraph >=0 } {
+		} elseif { $ygraph >=0 && $data(which_shot) ne "next" } {
 			$widgets(${target}_graph) configure -height [dui platform rescale_y 600]
 		}
 	}
@@ -3366,7 +3356,7 @@ proc ::dui::pages::DYE_v3::setup_right_panel { page title fields } {
 			} else {
 				dui add dtext $page $x_label $y -text [translate $name] -tags [list ${field}_label ${field}*]
 				dui add dclicker $page $x_widget $y -tags $field -bwidth $widget_width -bheight [expr {$vspace-20}] \
-					-style dye_double -variable $varname -labelvariable "\$$varname" -label_width $label_width -default $default \
+					-style dye_double -variable $varname -labelvariable "\$$varname $measure_unit" -label_width $label_width -default $default \
 					-n_decimals $n_decimals -min $min -max $max -smallincrement $smallinc -bigincrement $biginc -editor_page yes \
 					-editor_page_title [translate "Enter $name"]
 			}
@@ -3375,6 +3365,9 @@ proc ::dui::pages::DYE_v3::setup_right_panel { page title fields } {
 				-label [translate $name] -label_pos [list $x_label $y] -label_width $label_width \
 				-values "\[::plugins::SDB::available_categories $field\]" -page_title [translate "Select the $name"]]
 			bind $w <FocusIn> [list + ${ns}::highlight_field $field]
+		} elseif { $data_type eq "boolean" } {
+			dui add dcheckbox $page $x_label $y -textvariable $varname -tags [list ${field}_label ${field}*] \
+				-label [translate $name] -command [list ${ns}::highlight_field $field]
 		} elseif { $data_type eq "long_text" } {
 			set w [dui add multiline_entry $page [expr {$x_widget-200}] $y -tags $field -canvas_width [expr {$widget_width+200}] \
 				-canvas_height 170 -label [translate $name] -label_pos [list $x_label $y] -label_width [expr {$label_width-200}] \
@@ -3385,11 +3378,15 @@ proc ::dui::pages::DYE_v3::setup_right_panel { page title fields } {
 			set vspace 225
 		} else {
 			set w [dui add entry $page $x_widget $y -tags $field -canvas_width $widget_width -label $name -label_pos [list $x_label $y] \
-				-textvariable $varname]
+				-textvariable $varname -data_type $data_type]
 			bind $w <FocusIn> [list + ${ns}::highlight_field $field]
 		}
 		
 		incr y $vspace
+	}
+	
+	if { $page eq "DYE_v3_beans_batch" } {
+		#dui add variable DYE_v3_beans_batch $x_label [incr y 50] -textvariable days_offroast_string -width $width
 	}
 }
 
@@ -3539,13 +3536,15 @@ proc ::dui::pages::DYE_v3::setup_compare_page {  } {
 # -callback_cmd
 proc ::dui::pages::DYE_v3::load { page_to_hide page_to_show args } {
 	variable data
+	variable widgets
 	variable original_shot
 	variable edited_shot
 	variable compare_shot
 
 	array set opts $args
 	set page [namespace tail [namespace current]]
-
+	set orig_page_to_show $page_to_show
+	
 	array set original_shot {}
 	array set edited_shot {espresso_notes "" bean_notes ""}
 	array set compare_shot {espresso_notes "" bean_notes ""}
@@ -3561,23 +3560,37 @@ proc ::dui::pages::DYE_v3::load { page_to_hide page_to_show args } {
 		set data(which_shot) next
 		set data(clock) {}		
 		set data(shot_file) {}
-	} elseif { $which_shot in {last current} } {
-		set data(which_shot) "last"
-		set data(clock) $::settings(espresso_clock)
-		set data(shot_file) [::plugins::SDB::get_shot_file_path $data(clock)]
-	} elseif { [string is integer $which_shot] } {
-		if { $which_shot == $::settings(espresso_clock) } {
-			set data(which_shot) last
-		} else {			
-			set data(which_shot) past
+		$widgets(edited_graph) configure -height 0
+		if { $page_to_show eq "DYE_v3" } {
+			set page_to_show DYE_v3_next
 		}
-		set data(clock) $which_shot
-		set data(shot_file) [::plugins::SDB::get_shot_file_path $data(clock)]
 	} else {
-		set data(shot_file) [::plugins::SDB::get_shot_file_path $which_shot]
-		if { $data(shot_file) eq "" } {
-			msg -ERROR [namespace current] "'which_shot' value '$which_shot' is not valid"
-			return 0
+		if { $which_shot in {last current} } {
+			set data(which_shot) "last"
+			set data(clock) $::settings(espresso_clock)
+			set data(shot_file) [::plugins::SDB::get_shot_file_path $data(clock)]
+			if { $page_to_show eq "DYE_v3_next" } {
+				set page_to_show DYE_v3
+			}		
+		} elseif { [string is integer $which_shot] } {
+			if { $which_shot == $::settings(espresso_clock) } {
+				set data(which_shot) last
+			} else {			
+				set data(which_shot) past
+			}
+			set data(clock) $which_shot
+			set data(shot_file) [::plugins::SDB::get_shot_file_path $data(clock)]
+		} else {
+			set data(shot_file) [::plugins::SDB::get_shot_file_path $which_shot]
+			if { $data(shot_file) eq "" } {
+				msg -ERROR [namespace current] "'which_shot' value '$which_shot' is not valid"
+				return 0
+			}
+		}
+		
+		$widgets(edited_graph) configure -height [dui platform rescale_y 600]
+		if { $page_to_show eq "DYE_v3_next" } {
+			set page_to_show DYE_v3
 		}
 	}
 	
@@ -3610,6 +3623,7 @@ proc ::dui::pages::DYE_v3::load { page_to_hide page_to_show args } {
 	} else {
 		set shot_list [::plugins::SDB::load_shot $data(shot_file)]
 	}
+	#calc_derived_shot_values
 	
 	array set original_shot $shot_list 
 	array set edited_shot $shot_list
@@ -3626,7 +3640,11 @@ proc ::dui::pages::DYE_v3::load { page_to_hide page_to_show args } {
 	calc_chart_stage_stats edited
 	calc_chart_stage_stats compare
 	
-	return 1
+	if { $page_to_show eq $orig_page_to_show } {
+		return 1
+	} else {
+		return $page_to_show
+	}
 }
 
 proc ::dui::pages::DYE_v3::load_graph { {target edited} } {
@@ -3655,7 +3673,9 @@ proc ::dui::pages::DYE_v3::load_graph { {target edited} } {
 proc ::dui::pages::DYE_v3::show { page_to_hide page_to_show args } {
 	variable data
 	variable widgets
-	
+	variable edited_shot
+
+	# Highlight current page menu on the top menu bar
 	if { $data(menu) ne "" } {
 		dui item config DYE_v3 nav_$data(menu)-btn -fill [dui aspect get dbutton fill -style dyev3_topnav]
 	}
@@ -3670,12 +3690,13 @@ proc ::dui::pages::DYE_v3::show { page_to_hide page_to_show args } {
 		dui item config DYE_v3 nav_$data(menu)-btn -fill grey
 	}
 	
+	# Scroll the text widget to the current section
 	set tw $widgets(edited_text)
 	unhighlight_field "" $tw
 	if { $data(menu) eq "" } {
 		set section "summary"
-	} elseif { $data(menu) eq "other" } {
-		set section "people"
+	} elseif { $data(menu) eq "people" } {
+		set section "beverage"
 	} else {
 		set section $data(menu)
 	}
@@ -3687,20 +3708,53 @@ proc ::dui::pages::DYE_v3::show { page_to_hide page_to_show args } {
 		$tw see summary:end
 		msg -WARNING [namespace current] "navigate_to: marks '$section' or '${section}:end' not found in text widget '$tw'"
 	}
+	
+	# Enable or disable navigation arrows (botton left) depending on whether it's the "next shot" plan 
+	dui item enable_or_disable [expr {$data(which_shot) ne "next"}] DYE_v3 {move_to_next* move_forward*}
+	
+	foreach field [page_fields $page_to_show] {
+		# Disable field widgets that shouldn't be editable in "next" shot plan (those that don't propagate)
+		if { [metadata get $field propagate] == 0 && $field ne "espresso_notes" && [dui page has_item $page_to_show $field] } {
+			dui item enable_or_disable [expr {$data(which_shot) ne "next"}] $page_to_show ${field}*
+			# Force redrawing stars after enabling
+			if { $field eq "espresso_enjoyment" && $data(which_shot) ne "next" } {
+				set edited_shot(espresso_enjoyment) $edited_shot(espresso_enjoyment)
+			}
+		}
+		
+		# If there are category fields whose dropdown depends on another category, enable or disable its dropdown arrow
+		set related_fields [metadata fields -domain shot -category description -sdb_type_column1 $field]
+		append related_fields [metadata fields -domain shot -category description -sdb_type_column2 $field]
+		if { [llength $related_fields] > 0 } {
+			set value $edited_shot($field)
+			foreach rel_field $related_fields {
+				if { [metadata get $rel_field data_type] eq "category" && [dui page has_item $page_to_show ${rel_field}-dda] } {
+					dui item enable_or_disable [expr {$value ne ""}] [dui page current] ${rel_field}-dda
+				}
+			}
+		}
+	}
+	
 }
 
 proc ::dui::pages::DYE_v3::menu_to_page { menu } {
+	variable data
+	
 	if { $menu eq "" } {
 		set menu"summary
 	} else {
 		switch $menu {
-			bean_batch {set menu bean} 
-			people {set menu other}
+			people {set menu beverage}
 		}
 	}
+#			bean_batch {set menu bean} 
 	
 	if { $menu eq "summary" } {
-		set dest_page DYE_v3
+		if { $data(which_shot) eq "next" } {
+			set dest_page DYE_v3_next
+		} else {
+			set dest_page DYE_v3
+		}
 	} else {
 		set dest_page DYE_v3_$menu
 	}
@@ -3725,6 +3779,29 @@ proc ::dui::pages::DYE_v3::navigate_to { dest {change_page 1} } {
 		}
 	}
 } 
+
+# Returns a list with the set of fields (=widgets) that can be (potentially?) edited in the current page 
+proc ::dui::pages::DYE_v3::page_fields { {page {}} } {
+	if { $page eq "" } {
+		set page [dui page current]
+	}
+	if { [string range $page 0 5] ne "DYE_v3" } {
+		return {}
+	}
+	set page_suffix [string range $page 7 end]
+	
+	if { $page_suffix eq "" } {
+		return $::plugins::DYE::settings(summary_fields)
+	} elseif { $page_suffix eq "next" } {
+		return $::plugins::DYE::settings(next_summary_fields)
+	} elseif { $page_suffix in {beans_desc beans_batch} } {
+		return [metadata fields -domain shot -category description -section beans -subsection $page_suffix]
+	} elseif { $page_suffix eq "beverage" } {
+		return [metadata fields -domain shot -category description -section {beverage people}]
+	} else {
+		return [metadata fields -domain shot -category description -section $page_suffix]
+	}
+}
 
 proc ::dui::pages::DYE_v3::shot_to_text { {target edited} } {
 	variable widgets
@@ -3777,7 +3854,11 @@ proc ::dui::pages::DYE_v3::shot_to_text { {target edited} } {
 
 	$sw insert insert [translate $which] which
 	if { $data(which_shot) eq "next" } {
-		$sw insert insert "\n"
+		if { [string is true $::plugins::DYE::settings(next_modified)] } {
+			$sw insert insert " (modified*)" next_modified "\n"
+		} else {
+			$sw insert insert " " next_modified "\n"
+		}
 	} else {
 		$sw insert insert ": " {} $shot_array(date_time) "date_time" "\n"
 	}
@@ -3827,7 +3908,9 @@ proc ::dui::pages::DYE_v3::shot_to_text { {target edited} } {
 	$tw tag configure section {*}[dui aspect list -type text_tag -style dyev3_section -as_options yes]
 	$tw tag configure field {*}[dui aspect list -type text_tag -style dyev3_field -as_options yes]  
 	$tw tag configure value {*}[dui aspect list -type text_tag -style dyev3_value -as_options yes]
+	$tw tag configure measure_unit {*}[dui aspect list -type text_tag -style dyev3_measure_unit -as_options yes]
 	$tw tag configure compare -elide [expr {!$do_compare}] {*}[dui aspect list -type text_tag -style dyev3_compare -as_options yes]
+	set non_highlighted_aspects [dui aspect list -type text_tag -style dyev3_field_nonhighlighted -as_options yes]
 
 #	$tw tag configure section -foreground black -font [dui font get notosansuibold 17] -spacing1 [dui platform rescale_y 20]
 #	$tw tag configure field -foreground brown -lmargin1 [dui platform rescale_x 35] -lmargin2 [dui platform rescale_x 45]  
@@ -3847,24 +3930,43 @@ proc ::dui::pages::DYE_v3::shot_to_text { {target edited} } {
 	}
 	
 	# Shot meta description
-	set sections [dict create beans Beans equipment Equipment extraction Extraction people People]
+	set sections [dict create beans:beans_desc Beans beans:beans_batch "Beans batch" equipment Equipment \
+		extraction Extraction people People beverage Beverage tasting Tasting]
 	#bean_batch "Beans batch"
 	
-	foreach section [dict keys $sections] {
-		$tw mark set $section insert 
-		$tw mark gravity $section left
-		$tw insert insert [translate [dict get $sections $section]] [list section $section] "\n"
+	foreach section_key [dict keys $sections] {
+		set section_parts [split $section_key :]
+		if { [llength $section_parts] > 1 } {
+			set section [lindex $section_parts 0]
+			set subsection [lindex $section_parts 1]
+			set section_tag $subsection
+			set fields [metadata fields -domain shot -category description -section $section -subsection $subsection]
+		} else {
+			set section $section_key
+			set section_tag $section
+			set subsection ""
+			set fields [metadata fields -domain shot -category description -section $section]
+		}
+		$tw mark set $section_tag insert 
+		$tw mark gravity $section_tag left
+		$tw insert insert [translate [dict get $sections $section_key]] [list section $section_tag] "\n"
 		
-		foreach field [metadata fields -domain shot -category description -section $section] {
+		foreach field $fields {
 			if { ![info exists shot_array($field)] } continue
-			lassign [metadata get $field {name data_type n_decimals}] name data_type n_decimals
+			# Just make sure we don't have any remaining highlighted field (sometimes happen!) 
+			$tw tag configure $field {*}$non_highlighted_aspects
+			
+			lassign [metadata get $field {name data_type n_decimals measure_unit}] name data_type n_decimals measure_unit
 			$tw insert insert "[translate $name]: " [list field $field ${field}:n] 
 			# ": " [list colon $field]
 			
 			if { $shot_array($field) eq "" } {
-				$tw insert insert " " [list undef $field ${field}:v]
+				$tw insert insert " " [list value $field ${field}:v]
 			} else {
 				$tw insert insert $shot_array($field) [list value $field ${field}:v]
+				if { $measure_unit ne "" } {
+					$tw insert insert " $measure_unit" [list measure_unit $field ${field}:mu]
+				}
 			}
 
 			if { $do_compare } {
@@ -3875,12 +3977,12 @@ proc ::dui::pages::DYE_v3::shot_to_text { {target edited} } {
 				$tw insert insert "\n"
 			}
 
-			if { $target eq "edited" } {				
+			if { $target eq "edited" } {
 				trace add variable ${ns}::edited_shot($field) write ${ns}::shot_variable_changed
 			}
 		}
-		$tw mark set ${section}:end insert
-		$tw mark gravity ${section}:end left 
+		$tw mark set ${section_tag}:end insert
+		$tw mark gravity ${section_tag}:end left 
 	}
 
 	# Shot management
@@ -3970,7 +4072,7 @@ proc ::dui::pages::DYE_v3::field_compare_string { value compare {field {}} {data
 	}
 
 	if { $field ne "" && ($data_type eq "" || $n_decimals eq "") } {
-		lassign [::plugins::SDB::field_lookup $field {data_type n_decimals}] data_type n_decimals
+		lassign [metadata get $field {data_type n_decimals}] data_type n_decimals
 		if { $data_type eq "" } {
 			if { [string is double $value] && [string is double $compare] } {
 				set data_type "number"
@@ -3998,7 +4100,7 @@ proc ::dui::pages::DYE_v3::field_compare_string { value compare {field {}} {data
 			}
 		}
 	} else {
-		#{text category date}
+		#{text category date boolean}
 		if { $value eq $compare } {
 			set compare_text "  ="
 		} else {
@@ -4034,9 +4136,51 @@ proc ::dui::pages::DYE_v3::calc_ratio { {dose {}} {yield {}} {target edited} } {
 	return $ratio
 }
 
-proc ::dui::pages::DYE_v3::shot_variable_changed { arrname varname op } {
-if { $varname eq "espresso_notes" } { msg -INFO "SHOT_VARIABLE_CHANGED $arrname $varname $op" }
+proc ::dui::pages::DYE_v3::calc_days_offroast { {espresso_clock {}} {roast_date {}} {freeze_date {}} {unfreeze_date {}} {target edited} } {
+	variable edited_shot
+	variable compare_shot
+	variable data
+	set days_offroast ""
 	
+	if { $espresso_clock eq "" && $target ni {edited compare} } {
+		msg -WARNING [namesapce current] "calc_days_offroast: target '$target' not recognized, must be one of {target edited}. Assuming 'edited'"
+		set target "edited"
+	}
+	
+	if { $espresso_clock eq "" } {
+		if { $target eq "edited" && $data(which_shot) eq "next" } {
+			set espresso_clock [clock seconds]
+		} else {
+			set espresso_clock [subst \$${target}_shot(clock)]
+		}
+	}
+	set date_format [dui cget date_input_format]
+	if { $date_format eq "" } {
+		set date_format "%d/%m/%Y"
+	}
+	
+	foreach fn { roast_date freeze_date unfreeze_date } { 
+		if { [subst \$$fn] eq "" } {
+			set $fn [subst \$${target}_shot(bean_$fn)]
+		}
+		set dt [subst \$$fn]
+		if { $dt ne "" && ![string is integer $dt] } {
+			try {
+				set $fn [clock scan $dt -format $date_format]
+			} on error err {
+				set $fn ""
+			}
+		}
+	}
+	
+	if { [string is integer -strict $roast_date] } {
+		set days_offroast [expr {round(($espresso_clock - $roast_date) / double(60*60*24))}]
+	}
+	
+	return $days_offroast
+}
+
+proc ::dui::pages::DYE_v3::shot_variable_changed { arrname varname op } {
 	if { $arrname ne "::dui::pages::DYE_v3::edited_shot" } return
 	if { $op ne "write" } return
 	variable original_shot
@@ -4048,6 +4192,25 @@ if { $varname eq "espresso_notes" } { msg -INFO "SHOT_VARIABLE_CHANGED $arrname 
 #	if { $edited_shot($varname) ne $original_shot($varname) } {
 #		set data(shot_modified) 1
 #	}
+	
+	set related_fields [metadata fields -domain shot -category description -sdb_type_column1 $varname]
+	append related_fields [metadata fields -domain shot -category description -sdb_type_column2 $varname]
+	if { [llength $related_fields] > 0 } {
+		set value [subst \$${arrname}(${varname})]
+		foreach field $related_fields {
+			if { [metadata get $field data_type] eq "category" && [dui page has_item [dui page current] ${field}-dda] } {
+				dui item enable_or_disable [expr {$value ne ""}] [dui page current] ${field}-dda
+			}
+		}
+	}
+	
+	if { $data(which_shot) eq "next" && $edited_shot($varname) ne $original_shot($varname) } {
+		#if { $::plugins::DYE::settings(next_modified) != 1 } {
+			variable widgets
+			set ::plugins::DYE::settings(next_modified) 1
+			modify_text_tag $widgets(edited_summary) next_modified " (modified*)"
+		#}	
+	}
 }
 
 proc ::dui::pages::DYE_v3::highlight_field { field {widget {}} } { 
@@ -4096,7 +4259,9 @@ proc ::dui::pages::DYE_v3::change_text_shot_field { field var {widget {}} } {
 	variable data
 	variable edited_shot
 	variable compare_shot
-	if { $widget eq "" } { set widget $widgets(edited_text) }
+	if { $widget eq "" } { 
+		set widget $widgets(edited_text)
+	}
 	set value [subst \$$var]
 	set start_index [$widget index ${field}:v.first]
 	
@@ -4105,15 +4270,25 @@ proc ::dui::pages::DYE_v3::change_text_shot_field { field var {widget {}} } {
 		return
 	}
 	
-	$widget configure -state normal
 	modify_text_tag $widget ${field}:v $value
+	
+	# If there's no measure unit it may be because the field was originally empty and the measure unit was not shown.
+	set mu_start ""
+	catch { set mu_start [$widget index ${field}:mu.first] }
+	if { $value ne "" && $mu_start eq "" } {
+		set measure_unit [lindex [metadata get $field measure_unit] 0]
+		if { $measure_unit ne "" } {
+			$widget configure -state normal
+			$widget insert [$widget index ${field}:v.last] " $measure_unit" [list measure_unit $field ${field}:mu]
+			$widget configure -state disabled
+		}
+	}
 	
 	if { $data(which_compare) ne "" } {
 		set compare [value_or_default compare_shot($field) ""]
 		set compare_text [field_compare_string $value $compare $field]
-		modify_text_tag $widget ${field}:c $compare_text
+		modify_text_tag $widget ${field}:c "$compare_text"
 	}	
-	$widget configure -state disabled
 
 	# Some fields need to be modified on the summary top panel too
 	if { $field in {date_time profile_title grinder_dose_weight drink_weight extraction_time} } {
@@ -4125,7 +4300,6 @@ proc ::dui::pages::DYE_v3::change_text_shot_field { field var {widget {}} } {
 		}
 
 		set widget $widgets(edited_summary)	
-		$widget configure -state normal
 		
 		modify_text_tag $widget $field $value
 		
@@ -4137,7 +4311,6 @@ proc ::dui::pages::DYE_v3::change_text_shot_field { field var {widget {}} } {
 			}
 			modify_text_tag $widget ratio $ratio
 		}
-		$widget configure -state disabled
 	}
 }
 
@@ -4148,16 +4321,17 @@ proc ::dui::pages::DYE_v3::modify_text_tag { widget tag new_value } {
 	} on error err {
 		msg -ERROR [namespace current] "modify_text_tag: can't find tag '$tag' in text widget '$widget'"
 	}
-	
 	if { $new_value eq "" } {
-		# An empty string would make the field tag dissapear
+		# An empty string would make the field tag disappear
 		set new_value " "
 	}
 	if { $start_index ne "" } {
 		set tags [$widget tag names ${tag}.first]
-		$widget delete $start_index ${tag}.last
+		$widget configure -state normal 
+		$widget delete $start_index ${tag}.last	
 		$widget insert $start_index $new_value $tags
-	}	
+		$widget configure -state disabled
+	}
 }
 
 proc ::dui::pages::DYE_v3::click_shot_text { widget x y X Y } {
@@ -4404,7 +4578,7 @@ proc ::dui::pages::DYE_v3::save_description {} {
 		::plugins::DYE::define_next_shot_desc
 	} else {
 		if { $data(which_shot) eq "last" } {
-			foreach field [array names changes] {			
+			foreach field [array names changes] {
 				if { [info exists ::settings($field)] } {
 					set ::settings($field) $edited_shot($field)
 				}
@@ -4421,7 +4595,6 @@ proc ::dui::pages::DYE_v3::save_description {} {
 		}
 	}
 }
-
 
 proc ::dui::pages::DYE_v3::page_cancel {} {
 	variable data

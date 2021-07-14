@@ -7,20 +7,21 @@ proc add_background { contexts } {
 
 # add a back button and page title to a context
 proc add_back_button { contexts text } {
-	set item_id [.can create line [rescale_x_skin 120] [rescale_y_skin  60] [rescale_x_skin 60] [rescale_y_skin 120] [rescale_x_skin 120] [rescale_y_skin 180] -width [rescale_x_skin 24] -fill $::color_text -state "hidden"]
+	set y 160
+	set item_id [.can create line [rescale_x_skin 120] [rescale_y_skin [expr $y - 60]] [rescale_x_skin 60] [rescale_y_skin $y] [rescale_x_skin 120] [rescale_y_skin [expr $y + 60]] -width [rescale_x_skin 24] -fill $::color_text -state "hidden"]
 	add_visual_items_to_contexts $contexts $item_id
-	set page_title_id [add_de1_text $contexts 180 120 -text $text -font $::font_main_menu -fill $::color_text -anchor "w" -state "hidden"]
-	add_de1_button $contexts {say [translate "back"] $::settings(sound_button_in); metric_jump_to "off" } 0 0 1280 240
+	set page_title_id [add_de1_text $contexts 180 $y -text $text -font $::font_main_menu -fill $::color_text -anchor "w" -state "hidden"]
+	add_de1_button $contexts {say [translate "back"] $::settings(sound_button_in); metric_jump_to "off" } 0 0 1280 [expr $y * 2]
 	return $page_title_id
 }
 
 proc add_page_title { contexts text } {
-	set page_title_id [add_de1_text $contexts 1280 140 -text $text -font $::font_main_menu -fill $::color_text -anchor "center" -state "hidden"]
+	set page_title_id [add_de1_text $contexts 1280 160 -text $text -font $::font_main_menu -fill $::color_text -anchor "center" -state "hidden"]
 	return $page_title_id
 }
 
 proc add_page_title_left { contexts text } {
-	set page_title_id [add_de1_text $contexts 180 140 -text $text -font $::font_main_menu -fill $::color_text -anchor "w" -state "hidden"]
+	set page_title_id [add_de1_text $contexts 180 160 -text $text -font $::font_main_menu -fill $::color_text -anchor "w" -state "hidden"]
 	return $page_title_id
 }
 
@@ -31,6 +32,13 @@ proc create_button { contexts x1 y1 x2 y2 text font backcolor textcolor action }
 	add_de1_text $contexts [expr ($x1 + $x2) / 2.0 ] [expr ($y1 + $y2) / 2.0 ] -text $text -font $font -fill $textcolor -anchor "center" -tag "button_text_$::_button_id" -state "hidden"
 	add_de1_button $contexts $action $x1 $y1 $x2 $y2
 	incr ::_button_id
+}
+
+# button with a symbol on
+proc create_symbol_button {contexts x y padding label symbol color action} {
+	set button_id [create_symbol_box $contexts $x $y $label $symbol $color]
+	add_de1_button $contexts $action [expr $x - $padding] [expr $y - $padding] [expr $x + 180 + $padding] [expr $y + 180 + $padding]
+	return $button_id
 }
 
 # add a button for starting a DE1 function

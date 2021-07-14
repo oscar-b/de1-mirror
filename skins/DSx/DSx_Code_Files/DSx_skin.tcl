@@ -1,6 +1,6 @@
 #### Skin by Damian Brakel ####
 
-set ::DSx_settings(version) 4.55
+set ::DSx_settings(version) 4.61
 
 package provide DSx_skin 1.0
 
@@ -10,10 +10,9 @@ package ifneeded DSx $::DSx_settings(version) [list source [file join "./skins/D
 package ifneeded DSx_functions $::DSx_settings(version) [list source [file join "./skins/DSx/DSx_Code_Files/" DSx_functions.tcl]]
 package require DSx_functions $::DSx_settings(version)
 
-
 DSx_startup
 profile_has_changed_set_colors
-
+set listbox_font [DSx_font font 8]
 
 if {[file exists "[skin_directory]/DSx_Home_Page/DSx_home.page"] == 1} {
     source [file join "./skins/DSx/DSx_Home_Page/" DSx_home.page]
@@ -22,6 +21,8 @@ if {[file exists "[skin_directory]/DSx_Home_Page/DSx_home.page"] == 1} {
     }
 } else {
     set ::DSx_home_page_version {}
+    set ::DSx_settings(next_shot_DSx_home_coords) {500 1150}
+    set ::DSx_settings(last_shot_DSx_home_coords) {2120 1150}
     ### Heading
     set ::DSx_heading [add_de1_variable "$::DSx_home_pages" 1280 100 -font [DSx_font font 30] -fill $::DSx_settings(heading_colour) -anchor "center" -textvariable {$::DSx_settings(heading)}]
     #Clock
@@ -29,8 +30,7 @@ if {[file exists "[skin_directory]/DSx_Home_Page/DSx_home.page"] == 1} {
     set ::DSx_clock_font_var_2 [add_de1_variable "$::DSx_home_pages" 2450 130 -font [DSx_font "$::DSx_settings(clock_font)" 6.4] -fill #efbf63 -justify center -anchor "e" -textvariable {[DSx_date]}]
     set ::DSx_clock_font_var_3 [add_de1_variable "$::DSx_home_pages" 2420 92 -font [DSx_font "$::DSx_settings(clock_font)" 8] -fill $::DSx_settings(font_colour) -justify left -anchor "w" -textvariable { [DSx_clock_s]}]
     set ::DSx_clock_font_var_4 [add_de1_variable "$::DSx_home_pages" 2426 60 -font [DSx_font "$::DSx_settings(clock_font)" 6] -fill #efbf63 -justify left -anchor "w" -textvariable { [DSx_clock_ap]}]
-    set listbox_font [DSx_font font 8]
-    #set listbox_font "Helv_8"
+
     ### Right side
     # Data
     add_de1_variable "$::DSx_standby_pages steam preheat_2 water" 1840 325 -justify right -anchor "nw" -font [DSx_font font 8] -fill $::DSx_settings(font_colour) -width [rescale_x_skin 720] -textvariable {$::DSx_settings(live_graph_profile)}
@@ -232,6 +232,22 @@ if {[file exists "[skin_directory]/DSx_Home_Page/DSx_home.page"] == 1} {
         add_de1_button "off" {say [translate {steam}] $::settings(sound_button_in); DSx_steam} 1440 540 1730 860
         add_de1_button "off" {say [translate {Hot water}] $::settings(sound_button_in); DSx_water;} 830 540 1120 860
     }
+
+    ## move on buttons
+    if {$::DSx_settings(dial) == 3} {
+        add_de1_variable "espresso" 1200 980 -justify center -anchor e -font [DSx_font font 8] -fill $::DSx_settings(green) -textvariable {tap to >>>}
+        add_de1_variable "espresso" 1360 980 -justify center -anchor w -font [DSx_font font 8] -fill $::DSx_settings(green) -textvariable {<<< move on}
+        add_de1_button "espresso" {DSx_next_step} 1000 880 1560 1140
+    } else {
+        add_de1_variable "espresso" 1200 410 -justify center -anchor e -font [DSx_font font 8] -fill $::DSx_settings(green) -textvariable {tap to >>>}
+        add_de1_variable "espresso" 1360 410 -justify center -anchor w -font [DSx_font font 8] -fill $::DSx_settings(green) -textvariable {<<< move on}
+        add_de1_button "espresso" {DSx_next_step} 1000 270 1560 530
+    }
+    dui add dbutton "espresso_zoomed" 1900 1280 \
+    -bwidth 300 -bheight 300 -tags graph_shift_button \
+    -labelvariable {\uf051} -label_font [DSx_font {Font Awesome 5 Pro-Regular-400} 10] -label_fill $::DSx_settings(green) -label_pos {0.5 0.5} \
+    -command {DSx_next_step}
+
     ## scale
     if {$::DSx_settings(no_scale) == 1} {
         add_de1_image "$::DSx_home_pages" 880 1200 "[skin_directory_graphics]/big_scale1.png"
@@ -263,7 +279,7 @@ if {[file exists "[skin_directory]/DSx_Home_Page/DSx_home.page"] == 1} {
         } else {
         add_de1_image "$::DSx_home_pages" 880 1200 "[skin_directory_graphics]/big_scale1.png"
         if {$::android != 1} {
-            set ::de1(scale_sensor_weight) 218
+            set ::de1(scale_sensor_weight) 18
             } else {
             set ::de1(scale_weight_rate) -1
         }
@@ -1036,13 +1052,13 @@ add_de1_image "DSx_6_theme" 1880 420 "[skin_directory_graphics]/icons/click1.png
 set ::DSx_6_theme_var_18_1 [add_de1_variable "DSx_6_theme" 2124 520 -text "" -font [DSx_font font 18] -fill $::DSx_settings(font_colour) -anchor "center"  -textvariable {[round_to_integer $::DSx_settings(zoomed_y_axis_scale_default)]}]
 set ::DSx_6_theme_var_7_2 [add_de1_variable "DSx_6_theme" 2124 670 -text "" -font [DSx_font font 7] -fill $::DSx_settings(font_colour) -justify center -anchor "center"  -textvariable {[translate "Set zoomed graph default\r y axis hight. (6 to 15)"]}]
 add_de1_button "DSx_6_theme" {say "" $::settings(sound_button_in); horizontal_clicker_int 1 1 ::DSx_settings(zoomed_y_axis_scale_default) 6 15 %x %y %x0 %y0 %x1 %y1; DSx_reset_graphs; save_DSx_settings;} 1880 420 2360 620 ""
-add_de1_widget "DSx_6_theme" checkbutton 1920 880 {set ::DSx_6_theme_checkbutton_1 $widget} -text [translate "Scale not used"] -indicatoron true  -font "[DSx_font font 8]" -bg $::DSx_settings(bg_colour) -justify left -anchor nw -foreground $::DSx_settings(orange) -variable ::DSx_settings(no_scale) -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa -relief flat -command restart_set;
-add_de1_widget "DSx_6_theme" checkbutton 1920 960 {set ::DSx_6_theme_checkbutton_3 $widget} -text [translate "Hide Clock"] -indicatoron true  -font "[DSx_font font 8]" -bg $::DSx_settings(bg_colour) -justify left -anchor nw -foreground $::DSx_settings(font_colour) -variable ::DSx_settings(clock_hide) -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa -relief flat;
-add_de1_widget "DSx_6_theme" checkbutton 1920 1040 {set ::DSx_6_theme_checkbutton_4 $widget} -text [translate "Original Clock font"] -indicatoron true  -font "[DSx_font "$::DSx_settings(clock_font)" 8]" -bg $::DSx_settings(bg_colour) -justify left -anchor nw -foreground $::DSx_settings(font_colour) -variable ::DSx_settings(original_clock_font) -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa -relief flat -command DSx_clock_font;
+add_de1_widget "DSx_6_theme" checkbutton 1920 880 {set ::DSx_6_theme_checkbutton_1 $widget} -text [translate "Scale not used"] -indicatoron true -font "[DSx_font font 8]" -bg $::DSx_settings(bg_colour) -justify left -anchor nw -foreground $::DSx_settings(orange) -variable ::DSx_settings(no_scale) -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa -relief flat -command restart_set;
+add_de1_widget "DSx_6_theme" checkbutton 1920 960 {set ::DSx_6_theme_checkbutton_2 $widget} -text [translate "Hide Clock"] -indicatoron true -font "[DSx_font font 8]" -bg $::DSx_settings(bg_colour) -justify left -anchor nw -foreground $::DSx_settings(font_colour) -variable ::DSx_settings(clock_hide) -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa -relief flat;
+add_de1_widget "DSx_6_theme" checkbutton 1920 1040 {set ::DSx_6_theme_checkbutton_3 $widget} -text [translate "Original Clock font"] -indicatoron true  -font "[DSx_font "$::DSx_settings(clock_font)" 8]" -bg $::DSx_settings(bg_colour) -justify left -anchor nw -foreground $::DSx_settings(font_colour) -variable ::DSx_settings(original_clock_font) -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa -relief flat -command DSx_clock_font;
 set ::DSx_6_theme_var_9_1 [add_de1_variable "DSx_6_theme" 1000 1540 -text "" -font [DSx_font font 9] -fill $::DSx_settings(orange) -justify center -anchor "center"  -textvariable {[translate "Note: options in Orange require an app restart"]}]
 
 ###### DSx cal ########################################################################################
-add_de1_widget "DSx_2_cal" checkbutton 920 500 {set ::DSx_6_theme_checkbutton_1 $widget} -text [translate "Select if you\rprefer to tare\rwith the empty\rjug before weighing\rwith milk"] -indicatoron true  -font "[DSx_font font 8]" -bg $::DSx_settings(bg_colour) -justify left -anchor nw -foreground $::DSx_settings(orange) -variable ::DSx_settings(pre_tare) -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground $::DSx_settings(orange) -relief flat -command save_DSx_settings;
+add_de1_widget "DSx_2_cal" checkbutton 920 500 {set ::DSx_2_cal_checkbutton_1 $widget} -text [translate "Select if you\rprefer to tare\rwith the empty\rjug before weighing\rwith milk"] -indicatoron true  -font "[DSx_font font 8]" -bg $::DSx_settings(bg_colour) -justify left -anchor nw -foreground $::DSx_settings(orange) -variable ::DSx_settings(pre_tare) -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground $::DSx_settings(orange) -relief flat -command save_DSx_settings;
 
 set ::cal_instructions "Tare the scale with your empty jug, add some milk and record its weight, steam to your desired temperature and record the time. \rSet the weight for your empty jug/s and you're set to go! "
 add_de1_variable "DSx_2_cal" 1920 840 -font [DSx_font font 8] -fill $::DSx_settings(font_colour) -anchor "center" -width [rescale_x_skin 1100] -textvariable {$::cal_instructions}
@@ -1095,11 +1111,6 @@ add_de1_image "DSx_2_cal" 1380 434 "[skin_directory_graphics]/icons/steam_timer.
 add_de1_image "DSx_2_cal" 1600 440 "[skin_directory_graphics]/icons/click.png"
 add_de1_variable "DSx_2_cal" 2000 540 -justify center -anchor center -font [DSx_font font 10] -fill $::DSx_settings(font_colour) -textvariable {[round_to_integer $::DSx_settings(milk_s)]s}
 add_de1_button "DSx_2_cal" {say "" $::settings(sound_button_in); horizontal_clicker_int 10 1 ::DSx_settings(milk_s) 1 90 %x %y %x0 %y0 %x1 %y1; set_jug} 1600 440 2400 640 ""
-# scale
-add_de1_image "DSx_2_cal" 870 1200 "[skin_directory_graphics]/big_scale.png"
-add_de1_variable "DSx_2_cal" 1280 1320 -justify center -anchor "n" -text "" -font [DSx_font font 13] -fill $::DSx_settings(font_colour) -textvariable {[round_to_one_digits $::de1(scale_sensor_weight)]g}
-# skale ble reconnection button
-add_de1_button "DSx_2_cal" {say [translate {tare}] $::settings(sound_button_in); scale_tare;} 1150 1200 1400 1500
 
 ###### DSx backup ########################################################################################
 set ::done ""
@@ -1124,7 +1135,7 @@ set ::DSx_languages_scrollbar [add_de1_widget "DSx_units" scale 1000 1000 {} -fr
 set ::DSx_skin_slider 0
 set ::DSx_skin_scrollbar [add_de1_widget "DSx_admin_skin" scale 10000 1 {} -from 0 -to .90 -bigincrement 0.2 -background $::DSx_settings(font_colour) -borderwidth 1 -showvalue 0 -resolution .01 -length [rescale_x_skin 400] -width [rescale_y_skin 150] -variable ::DSx_skin_slider -font [DSx_font font 10] -sliderlength [rescale_x_skin 125] -relief flat -command {listbox_moveto $::globals(DSx_tablet_styles_listbox) $::DSx_skin_slider}  -foreground $::DSx_settings(font_colour) -troughcolor $::DSx_settings(bg_colour) -borderwidth 0  -highlightthickness 0]
 
-add_de1_widget "DSx_5_admin" checkbutton 1850 1180 {} -text [translate "Backup before updating"] -indicatoron true  -font "[DSx_font font 8]" -bg $::DSx_settings(bg_colour) -justify left -anchor nw -foreground $::DSx_settings(font_colour) -variable ::DSx_settings(backup_b4_update)  -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa  -relief flat -command save_DSx_settings
+add_de1_widget "DSx_5_admin" checkbutton 1850 1180 {set ::DSx_5_admin_checkbutton_1 $widget} -text [translate "Backup before updating"] -indicatoron true  -font "[DSx_font font 8]" -bg $::DSx_settings(bg_colour) -justify left -anchor nw -foreground $::DSx_settings(font_colour) -variable ::DSx_settings(backup_b4_update)  -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa  -relief flat -command save_DSx_settings
 
 add_de1_image "DSx_descale_prepare" 1200 1450 "[skin_directory_graphics]/admin/cleanbuttonW.png"
 add_de1_text "DSx_descale_prepare" 1490 1504 -text [translate "Clean now"] -font [DSx_font font 10] -fill "#444444" -anchor "center"
@@ -1176,8 +1187,9 @@ add_de1_button "DSx_5_admin" {DSx_app_update} 1960 930 2330 1130
 
 # data
 add_de1_text "DSx_5_admin" 200 220 -text [translate "App Version       "][package version de1app] -font [DSx_font font 10] -fill $::DSx_settings(font_colour) -justify "left" -anchor "nw"
-add_de1_widget "DSx_5_admin" radiobutton 160 290  {} -value 0 -text [translate "stable"] -indicatoron true  -font [DSx_font font 8] -bg $::DSx_settings(bg_colour) -anchor ne -foreground $::DSx_settings(font_colour) -variable ::settings(app_updates_beta_enabled)  -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa  -relief flat
-add_de1_widget "DSx_5_admin" radiobutton 460 290  {} -value 1 -text [translate "beta"] -indicatoron true  -font [DSx_font font 8] -bg $::DSx_settings(bg_colour) -anchor ne -foreground $::DSx_settings(font_colour) -variable ::settings(app_updates_beta_enabled)  -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa  -relief flat
+add_de1_widget "DSx_5_admin" radiobutton 160 290  {set ::DSx_5_admin_version_radiobutton1 $widget} -value 0 -text [translate "stable"] -indicatoron true  -font [DSx_font font 8] -bg $::DSx_settings(bg_colour) -anchor ne -foreground $::DSx_settings(font_colour) -variable ::settings(app_updates_beta_enabled)  -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa  -relief flat
+add_de1_widget "DSx_5_admin" radiobutton 360 290  {set ::DSx_5_admin_version_radiobutton2 $widget} -value 1 -text [translate "beta"] -indicatoron true  -font [DSx_font font 8] -bg $::DSx_settings(bg_colour) -anchor ne -foreground $::DSx_settings(font_colour) -variable ::settings(app_updates_beta_enabled)  -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa  -relief flat
+add_de1_widget "DSx_5_admin" radiobutton 560 290  {set ::DSx_5_admin_version_radiobutton3 $widget} -value 2 -text [translate "nightly"] -indicatoron true  -font [DSx_font font 8] -bg $::DSx_settings(bg_colour) -anchor ne -foreground $::DSx_settings(font_colour) -variable ::settings(app_updates_beta_enabled)  -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa  -relief flat
 
 add_de1_text "DSx_5_admin" 200 430 -text [translate {FW Version}] -font [DSx_font font 10] -fill $::DSx_settings(font_colour) -anchor "nw" -width [rescale_y_skin 1220] -justify "left"
 add_de1_variable "DSx_5_admin" 200 500 -text "" -font [DSx_font font 8] -fill $::DSx_settings(font_colour) -anchor "nw" -width [rescale_y_skin 920] -justify "left" -textvariable {[de1_version_string]}

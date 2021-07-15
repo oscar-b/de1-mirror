@@ -29,20 +29,11 @@ proc scale_enable_lcd {} {
 proc scale_disable_lcd {} {
 	::bt::msg -NOTICE scale_disable_lcd
 	if {$::settings(scale_type) == "atomaxskale"} {
-		set do_this 0
-		if {$do_this == 1} {
-			skale_disable_lcd
-		}
+		skale_disable_lcd
 	} elseif {$::settings(scale_type) == "decentscale"} {
-		
-		set do_this 0
-		if {$do_this == 1} {
-			# disabled the LCD off for Decent Scale, so that we don't give false impression tha the scale is off
-			# ideally in future firmware we can find out if they are on usb power, and disable LEDs if they are
-			decentscale_disable_lcd
-			# double-sending command, half a second later, because sometimes the decent scale command buffer has not finished the previous command and drops the next one
-			after 500 decentscale_disable_lcd
-		}
+		decentscale_disable_lcd
+		# double-sending command, half a second later, because sometimes the decent scale command buffer has not finished the previous command and drops the next one
+		after 500 decentscale_disable_lcd
 	}
 }
 
@@ -714,7 +705,7 @@ proc close_all_ble_and_exit {} {
 	###
 
 	::bt::msg -DEBUG "close_all_ble_and_exit, at entrance: [ble info]"
-	if {$::scanning == 1} {
+	if {$::scanning  == 1} {
 		catch {
 			ble stop $::ble_scanner
 		}
@@ -734,7 +725,6 @@ proc close_all_ble_and_exit {} {
 		}
 	}
 
-	close_misc_bluetooth_handles
 
 	catch {
 		if {$::settings(ble_unpair_at_exit) == 1} {
@@ -846,28 +836,12 @@ proc android_8_or_newer {} {
 }
 
 
-proc close_misc_bluetooth_handles {} {
-	set count 0
-	foreach handle [ble info] {
-		::bt::msg -NOTICE "Closing misc bluetooth handle $handle"
-		catch {
-			ble close $handle
-		}
-		incr count
-	}
-	return $count
-
-}
-
 set ::ble_scanner {}
-set ::scanning -1
-
-# at startup, if we have any hanldes, close them
-set blecount [close_misc_bluetooth_handles]
-if {$blecount != 0} {
-	::bt::msg -NOTICE "Closed $blecount misc bluetooth handles"
+catch  {
+	# this will fail if this package has been loaded before "proc android_specific_stubs {}" has been run
+	set ::ble_scanner [ble scanner de1_ble_handler]
 }
-
+set ::scanning -1
 
 proc check_if_initial_connect_didnt_happen_quickly {} {
 	::bt::msg -NOTICE "check_if_initial_connect_didnt_happen_quickly"
@@ -917,9 +891,22 @@ proc check_if_initial_connect_didnt_happen_quickly {} {
 
 }
 
+
+proc ble_find_de1s {} {
+
+	return
+	if {$::android != 1} {
+		ble_connect_to_de1
+	}
+
+	after 30000 stop_scanner
+	::bt::msg -NOTICE "Starting ble_scanner from ::ble_find_de1s"
+	ble start $::ble_scanner
+}
+
 proc stop_scanner {} {
 
-	if {$::scanning != 1} {
+	if {$::scanning == 0} {
 		return
 	}
 
@@ -932,6 +919,7 @@ proc stop_scanner {} {
 	set ::scanning 0
 	::bt::msg -NOTICE "Stopping ble_scanner from ::stop_scanner"
 	ble stop $::ble_scanner
+	#userdata_append "stop scanning" [list ble stop $::ble_scanner]
 }
 
 proc bluetooth_connect_to_devices {} {
@@ -1332,7 +1320,7 @@ proc de1_ble_handler { event data } {
 					#set ::de1(scale_type) ""
 
 						set ::de1(wrote) 0
-						::bt::msg -NOTICE "scale $::settings(scale_type) disconnected $data_for_log"
+						::bt::msg -NOTICE "$::settings(scale_type) disconnected $data_for_log"
 						#catch {
 							ble close $handle
 						#}
@@ -1388,11 +1376,6 @@ proc de1_ble_handler { event data } {
 				} elseif {$state eq "discovery"} {
 					#ble_connect_to_de1
 				} elseif {$state eq "connected"} {
-
-					if {[info exists address] != 1} {
-						# this is very odd, no address yet connected
-						::bt::msg -NOTICE "full bluetooth log: $full_data_for_log"
-					}
 
 					if {$::de1(device_handle) == 0 && $address == $::settings(bluetooth_address)} {
 						::bt::msg -NOTICE "de1 connected $event $data_for_log"
@@ -2130,10 +2113,5 @@ proc scanning_restart {} {
 
 	set ::scanning 1
 	::bt::msg -NOTICE "Starting ble_scanner from ::scanning_restart"
-
-	if {$::ble_scanner == ""} {
-		set ::ble_scanner [ble scanner de1_ble_handler]
-	}
-
 	ble start $::ble_scanner
 }

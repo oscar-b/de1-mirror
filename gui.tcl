@@ -1491,6 +1491,7 @@ proc show_settings { {tab_to_show ""} } {
 
 	update_de1_explanation_chart
 
+	#preview_profile 
 }
 
 proc page_to_show_when_off {page_to_show args} {

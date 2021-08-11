@@ -1539,8 +1539,8 @@ proc skin_directories {} {
 		}
 	    
 		if {[ifexists ::settings(show_only_most_popular_skins)] == 1 && [ifexists ::settings(most_popular_skins)] != ""} {
-			puts "'$d' '[ifexists ::settings(most_popular_skins)]'"
-			if {[lsearch -exact [ifexists ::settings(most_popular_skins)] $d ] == -1} {
+			#puts "'$d' '[ifexists ::settings(most_popular_skins)]'"
+			if {[lsearch -exact [string toupper [ifexists ::settings(most_popular_skins)]] [string toupper $d] ] == -1} {
 				continue
 			}
 		}
@@ -1589,6 +1589,11 @@ proc fill_skin_listbox {} {
 	foreach d [skin_directories] {
 		if {$d == "CVS" || $d == "example"} {
 			continue
+		}
+
+		if {$d == "metric"} {
+			# typo in github was in lower case for Metric skin, so hacking the dispay of it here
+			set d "Metric"
 		}
 
 		$widget insert $cnt [translate $d]
@@ -2072,10 +2077,10 @@ proc highlight_extension {} {
 	set description ""
 
 
-	foreach {name value} { "Version: " version "Author: " author "Contact: " contact "\n" description} {
+	foreach {name value} { "Version:" version "Author:" author "Contact:" contact "\n" description} {
 		set conf [set ::plugins::${plugin}::${value}]
 		if { $conf != {} } {
-			append description "[translate $name]$conf\n"
+			append description "[translate $name] $conf\n"
 		}
 	}
 	.can itemconfigure $::extensions_metadata -text $description
@@ -2415,12 +2420,19 @@ proc message_page {msg buttonmsg {longertxt {}} } {
 #set ::infopage_button [add_de1_button "infopage" {say [translate {Ok}] $::settings(sound_button_in); set_next_page off off} 980 990 1580 1190 ""]
 
 
-proc info_page {msg buttonmsg} {
+proc info_page {msg buttonmsg {nextpage {}}} {
 	if {[catch {
 		.can itemconfigure $::infopage_label -text $msg
 		.can itemconfigure $::infopage_button_label -text $buttonmsg
-		set_next_page off infopage; 
+		set_next_page off infopage
 		page_show off
+
+		if {$nextpage != ""} {
+			msg -INFO "Setting next page after info to: '$nextpage'"
+			set_next_page off $nextpage
+		} else {
+			set_next_page off off
+		}
 	} err] != 0} {
 		msg -ERROR "info_page failed because: '$err'"
 	}
@@ -2570,18 +2582,11 @@ proc select_profile { profile } {
 	update_onscreen_variables
 	profile_has_not_changed_set
 
-
-	set show_video_button 0
-	if {[ifexists ::settings(profile_video_help)] != ""} {
-		set show_video_button 1
-	}
-	dui item show_or_hide $show_video_button "settings_1" "profile_video_help_button" 
-
-
 	# as of v1.3 people can start an espresso from the group head, which means their currently selected 
 	# profile needs to sent right away to the DE1, in case the person taps the GH button to start espresso w/o leaving settings
 	send_de1_settings_soon
 }
+
 
 set preview_profile_counter 0
 proc preview_profile {} {
@@ -2812,6 +2817,7 @@ proc load_settings_vars {fn} {
 	set ::setting(disable_long_press) 1
 
 	update_de1_explanation_chart
+
 
 }
 
@@ -3333,12 +3339,12 @@ proc de1_version_string {} {
 	}
 
 	if { [package version de1app] ne ""  } {
-		append version ", [translate app]=v[package version de1app]"
+		append version ", [translate app]=v[package version de1app] [app_updates_policy_as_text]"
 	}
 
-	if { [app_updates_policy_as_text] ne ""  } {
-		append version ", [translate {branch}]=[app_updates_policy_as_text]"
-	}
+	#if { [app_updates_policy_as_text] ne ""  } {
+	#	append version ", [translate {branch}]=[app_updates_policy_as_text]"
+	#}
 	
 	if {[ifexists v(BLE_Sha)] != "" && $::settings(firmware_sha) != [ifexists v(BLE_Sha)] } {
 		set ::settings(firmware_sha) $v(BLE_Sha)

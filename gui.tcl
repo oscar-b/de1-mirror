@@ -1491,7 +1491,6 @@ proc show_settings { {tab_to_show ""} } {
 
 	update_de1_explanation_chart
 
-	#preview_profile 
 }
 
 proc page_to_show_when_off {page_to_show args} {
@@ -1707,8 +1706,8 @@ proc hide_android_keyboard {} {
 
 proc update_de1_explanation_chart_soon  { {context {}} } {
 	# we can optionally delay displaying the chart until data from the slider stops coming
-	update_de1_explanation_chart
-	return
+	#update_de1_explanation_chart
+	#return
 	
 	#after 10 {after cancel update_de1_explanation_chart; after idle update_de1_explanation_chart}
 	if {[info exists ::chart_update_id] == 1} {
@@ -3460,7 +3459,11 @@ namespace eval ::gui::update {
 								[expr {2.0 * [round_to_two_digits \
 										      $::de1(scale_weight_rate)] }]
 
-							set resistance_weight 0
+							if { [espresso_resistance_weight length] > 0 } {
+								set resistance_weight espresso_resistance_weight(end)
+							} else {
+	                          set resistance_weight 0
+							}
 							catch {
 								if {    $GroupPressure != 0 \
 										&& $::de1(scale_weight_rate) != "" \
@@ -3580,6 +3583,8 @@ namespace eval ::gui::update {
 
 						steam_pressure append [round_to_two_digits $GroupPressure]
 						steam_flow append [round_to_two_digits $GroupFlow]
+
+						steam_flow_goal append [round_to_two_digits [expr {$::settings(steam_flow) / 100.0}]]
 
 						if {$::settings(enable_fahrenheit) == 1} {
 							steam_temperature append [round_to_integer [celsius_to_fahrenheit $SteamTemp]]

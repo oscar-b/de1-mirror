@@ -512,12 +512,11 @@ add_de1_widget "steam" graph 1810 1090 {
 
 	$widget element create line_steam_pressure -xdata steam_elapsed -ydata steam_pressure -symbol none -label "" -linewidth [rescale_x_skin 6] -color #18c37e  -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_pressure); 
 	$widget element create line_steam_flow -xdata steam_elapsed -ydata steam_flow -symbol none -label "" -linewidth [rescale_x_skin 6] -color #4e85f4  -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_flow);  
+	$widget element create line_steam_flow_goal -xdata steam_elapsed -ydata steam_flow_goal -symbol none -label "" -linewidth [rescale_x_skin 6] -color #4e85f4  -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes {5 5};
+
 	$widget element create line_steam_temperature -xdata steam_elapsed -ydata steam_temperature100th -symbol none -label ""  -linewidth [rescale_x_skin 6] -color #e73249 -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_temperature);  
 
-	#$widget element create line_steam_temperature -xdata steam_elapsed -ydata steam_temperature -symbol none -label ""  -linewidth [rescale_x_skin 6] -color #e73249 -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_temperature);  
-
 	$widget axis configure x -color #008c4c -tickfont Helv_6 -linewidth [rescale_x_skin 2] 
-	#$widget axis configure y -color #008c4c -tickfont Helv_6 -min 0.0 -max [expr {$::settings(max_steam_pressure) + 0.01}] -subdivisions 5 -majorticks {1 2 3} 
 	$widget axis configure y -color #008c4c -tickfont Helv_6 -min 0.0 
 } -plotbackground #FFFFFF -width [rescale_x_skin 700] -height [rescale_y_skin 300] -borderwidth 1 -background #FFFFFF -plotrelief flat  -plotpady 0 -plotpadx 10
 
@@ -525,7 +524,6 @@ add_de1_widget "steam_3" graph 1810 1090 {
 	bind $widget [platform_button_press] { 
 		say [translate {stop}] $::settings(sound_button_in); 
 		say [translate {zoom}] $::settings(sound_button_in); 
-		#set_next_page off steam_zoom_3; 
 		set_next_page steam_3 steam_zoom_3; 
 		page_show $::de1(current_context);
 	}
@@ -533,6 +531,7 @@ add_de1_widget "steam_3" graph 1810 1090 {
 
 	$widget element create line_steam_pressure -xdata steam_elapsed -ydata steam_pressure -symbol none -label "" -linewidth [rescale_x_skin 6] -color #18c37e  -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_pressure); 
 	$widget element create line_steam_flow -xdata steam_elapsed -ydata steam_flow -symbol none -label "" -linewidth [rescale_x_skin 6] -color #4e85f4  -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_flow);  
+	$widget element create line_steam_flow_goal -xdata steam_elapsed -ydata steam_flow_goal -symbol none -label "" -linewidth [rescale_x_skin 6] -color #4e85f4  -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes {5 5};
 	$widget element create line_steam_temperature -xdata steam_elapsed -ydata steam_temperature100th -symbol none -label ""  -linewidth [rescale_x_skin 6] -color #e73249 -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_temperature);   
 
 	$widget axis configure x -color #008c4c -tickfont Helv_6 -linewidth [rescale_x_skin 2] 
@@ -554,6 +553,7 @@ add_de1_widget "steam_zoom_3" graph 34 214 {
 
 	$widget element create line_steam_pressure -xdata steam_elapsed -ydata steam_pressure -symbol none -label "" -linewidth [rescale_x_skin 10] -color #18c37e  -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_pressure); 
 	$widget element create line_steam_flow -xdata steam_elapsed -ydata steam_flow -symbol none -label "" -linewidth [rescale_x_skin 10] -color #4e85f4  -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_flow);  
+	$widget element create line_steam_flow_goal -xdata steam_elapsed -ydata steam_flow_goal -symbol none -label "" -linewidth [rescale_x_skin 10] -color #4e85f4  -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes {5 5};
 	#$widget element create line_steam_temperature -xdata steam_elapsed -ydata steam_temperature -symbol none -label ""  -linewidth [rescale_x_skin 10] -color #e73249  -pixels 0 -dashes $::settings(chart_dashes_temperature);  
 	#$widget element create line_steam_temperature -xdata steam_elapsed -ydata steam_temperature -symbol none -label ""  -linewidth [rescale_x_skin 10] -color #e73249 -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_temperature);  
 
@@ -606,6 +606,7 @@ add_de1_widget "steam_zoom" graph 34 214 {
 
 	$widget element create line_steam_pressure -xdata steam_elapsed -ydata steam_pressure -symbol none -label "" -linewidth [rescale_x_skin 10] -color #18c37e  -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_pressure); 
 	$widget element create line_steam_flow -xdata steam_elapsed -ydata steam_flow -symbol none -label "" -linewidth [rescale_x_skin 10] -color #4e85f4  -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_flow);  
+	$widget element create line_steam_flow_goal -xdata steam_elapsed -ydata steam_flow_goal -symbol none -label "" -linewidth [rescale_x_skin 6] -color #4e85f4  -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes {5 5};
 	#$widget element create line_steam_temperature -xdata steam_elapsed -ydata steam_temperature -symbol none -label ""  -linewidth [rescale_x_skin 10] -color #e73249 -pixels 0 -dashes $::settings(chart_dashes_temperature);  
 	#$widget element create line_steam_temperature -xdata steam_elapsed -ydata steam_temperature -symbol none -label ""  -linewidth [rescale_x_skin 10] -color #e73249 -smooth $::settings(live_graph_smoothing_technique) -pixels 0 -dashes $::settings(chart_dashes_temperature);  
 
@@ -1069,7 +1070,7 @@ add_de1_text "steam" 1840 250 -justify right -anchor "nw" -text [translate "Info
 	add_de1_text "steam" 1870 500 -justify right -anchor "nw" -text [translate "Pressure (bar)"] -font Helv_8 -fill "#7f879a" -width [rescale_x_skin 520]
 		add_de1_variable "steam" 2470 500 -justify left -anchor "ne" -font Helv_8 -text "" -fill "#42465c" -width [rescale_x_skin 520] -textvariable {[pressure_text]} 
 	add_de1_text "steam" 1870 550 -justify right -anchor "nw" -text [translate "Flow rate max"] -font Helv_8 -fill "#7f879a" -width [rescale_x_skin 520]
-		add_de1_variable "steam" 2470 550 -justify left -anchor "ne" -text "" -font Helv_8 -fill "#42465c" -width [rescale_x_skin 520] -textvariable {[return_steam_flow_calibration $::settings(steam_flow)]}
+		add_de1_variable "steam" 2470 550 -justify left -anchor "ne" -text "" -font Helv_8 -fill "#42465c" -width [rescale_x_skin 520] -textvariable {[dui platform hide_android_keyboard; return_steam_flow_calibration $::settings(steam_flow)]}
 	add_de1_text "steam" 1870 600 -justify right -anchor "nw" -text [translate "Flow rate now"] -font Helv_8 -fill "#7f879a" -width [rescale_x_skin 520]
 		add_de1_variable "steam" 2470 600 -justify left -anchor "ne" -text "" -font Helv_8 -fill "#42465c" -width [rescale_x_skin 520] -textvariable {[waterflow_text]} 
 
@@ -1099,14 +1100,17 @@ add_de1_text "steam" 1840 250 -justify right -anchor "nw" -text [translate "Info
 
 
 	# realtime control over the steam flow rate
-	add_de1_widget "steam steam_1 steam_3" scale 10 1436 {} -from 40 -to 250 -background "#e8e1df" -borderwidth 1 -showvalue 0  -bigincrement 100 -resolution 10 -length [rescale_x_skin 2000] -width [rescale_y_skin 150] -variable ::settings(steam_flow) -font Helv_10_bold -sliderlength [rescale_x_skin 500] -relief flat -command {set_steam_flow} -orient horizontal -foreground #FFFFFF -troughcolor "#d7d9e5" -borderwidth 0  -highlightthickness 0 
-
+	add_de1_widget "steam steam_1 steam_3" scale 10 1436 {} -from 40 -to 250 -background "#e8e1df" -borderwidth 1 -showvalue 0  -bigincrement 100 -resolution 10 -length [rescale_x_skin 2000] -width [rescale_y_skin 150] -variable ::settings(steam_flow) -font Helv_10_bold -sliderlength [rescale_x_skin 500] -relief flat -command {dui platform hide_android_keyboard; set_steam_flow} -orient horizontal -foreground #FFFFFF -troughcolor "#d7d9e5" -borderwidth 0  -highlightthickness 0
+	#dui add dscale "steam steam_1 steam_3" 40 1510 {} -from 40 -to 250 -bigincrement 100 -smallincrement 10 -resolution 10 -length 1950 -width 14 -sliderlength 120 -variable ::settings(steam_flow) -command {set_steam_flow} -orient horizontal
 
 	# when steam is off, display current steam heater temp
 	add_de1_text "steam_1 steam_3" 1100 1220 -justify right -anchor "nw" -text [translate "Temperature"] -font Helv_8 -fill "#969eb1" -width [rescale_x_skin 520]
 		add_de1_variable "steam_1 steam_3" 1680 1220 -justify left -anchor "ne" -font Helv_8 -text "" -fill "#969eb1" -width [rescale_x_skin 520] -textvariable {[steamtemp_text]} 
 		add_de1_text "steam_1 steam_3" 1100 1270 -justify right -anchor "nw" -text [translate "Flow rate max"] -font Helv_8 -fill "#969eb1" -width [rescale_x_skin 520]
-		add_de1_variable "steam_1 steam_3" 1680 1270 -justify left -anchor "ne" -font Helv_8 -text "" -fill "#969eb1" -width [rescale_x_skin 520] -textvariable {[return_steam_flow_calibration $::settings(steam_flow)]}
+
+		# hide the android toolbar if it is shown during steaming, because it obscures the flow rate slider
+		add_de1_variable "steam_1" 1680 1270 -justify left -anchor "ne" -font Helv_8 -text "" -fill "#969eb1" -width [rescale_x_skin 520] -textvariable {[dui platform hide_android_keyboard; return_steam_flow_calibration $::settings(steam_flow)]}
+		add_de1_variable "steam_3" 1680 1270 -justify left -anchor "ne" -font Helv_8 -text "" -fill "#969eb1" -width [rescale_x_skin 520] -textvariable {[return_steam_flow_calibration $::settings(steam_flow)]}
 
 # optional keyboard bindings
 focus .can

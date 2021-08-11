@@ -1,6 +1,6 @@
 #### Skin by Damian Brakel ####
 
-set ::DSx_settings(version) 4.61
+set ::DSx_settings(version) 4.73
 
 package provide DSx_skin 1.0
 
@@ -19,6 +19,8 @@ if {[file exists "[skin_directory]/DSx_Home_Page/DSx_home.page"] == 1} {
     if {[info exists ::DSx_home_page_version] != 1} {
         set ::DSx_home_page_version {custom}
     }
+} elseif {[file exists "[skin_directory]/DSx_Home_Page/DSx_2021_home.page"] == 1 && $::DSx_settings(DSx_home) == "2021home"} {
+    source [file join "./skins/DSx/DSx_Home_Page/" DSx_2021_home.page]
 } else {
     set ::DSx_home_page_version {}
     set ::DSx_settings(next_shot_DSx_home_coords) {500 1150}
@@ -311,9 +313,9 @@ if {[file exists "[skin_directory]/DSx_Home_Page/DSx_home.page"] == 1} {
         }
         $widget element create line_steam_pressure -xdata steam_elapsed -ydata steam_pressure -symbol none -label "" -linewidth [rescale_x_skin 4] -color #18c37e  -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
         $widget element create line_steam_flow -xdata steam_elapsed -ydata steam_flow -symbol none -label "" -linewidth [rescale_x_skin 4] -color #4e85f4  -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
-        $widget element create line_steam_temperature -xdata steam_elapsed -ydata steam_temperature -symbol none -label "" -linewidth [rescale_x_skin 5] -color #e73249  -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
+        #$widget element create line_steam_temperature -xdata steam_elapsed -ydata steam_temperature -symbol none -label "" -linewidth [rescale_x_skin 5] -color #e73249  -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
         $widget axis configure x -color $::DSx_settings(x_axis_colour) -tickfont [DSx_font font 5] -linewidth [rescale_x_skin 2]
-        $widget axis configure y -color $::DSx_settings(x_axis_colour) -tickfont [DSx_font font 5] -min 0.0 -max [expr {$::settings(max_steam_pressure) + 0.01}] -subdivisions 5 -majorticks {1 2 3}
+        $widget axis configure y -color $::DSx_settings(x_axis_colour) -tickfont [DSx_font font 5] -min 0.0 -subdivisions 1
         $widget grid configure -color $::DSx_settings(grid_colour)
     } -plotbackground $::DSx_settings(bg_colour) -width [rescale_x_skin 650] -height [rescale_y_skin 220] -borderwidth 1 -background $::DSx_settings(bg_colour) -plotrelief flat
     # espresso graph
@@ -349,9 +351,9 @@ if {[file exists "[skin_directory]/DSx_Home_Page/DSx_home.page"] == 1} {
         }
         $widget element create line_steam_pressure -xdata steam_elapsed -ydata steam_pressure -symbol none -label "" -linewidth [rescale_x_skin 4] -color #18c37e  -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
         $widget element create line_steam_flow -xdata steam_elapsed -ydata steam_flow -symbol none -label "" -linewidth [rescale_x_skin 4] -color #4e85f4  -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
-        $widget element create line_steam_temperature -xdata steam_elapsed -ydata steam_temperature -symbol none -label "" -linewidth [rescale_x_skin 5] -color #e73249  -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
+        #$widget element create line_steam_temperature -xdata steam_elapsed -ydata steam_temperature -symbol none -label "" -linewidth [rescale_x_skin 5] -color #e73249  -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
         $widget axis configure x -color $::DSx_settings(x_axis_colour) -tickfont [DSx_font font 5] -linewidth [rescale_x_skin 2]
-        $widget axis configure y -color $::DSx_settings(x_axis_colour) -tickfont [DSx_font font 5] -min 0.0 -max [expr {$::settings(max_steam_pressure) + 0.01}] -subdivisions 5 -majorticks {1 2 3}
+        $widget axis configure y -color $::DSx_settings(x_axis_colour) -tickfont [DSx_font font 5] -min 0.0 -subdivisions 1
         $widget grid configure -color $::DSx_settings(grid_colour)
     } -plotbackground $::DSx_settings(bg_colour) -width [rescale_x_skin 650] -height [rescale_y_skin 220] -borderwidth 1 -background $::DSx_settings(bg_colour) -plotrelief flat
     # Espresso action graph
@@ -383,9 +385,9 @@ if {[file exists "[skin_directory]/DSx_Home_Page/DSx_home.page"] == 1} {
         }
         $widget element create line_steam_pressure -xdata steam_elapsed -ydata steam_pressure -symbol none -label "" -linewidth [rescale_x_skin 4] -color #18c37e  -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
         $widget element create line_steam_flow -xdata steam_elapsed -ydata steam_flow -symbol none -label "" -linewidth [rescale_x_skin 4] -color #4e85f4  -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
-        $widget element create line_steam_temperature -xdata steam_elapsed -ydata steam_temperature -symbol none -label "" -linewidth [rescale_x_skin 5] -color #e73249  -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
+        #$widget element create line_steam_temperature -xdata steam_elapsed -ydata steam_temperature -symbol none -label "" -linewidth [rescale_x_skin 5] -color #e73249  -smooth $::settings(live_graph_smoothing_technique) -pixels 0;
         $widget axis configure x -color $::DSx_settings(x_axis_colour) -tickfont [DSx_font font 5] -linewidth [rescale_x_skin 2]
-        $widget axis configure y -color $::DSx_settings(x_axis_colour) -tickfont [DSx_font font 5] -min 0.0 -max [expr {$::settings(max_steam_pressure) + 0.01}] -subdivisions 5 -majorticks {1 2 3}
+        $widget axis configure y -color $::DSx_settings(x_axis_colour) -tickfont [DSx_font font 5] -min 0.0 -subdivisions 1
         $widget grid configure -color $::DSx_settings(grid_colour)
     } -plotbackground $::DSx_settings(bg_colour) -width [rescale_x_skin 650] -height [rescale_y_skin 220] -borderwidth 1 -background $::DSx_settings(bg_colour) -plotrelief flat
     # Espresso action graph
@@ -1021,8 +1023,13 @@ set ::DSx_6_theme_var_10_3 [add_de1_text "DSx_6_theme" 300 450 -font [DSx_font f
 set ::DSx_6_theme_var_7_1 [add_de1_text "DSx_6_theme" 300 570 -font [DSx_font font 7] -justify center -anchor center -text [translate "Default $::DSx_settings(font_colour)"] -fill $::DSx_settings(font_colour)]
 add_de1_button "DSx_6_theme" {say "" $::settings(sound_button_in); heading_colour_picker;} 100 350 500 550
 set ::dial [add_de1_image "DSx_6_theme" 860 730 ""]
-set ::DSx_6_theme_var_10_1 [add_de1_variable "DSx_6_theme" 1280 256 -font [DSx_font font 10] -fill $::DSx_settings(font_colour) -anchor "center" -textvariable {Theme Setup Page}]
-set ::DSx_6_theme_var_10_2 [add_de1_variable "DSx_6_theme" 1160 390 -font [DSx_font font 10] -fill $::DSx_settings(font_colour) -anchor "center" -textvariable {Dial Design}]
+set ::DSx_6_theme_var_10_1 [add_de1_variable "DSx_6_theme" 1280 240 -font [DSx_font font 10] -fill $::DSx_settings(font_colour) -anchor "center" -textvariable {Theme Setup Page}]
+
+add_de1_widget "DSx_6_theme" radiobutton 900 300 {set ::DSx_6_theme_home1 $widget} -text [translate "Use DSx 2021 home page"] -indicatoron true  -font "[DSx_font font 8]" -bg $::DSx_settings(bg_colour) -anchor nw -foreground $::DSx_settings(orange) -variable ::DSx_settings(DSx_home) -value "2021home" -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa  -relief flat -command dial_config
+add_de1_widget "DSx_6_theme" radiobutton 900 390 {set ::DSx_6_theme_home2 $widget} -text [translate "Use Dial Design home page"] -indicatoron true  -font "[DSx_font font 8]" -bg $::DSx_settings(bg_colour) -anchor nw -foreground $::DSx_settings(orange) -variable ::DSx_settings(DSx_home) -value "dial" -borderwidth 0 -selectcolor $::DSx_settings(bg_colour) -highlightthickness 0 -activebackground $::DSx_settings(bg_colour) -bd 0 -activeforeground #aaa  -relief flat -command dial_config
+
+#set ::DSx_6_theme_var_10_2 [add_de1_variable "DSx_6_theme" 1160 440 -font [DSx_font font 10] -fill $::DSx_settings(font_colour) -anchor "center" -textvariable {Dial Design}]
+set ::DSx_6_theme_var_10_2 [add_de1_variable "DSx_6_theme" 1160 440 -font [DSx_font font 10] -fill $::DSx_settings(font_colour) -anchor "center" -textvariable {}]
 set ::DSx_6_theme_var_8_1 [add_de1_variable "DSx_6_theme" 800 480 -font [DSx_font font 8] -fill $::DSx_settings(font_colour) -anchor w -textvariable {Bezel}]
 set ::DSx_6_theme_var_8_2 [add_de1_variable "DSx_6_theme" 1100 480 -font [DSx_font font 8] -fill $::DSx_settings(font_colour) -anchor w -textvariable {Icons}]
 set ::DSx_6_theme_var_8_3 [add_de1_variable "DSx_6_theme" 1400 480 -font [DSx_font font 8] -fill $::DSx_settings(font_colour) -anchor w -textvariable {Layout}]

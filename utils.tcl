@@ -695,6 +695,7 @@ proc random_saver_file {} {
 }
 
 proc tcl_introspection {} {
+
     catch {
         set txt ""
 
@@ -757,13 +758,49 @@ proc tcl_introspection {} {
         }
         append txt "TOTAL global variable memory used: $total bytes\n\n"
 
+		if {$::enable_profiling == 1} {
 
-        msg -DEBUG $txt
+			# this loads the overall app info
+			append txt [profilerdata]
+
+			# this gives you profiled run information about individual functions
+			# feel free to change these to those you are investigating
+			append txt [profilerdata ::load_skin]
+			append txt [profilerdata ::add_de1_text]
+			append txt [profilerdata ::add_de1_variable]
+			append txt [profilerdata ::de1_ble_handler]
+			append txt [profilerdata ::device::scale::process_weight_update]
+		}
+
+        msg -INFO $txt
     }
 
     after [expr {60 * 60 * 1000}] tcl_introspection
     #after [expr {1000}] tcl_introspection
 }
+
+proc add_commas_to_number { number } {
+	regsub -all \\d(?=(\\d{3})+([regexp -inline {\.\d*$} $number]$)) $number {\0,}
+}
+
+proc array_keys_decr_sorted_by_number_val {arrname {sort_order -decreasing}} {
+	upvar $arrname arr
+	foreach k [array names arr] {
+		#puts " $arr($k) "
+		set k2 "[format {"%0.12i"} $arr($k)] $k"
+		#puts "k2: $k2"
+		set t($k2) $k
+	}
+	
+	set toreturn {}
+	foreach k [lsort -dictionary $sort_order [array names t]] {
+		set v $t($k)
+		lappend toreturn $v
+	}
+	return $toreturn
+}
+
+
 
 proc random_splash_file {} {
     if {[info exists ::splash_files_cache] != 1} {
@@ -1413,7 +1450,7 @@ proc load_settings {} {
     set ::settings(log_enabled) True
 
 
-    blt::vector create espresso_elapsed god_espresso_elapsed god_espresso_pressure steam_pressure steam_temperature steam_temperature100th steam_flow steam_elapsed espresso_pressure espresso_flow god_espresso_flow espresso_flow_weight god_espresso_flow_weight espresso_flow_weight_2x god_espresso_flow_weight_2x espresso_flow_2x god_espresso_flow_2x espresso_flow_delta espresso_pressure_delta espresso_temperature_mix espresso_temperature_basket god_espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_weight espresso_weight_chartable espresso_resistance_weight espresso_resistance
+    blt::vector create espresso_elapsed god_espresso_elapsed god_espresso_pressure steam_pressure steam_temperature steam_temperature100th steam_flow steam_flow_goal steam_elapsed espresso_pressure espresso_flow god_espresso_flow espresso_flow_weight god_espresso_flow_weight espresso_flow_weight_2x god_espresso_flow_weight_2x espresso_flow_2x god_espresso_flow_2x espresso_flow_delta espresso_pressure_delta espresso_temperature_mix espresso_temperature_basket god_espresso_temperature_basket espresso_state_change espresso_pressure_goal espresso_flow_goal espresso_flow_goal_2x espresso_temperature_goal espresso_weight espresso_weight_chartable espresso_resistance_weight espresso_resistance
     blt::vector create espresso_de1_explanation_chart_pressure espresso_de1_explanation_chart_flow espresso_de1_explanation_chart_elapsed espresso_de1_explanation_chart_elapsed_flow espresso_water_dispensed espresso_flow_weight_raw espresso_de1_explanation_chart_temperature  espresso_de1_explanation_chart_temperature_10 espresso_de1_explanation_chart_selected_step
     blt::vector create espresso_de1_explanation_chart_flow_1 espresso_de1_explanation_chart_elapsed_flow_1 espresso_de1_explanation_chart_flow_2 espresso_de1_explanation_chart_elapsed_flow_2 espresso_de1_explanation_chart_flow_3 espresso_de1_explanation_chart_elapsed_flow_3
     blt::vector create espresso_de1_explanation_chart_elapsed_1 espresso_de1_explanation_chart_elapsed_2 espresso_de1_explanation_chart_elapsed_3 espresso_de1_explanation_chart_pressure_1 espresso_de1_explanation_chart_pressure_2 espresso_de1_explanation_chart_pressure_3

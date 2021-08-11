@@ -226,7 +226,7 @@ namespace eval ::dui {
 			} elseif {$settings(language) == "zh-hant" || $settings(language) == "zh-hans" || $settings(language) == "kr"} {
 				set helvetica_font [dui::font::add_or_get_familyname "NotoSansCJKjp-Regular.otf"]
 				set helvetica_bold_font [dui::font::add_or_get_familyname "NotoSansCJKjp-Bold.otf"]
-				set global_font_name $helvetica_font	
+				set global_font_name [dui::font::add_or_get_familyname "notosansuiregular.ttf"]
 				set fontm [expr {($fontm * .94)}]
 			} else {
 				# we use the immense google font so that we can handle virtually all of the world's languages with consistency
@@ -448,7 +448,7 @@ namespace eval ::dui {
 	### PLATFORM SUB-ENSEMBLE ###
 	# System-related stuff
 	namespace eval platform {
-		namespace export hide_android_keyboard button_press button_long_press finger_down button_unpress \
+		namespace export hide_android_keyboard button_press button_long_press button_motion finger_down button_unpress \
 			xscale_factor yscale_factor rescale_x rescale_y translate_coordinates_finger_down_x translate_coordinates_finger_down_y \
 			is_fast_double_tap
 		namespace ensemble create
@@ -501,7 +501,15 @@ namespace eval ::dui {
 			}
 			return {<ButtonRelease-1>}
 		}
-		
+
+        proc button_motion {} {
+            global android 
+            if {$android == 1} {
+                return {<<FingerMotion>>}
+            }
+            return {<B1-Motion>}
+        }
+        
 		proc xscale_factor {} {
 			#global screen_size_width
 			return [expr {$::dui::_base_screen_width / [dui cget screen_size_width]}]
@@ -840,6 +848,7 @@ namespace eval ::dui {
 	
 			default.dscale.orient horizontal
 			default.dscale.foreground "#4e85f4"
+			default.dscale.activeforeground "#4e85f4"
 			default.dscale.background "#7f879a"
 			default.dscale.sliderlength 75
 			
@@ -4709,6 +4718,11 @@ namespace eval ::dui {
 			relocate_text_wrt moveto pages
 		namespace ensemble create
 	
+        # Stores the initial tap position when dragging dscale sliders. Array keys are <first_page>,<dscale_tag>, and
+        # it contains the following value:
+        #   * an empty string when not in the middle of a drag/motion movement;
+        #   * the offset of the starting tap coordinate (x if horizontal, y if vertical) with respect to the left/top
+        #       coordinate of the slider shape, when in the middle of a drag/motion movement.
 		variable sliders
 		array set sliders {}
 		
@@ -5422,7 +5436,7 @@ namespace eval ::dui {
 				-width $arc_width -tags $tags -start 180 -disabledoutline $disabled -state "hidden"]
 			lappend ids [$can create arc [expr $x1-$arc_offset-1] [expr $y0] [expr $x1] [expr $y0+$arc_offset+1] -style arc -outline $colour \
 				-width $arc_width -tags $tags -start 0 -disabledoutline $disabled -state "hidden"]
-			lappend ids [$can create arc [expr $x1-$arc_offset-1] [expr $y1] [expr $x1] [expr $y1-$arc_offset+1] -style arc -outline $colour \
+			lappend ids [$can create arc [expr $x1-$arc_offset-1] [expr $y1] [expr $x1] [expr $y1-$arc_offset-1] -style arc -outline $colour \
 				-width $arc_width -tags $tags -start -90 -disabledoutline $disabled -state "hidden"]
 			
 			lappend ids [$can create line [expr $x0+$arc_offset/2-1] [expr $y0] [expr $x1-$arc_offset/2+1] [expr $y0] -fill $colour \
@@ -5441,20 +5455,33 @@ namespace eval ::dui {
 		#		position of the slider within the scale, given by slider_coord.
 		#	2) If slider_coord is not specified, uses the value of $varname and moves the slider to match the value.
 		# Needs 'args' at the end because this is called from a 'trace add variable'.
-		proc dscale_moveto { page dscale_tag varname from to {resolution 1} {n_decimals 0} {slider_coord {}} args } {
+		proc dscale_moveto { page dscale_tag varname from to {resolution 1} {n_decimals 0} {slider_coord {}} \
+				{slider_change {}} args } {
+			variable sliders
+			if { ![info exists sliders(${page},${dscale_tag})] } {
+				msg -WARNING [namespace current] scale_moveto: "scale on page '$page' with tag '$dscale_tag' not found"
+				return
+			}
+			set offset $sliders(${page},${dscale_tag})
+			# If we're in the middle of a slider drag motion and are here due to the trace add variable, do nothing.
+			if { $slider_coord eq "" && $offset ne "" } return
+			if { $offset eq "" } {
+				set offset 0
+			}
+
 			set can [dui canvas]
 			set slider [dui item get $page "${dscale_tag}-crc"]
 			if { $slider eq "" } return
 			lassign [$can bbox $slider] sx0 sy0 sx1 sy1
 			# Return if the page is not currently visible
-			if {$sx0 eq "" } return		
+			if {$sx0 eq "" } return	
 			
 			set back [dui item get $page "${dscale_tag}-bck"]
 			set front [dui item get $page "${dscale_tag}-frn"]
-			if { $slider eq "" || $back eq "" || $front eq "" } {
+			if { $back eq "" || $front eq "" } {
 				return
 			}
-			
+
 			lassign [$can coords $back] bx0 by0 bx1 by1
 			lassign [$can coords $front] fx0 fy0 fx1 fy1
 				
@@ -5462,30 +5489,45 @@ namespace eval ::dui {
 			set sheight [expr {$sy1-$sy0}]
 			if { ($bx1 - $bx0) >= ($by1 -$by0) } {
 				set orient h
+				if { $slider_coord ne "" } {
+					set slider_coord [dui::platform::translate_coordinates_finger_down_x $slider_coord]
+				}
 			} else {
 				set orient v
+				if { $slider_coord ne "" } {
+					set slider_coord [dui::platform::translate_coordinates_finger_down_y $slider_coord]
+				}
 			}
-			
+
 			set varvalue ""
 			# If no slider_coord is given, reads the value from whatever is in variable $varname and transforms it
 			#	to a slider_coord value.
 			if { $slider_coord eq "" && $varname ne "" } {
 				if { [info exists $varname] } {
-					set varvalue [number_in_range [subst \$$varname] 0 $from $to $resolution $n_decimals]  
+					set varvalue [number_in_range [subst \$$varname] 0 $from $to $resolution $n_decimals]
 				} else {
 					set varvalue [number_in_range $from 0 $from $to $resolution $n_decimals]
 					set $varname $varvalue
 				}
 
 				if { [string is double -strict $varvalue] } {
+#					if { $varvalue <= $from } {
+#						switch $orient h {set slider_coord $bx0} v {set slider_coord [expr {$by1-$sheight/2}]}
+#					} elseif { $varvalue >= $to } {
+#						switch $orient h {set slider_coord [expr {$bx1-$swidth/2}]} v {set slider_coord $by0 }
+#					} elseif { $orient eq "h" } {
+#						set slider_coord [expr {($bx0+$swidth/2)+($bx1-$bx0-$swidth)*$varvalue/($to-$from)}]
+#					} else {
+#						set slider_coord [expr {($by1-$sheight/2)+($by1-$by0-$sheight)*$varvalue/($from-$to)}]
+#					}
 					if { $varvalue <= $from } {
-						switch $orient h {set slider_coord $bx0} v {set slider_coord [expr {$by1-$sheight/2}]}
+						switch $orient h {set slider_coord $bx0} v {set slider_coord [expr {$by1-$sheight}]}
 					} elseif { $varvalue >= $to } {
-						switch $orient h {set slider_coord [expr {$bx1-$swidth/2}]} v {set slider_coord $by0 }
+						switch $orient h {set slider_coord [expr {$bx1-$swidth}]} v {set slider_coord $by0 }
 					} elseif { $orient eq "h" } {
-						set slider_coord [expr {($bx0+$swidth/2)+($bx1-$bx0-$swidth)*$varvalue/($to-$from)}]
+						set slider_coord [expr {round($bx0+($bx1-$bx0-$swidth)*double($varvalue-$from)/double($to-$from))}]
 					} else {
-						set slider_coord [expr {($by1-$sheight/2)+($by1-$by0-$sheight)*$varvalue/($from-$to)}]
+						set slider_coord [expr {round(($by1-$sheight)+($by1-$by0-$sheight)*double($varvalue-$from)/double($from-$to))}]
 					}
 				} else {
 					return
@@ -5495,43 +5537,126 @@ namespace eval ::dui {
 			# Move the slider to slider_coord (x-axis for horizontal scale, y-axis for vertical scale) 
 			if { $orient eq "h" } {
 				# Horizontal
-				if { ($slider_coord-$swidth/2) <= $bx0 } {
-					$can coords $front $bx0 $by0 [expr {$bx0+$swidth/2}] $by1
+				#if { ($slider_coord-$swidth/2) <= $bx0 } 
+				if { ($slider_coord-$offset) <= $bx0 } {
+					$can coords $front $bx0 $by0 [expr {$bx0+$swidth/2.0}] $by1
 					$can coords $slider $bx0 $sy0 [expr {$bx0+$swidth}] $sy1
 					if { $varvalue eq "" } { set $varname $from }
-				} elseif { $slider_coord >= ($bx1-$swidth/2) } {
-					$can coords $front $bx0 $by0 [expr {$bx1-$swidth/2}] $by1
+				#elseif { $slider_coord >= ($bx1-$swidth/2) }
+				} elseif { $slider_coord >= ($bx1-$swidth+$offset) } {
+					$can coords $front $bx0 $by0 [expr {$bx1-$swidth/2.0}] $by1
 					$can coords $slider [expr {$bx1-$swidth}] $sy0 $bx1 $sy1
 					if { $varvalue eq "" } { set $varname $to }
 				} else {
-					$can coords $front $bx0 $by0 $slider_coord $by1
-					$can move $slider [expr {$slider_coord-($swidth/2)-$sx0}] 0
+#					$can coords $front $bx0 $by0 $slider_coord $by1
+#					#$can move $slider [expr {$slider_coord-($swidth/2)-$sx0}] 0
+#					$can move $slider [expr {$slider_coord-$sx0-$offset}] 0
+#					if { $varvalue eq "" } {
+#						#set newcoord [expr {$from+($to-$from)*(($slider_coord-$swidth/2-$bx0)/($bx1-$swidth-$bx0))}]
+#						set newcoord [expr {round($from+($to-$from)*(double($slider_coord-$offset-$bx0)/double($bx1-$swidth-$bx0)))}]
+#						set $varname [number_in_range $newcoord {} $from $to $resolution $n_decimals]
+#					}
 					if { $varvalue eq "" } {
-						set newcoord [expr {$from+($to-$from)*(($slider_coord-$swidth/2-$bx0)/($bx1-$swidth-$bx0))}]
-						set $varname [number_in_range $newcoord {} $from $to $resolution $n_decimals]  
+						# Slider movement. Check we actually need to move if resolution is defined
+						set varvalue [ifexists $varname $from]
+						if { $varvalue eq "" } {
+							set varvalue $from
+						}
+						set newvalue [expr {$from+($to-$from)*(double($slider_coord-$offset-$bx0)/double($bx1-$swidth-$bx0))}]
+						set newvalue [number_in_range $newvalue {} $from $to $resolution $n_decimals]
+
+						if { abs($newvalue - $varvalue) > 1e-10 } {
+							$can coords $front $bx0 $by0 $slider_coord $by1
+							$can move $slider [expr {$slider_coord-$sx0-$offset}] 0
+							if { $varname ne "" } {
+								set $varname $newvalue
+							}
+						}
+					} else {
+						# Direct move to
+						$can coords $front $bx0 $by0 $slider_coord $by1
+						$can move $slider [expr {$slider_coord-$sx0-$offset}] 0
+						#
+						# set newvalue [expr {round($from+($to-$from)*(double($slider_coord-$offset-$bx0)/double($bx1-$swidth-$bx0)))}]
+						# set $varname [number_in_range $newvalue {} $from $to $resolution $n_decimals]
 					}
-				} 
-			} else {
+					}
+					} else {
 				# Vertical
-				if { ($slider_coord-$sheight/2) <= $by0 } {
-					$can coords $front $bx0 [expr {$by0+$sheight/2}] $bx1 $by1
+				#if { ($slider_coord-$sheight/2) <= $by0 }
+				if { ($slider_coord-$offset) <= $by0 } {
+					$can coords $front $bx0 [expr {$by0+$sheight/2.0}] $bx1 $by1
 					$can coords $slider $sx0 $by0 $sx1 [expr {$by0+$sheight}]
-					if { $varvalue eq "" } { set $varname $to }
-				} elseif { ($slider_coord+$sheight/2) >= $by1 } {
-					$can coords $front $bx0 [expr {$by1-$sheight/2}] $bx1 $by1
-					$can coords $slider $sx0 [expr {$by1-$sheight}] $sx1 $by1
-					if { $varvalue eq "" } { set $varname $from }
-				} else {
-					$can coords $front $bx0 [expr {$slider_coord+$sheight/2}] $bx1 $by1
-					$can move $slider 0 [expr {$slider_coord-$sheight/2-$sy0}]
-					if { $varvalue eq "" } {
-						set newcoord [expr {$from+($to-$from)*($by1-$slider_coord-$sheight/2)/($by1-$sheight-$by0)}]
-						set $varname [number_in_range $newcoord {} $from $to $resolution $n_decimals]
+					if { $varvalue eq "" } { 
+						set $varname $to
 					}
-				} 
+				# elseif { ($slider_coord+$sheight/2) >= $by1 }
+				} elseif { ($slider_coord+$sheight-$offset) >= $by1 } {
+					$can coords $front $bx0 [expr {$by1-$sheight/2.0}] $bx1 $by1
+					$can coords $slider $sx0 [expr {$by1-$sheight}] $sx1 $by1
+					if { $varvalue eq "" } { 
+						set $varname $from
+					}
+				} else {
+#					$can coords $front $bx0 [expr {$slider_coord-$offset+$sheight/2.0}] $bx1 $by1
+#					#$can move $slider 0 [expr {$slider_coord-$sheight/2-$sy0}]
+#					$can move $slider 0 [expr {$slider_coord-$offset-$sy0}]
+#					if { $varvalue eq "" } {
+#						#set newcoord [expr {$from+($to-$from)*($by1-$slider_coord-$sheight/2)/($by1-$sheight-$by0)}]
+#						set newcoord [expr {round($from+($to-$from)*double($by1-$sheight-$slider_coord+$offset)/double($by1-$sheight-$by0))}]
+#						set $varname [number_in_range $newcoord {} $from $to $resolution $n_decimals]
+#					}
+					if { $varvalue eq "" } {
+						# Slider movement. Check we actually need to move if resolution is defined
+						set varvalue [ifexists $varname $from]
+						if { $varvalue eq "" } {
+							set varvalue $from
+						}
+						set newvalue [expr {$from+($to-$from)*double($by1-$sheight-$slider_coord+$offset)/double($by1-$sheight-$by0)}]
+						set newvalue [number_in_range $newvalue {} $from $to $resolution $n_decimals]
+						if { abs($newvalue - $varvalue) > 1e-10 } {
+							$can coords $front $bx0 [expr {$slider_coord-$offset+$sheight/2.0}] $bx1 $by1
+							$can move $slider 0 [expr {$slider_coord-$offset-$sy0}]
+							if { $varname ne "" } {
+								set $varname $newvalue
+							}
+						}
+					} else {
+							# Direct move to
+							$can coords $front $bx0 [expr {$slider_coord-$offset+$sheight/2.0}] $bx1 $by1
+							$can move $slider 0 [expr {$slider_coord-$offset-$sy0}]
+						}
+					}
+			}
+					}
+		
+		proc dscale_start_motion { page dscale_tag orient coord } {
+			variable sliders
+
+			set slider [dui item get $page "${dscale_tag}-crc"]
+			if { $slider eq "" } return
+
+			set can [dui canvas]
+			lassign [$can bbox $slider] sx0 sy0 sx1 sy1
+			# Return if the page is not currently visible
+			if {$sx0 eq "" } return
+
+			if { $orient eq "v" } {
+				set coord [dui::platform::translate_coordinates_finger_down_y $coord]
+				#set sliders(${page},${dscale_tag}) [expr {int($coord-($sy0+($sy1-$sy0)/2))}]
+				set sliders(${page},${dscale_tag}) [expr {int($coord-$sy0)}]
+			} else {
+				set coord [dui::platform::translate_coordinates_finger_down_x $coord]
+				#set sliders(${page},${dscale_tag}) [expr {int($coord-($sx0+($sx1-$sx0)/2))}]
+				set sliders(${page},${dscale_tag}) [expr {int($coord-$sx0)}]
 			}
 		}
-		
+
+		proc dscale_end_motion { page dscale_tag orient coord } {
+			variable sliders
+			set sliders(${page},${dscale_tag}) {}
+		}
+
 		# Paints each of the symbols of a drater control compound, according to the value of the underlying variable.
 		# Needs 'args' at the end because this is called from a 'trace add variable'.
 		proc drater_draw { page tag variable {n_ratings 5} {use_halfs 1} {min 0} {max 10} args } {
@@ -7079,6 +7204,7 @@ namespace eval ::dui {
 			set length [dui::args::get_option -length 300]
 			set sliderlength [dui::args::get_option -sliderlength 25]
 			set foreground [dui::args::get_option -foreground blue]
+            set activeforeground [dui::args::get_option -activeforeground blue]
 			set disabledforeground [dui::args::get_option -disabledforeground grey]
 			set background [dui::args::get_option -background grey]
 			set disabledbackground [dui::args::get_option -disabledforeground grey]
@@ -7101,7 +7227,7 @@ namespace eval ::dui {
 				set y [expr {$y+$pm_length}]
 				set y1 [expr {$y+$length-$pm_length*2}]
 				set yf [expr {$y1-$sliderlength/2}]
-				lappend moveto_cmd %y
+				lappend moveto_cmd %y %Y
 
 				if { $plus_minus } {
 					set id [$can create text $x [expr {$y-$pm_length*2/3}] -text "+" -anchor s -justify center \
@@ -7166,17 +7292,22 @@ namespace eval ::dui {
 				# Vertical circle slider
 				set id [$can create oval [expr {$x-$sliderlength/2}] [expr {$yf-$sliderlength/2}] \
 					[expr {$x+$sliderlength/2}] [expr {$yf+$sliderlength/2}] -fill $foreground \
-					-disabledfill $disabledforeground -width 0 -tags [list {*}$tags ${main_tag}-crc] -state hidden] 
-				$can bind ${main_tag}-crc <B1-Motion> $moveto_cmd
+					-disabledfill $disabledforeground -activefill $activeforeground -width 0 \
+					-tags [list {*}$tags ${main_tag}-crc] -state hidden]
+                set ::dui::item::sliders([lindex $pages 0],${main_tag}) {}
+                $can bind ${main_tag}-crc [dui platform button_press] [list ::dui::item::dscale_start_motion [lindex $pages 0] $main_tag v %y]
+                $can bind ${main_tag}-crc [dui platform button_unpress] [list ::dui::item::dscale_end_motion [lindex $pages 0] $main_tag v %y]                
+                #$can bind ${main_tag}-crc <B1-Motion> $moveto_cmd
+				$can bind ${main_tag}-crc [dui platform button_motion] $moveto_cmd
 				lappend ids $id			
 				if { $ns ne "" } {
 					set "${ns}::widgets(${main_tag}-crc)" $id
 					set "${ns}::widgets($main_tag)" $ids
-				}								
+				}
 			} else {
 				# HORIZONTAL SCALE
 				if { $plus_minus } {
-					set pm_length [dui platform rescale_x 40]
+					set pm_length [dui platform rescale_x 60]
 				}				
 				set length [dui platform rescale_x $length]
 				set sliderlength [dui platform rescale_x $sliderlength]
@@ -7186,7 +7317,7 @@ namespace eval ::dui {
 				set x1f [expr {$x+$sliderlength/2}]
 				set y1 $y
 				set y1f $y
-				lappend moveto_cmd %x
+				lappend moveto_cmd %x %X
 				
 				if { $plus_minus } {
 					set id [$can create text [expr {$x-$pm_length}] [expr {$y-3}] -text "-" -anchor w -justify left  \
@@ -7251,8 +7382,13 @@ namespace eval ::dui {
 				# Horizontal circle slider
 				set id [$can create oval [expr {$x1f-($sliderlength/2)}] [expr {$y1f-($sliderlength/2)}] \
 					[expr {$x1f+($sliderlength/2)}] [expr {$y1f+($sliderlength/2)}] -fill $foreground \
-					-disabledfill $disabledforeground -width 0 -tags [list {*}$tags ${main_tag}-crc] -state hidden] 
-				$can bind ${main_tag}-crc <B1-Motion> $moveto_cmd
+					-disabledfill $disabledforeground -activefill $activeforeground -width 0 \
+					-tags [list {*}$tags ${main_tag}-crc] -state hidden]
+                set ::dui::item::sliders([lindex $pages 0],${main_tag}) {}                
+                $can bind ${main_tag}-crc [dui platform button_press] [list ::dui::item::dscale_start_motion [lindex $pages 0] $main_tag h %x]
+                $can bind ${main_tag}-crc [dui platform button_unpress] [list ::dui::item::dscale_end_motion [lindex $pages 0] $main_tag h %x]                
+				#$can bind ${main_tag}-crc <B1-Motion> $moveto_cmd
+                $can bind ${main_tag}-crc [dui platform button_motion] $moveto_cmd
 				lappend ids $id			
 				if { $ns ne "" } {
 					set "${ns}::widgets(${main_tag}-crc)" $id
@@ -7260,7 +7396,7 @@ namespace eval ::dui {
 				}
 			}
 			
-			set update_cmd [lreplace $moveto_cmd end end ""]
+			set update_cmd [lreplace $moveto_cmd end-1 end {} {}]
 			trace add variable $var write $update_cmd
 			# Force initializing the slider position
 			dui page add_action $pages show $update_cmd
@@ -7526,7 +7662,7 @@ proc number_in_range { {value 0} {change 0} {min {}} {max {}} {resolution 0} {n_
 		set newvalue $max
 	} 
 	if { $resolution ne "" && $resolution != 0 } {
-		set newvalue [expr {int($newvalue/$resolution)*$resolution}]
+		set newvalue [expr {round(double($newvalue)/double($resolution))*double($resolution)}]
 	}
 	if { $n_decimals ne "" } {
 		set newvalue [format "%.${n_decimals}f" $newvalue]

@@ -36,6 +36,8 @@ array set ::de1 {
 	factory_calibration_flow {}
 	advanced_shot_moveone_enabled 1
     found    0
+    decentscale_timer_on 0
+    bluetooth_scale_connection_attempts_tried 0
     scanning 1
     device_handle 0
     language_rtl 0
@@ -219,10 +221,11 @@ array set ::settings {
 	mmr_enabled 0	
 	default_font_calibration 0.5
 	log_fast 0
-	use_finger_down_for_tap 0
+	use_finger_down_for_tap 1
 	linear_resistance_adjustment 1
 	language en
 	display_time_in_screen_saver 0
+	insert_preinfusion_pause 0
 	steam_over_temp_threshold 180
 	disable_long_press 0
 	steam_over_pressure_threshold 6
@@ -761,6 +764,7 @@ proc reset_gui_starting_steam {} {
 	steam_elapsed length 0
 	steam_pressure length 0
 	steam_flow length 0
+	steam_flow_goal length 0
 	steam_temperature length 0
 	#steam_pressure append 0
 	#steam_elapsed append 0

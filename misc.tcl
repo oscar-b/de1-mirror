@@ -818,6 +818,7 @@ proc make_de1_dir {srcdir destdirs} {
         skins/DSx/DSx_Font_Files/notosansuiregular.ttf *
         skins/DSx/DSx_Font_Files/Roboto-Regular.ttf *
         skins/DSx/DSx_Font_Files/Skia.ttf *
+        skins/DSx/DSx_Home_Page/DSx_2021_home.page *
         skins/DSx/DSx_Plugins/DSx_admin.dsx *
         skins/DSx/DSx_Plugins/DSx_backup.dsx *
         skins/DSx/DSx_Plugins/DSx_cal.dsx *
@@ -902,6 +903,7 @@ proc make_de1_dir {srcdir destdirs} {
         profiles/tea_portafilter_white.tcl *
         profiles/tea_portafilter_tisane.tcl *
         profiles/test_leak.tcl *
+        profiles/test_for_a_small_low_pressure_leak.tcl *
         profiles/test_temperature.tcl *
         profiles/test_pressure_calibration.tcl *
         profiles/test_temperature_calibration.tcl *

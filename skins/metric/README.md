@@ -10,10 +10,23 @@ TODO
 - Test Fahrenheit temperatures
 
 IDEAS
-- Option to choose your grinder to set the range of values for grid size (and also save which grinder to the results file)
+- Option to choose your grinder to set the range of values for grind size (and also save which grinder to the results file)
 - Smart up/down arrows which change increment for larger numbers (eg yield delta is 1.0/0.1 when under <=20, 5.0/0.5 when 21..99, 10/1 for >=100)
 
 Release notes
+v2.12
+ - Low water and low temperature messages were not displayed if an update was available
+ - Status messages were not working when app had not successfully checked for an update
+
+v2.11
+ - Updated preview icons for skin selection screen
+
+v2.10
+ - Steam power buttons have increasingly large steam icon
+
+v2.9
+ - Added steam power buttons
+
 v2.8
  - Remove some code that was no longer needed (duplicated loading the settings screens).
 

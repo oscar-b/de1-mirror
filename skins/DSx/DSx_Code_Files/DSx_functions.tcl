@@ -518,7 +518,7 @@ proc load_DSx_settings {} {
     set version $::DSx_settings(version)
     array set ::DSx_settings [encoding convertfrom utf-8 [read_binary_file [DSx_filename]]]
     set ::DSx_settings(version) $version
-    set ::DSx_flush_time2 $::DSx_settings(flush_time2)
+    set ::DSx_flush_time2 [ifexists ::DSx_settings(flush_time2)]
     blt::vector create espresso_elapsed1 espresso_elapsed2  DSx_past_espresso_resistance DSx_past_espresso_elapsed DSx_past_espresso_pressure DSx_past_espresso_flow DSx_past_espresso_flow_weight DSx_past_espresso_flow_weight_2x DSx_past_espresso_flow_2x DSx_past_espresso_temperature_basket DSx_past_espresso_temperature_mix  DSx_past_espresso_flow_goal DSx_past_espresso_flow_goal_2x DSx_past_espresso_pressure_goal DSx_past_espresso_temperature_goal DSx_past_espresso_temperature_goal_01 DSx_past_espresso_temperature_basket_01
     blt::vector create espresso_elapsed1 espresso_elapsed2  DSx_past2_espresso_resistance DSx_past2_espresso_elapsed DSx_past2_espresso_pressure DSx_past2_espresso_flow DSx_past2_espresso_flow_weight DSx_past2_espresso_flow_weight_2x DSx_past2_espresso_flow_2x DSx_past2_espresso_temperature_basket  DSx_past2_espresso_temperature_mix  DSx_past2_espresso_flow_goal DSx_past2_espresso_flow_goal_2x DSx_past2_espresso_pressure_goal DSx_past2_espresso_temperature_goal DSx_past2_espresso_temperature_goal_01 DSx_past2_espresso_temperature_basket_01
     blt::vector create espresso_elapsed1 espresso_elapsed2  DSx_last_espresso_resistance DSx_last_espresso_elapsed DSx_last_espresso_pressure DSx_last_espresso_flow DSx_last_espresso_flow_weight DSx_last_espresso_flow_weight_2x DSx_last_espresso_flow_2x DSx_last_espresso_temperature_basket DSx_last_espresso_temperature_mix  DSx_last_espresso_flow_goal DSx_last_espresso_flow_goal_2x DSx_last_espresso_pressure_goal DSx_last_espresso_temperature_goal DSx_last_espresso_temperature_goal_01 DSx_last_espresso_temperature_basket_01
@@ -679,9 +679,10 @@ proc DSx_steam_time {} {
 }
 
 proc DSx_steam_state_off {} {
-    set ::DSx_steam_state 0
+    #set ::DSx_steam_state 0
+    set ::DSx_steam_state 3
+    set ::DSx_purging_text_hold_time [clock seconds]
 }
-
 
 proc DSx_steam_info {} {
     if {$::DSx_steam_purge_state != 1} {
@@ -690,6 +691,12 @@ proc DSx_steam_info {} {
     if {[expr "\[round_to_integer $::settings(steam_timeout)] - \[steam_pour_timer]"] < 0 && [expr "\[round_to_integer $::settings(steam_timeout)] - \[steam_pour_timer]" + 2] > 0} {
         set ::DSx_steam_purge_state 1
         set ::DSx_steam_state_text "Start steam purge"
+    }
+    if {$::DSx_steam_state == 3 && $::DSx_purging_text_hold_time < [expr [clock seconds] - 5]} {
+        set ::DSx_steam_state 0
+    }
+    if {$::DSx_steam_state == 3} {
+        set ::DSx_steam_state_text "purging"
     }
     return $::DSx_steam_state_text
 }
@@ -2000,8 +2007,6 @@ proc history_prep {} {
     fill_DSx_past_shots_listbox
     fill_DSx_past2_shots_listbox
     page_show DSx_past
-    set_DSx_past_shot_scrollbar_dimensions
-    set_DSx_past2_shot_scrollbar_dimensions
     DSx_reset_graphs
     borg spinner off
     borg systemui $::android_full_screen_flags
@@ -2773,8 +2778,6 @@ proc DSx_save_h2g {} {
         fill_DSx_past2_shots_listbox;
         set_next_page off off;
         page_show DSx_past;
-        set_DSx_past_shot_scrollbar_dimensions;
-        set_DSx_past2_shot_scrollbar_dimensions;
         DSx_past2_shot_files
     }
 }

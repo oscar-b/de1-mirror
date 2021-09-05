@@ -1,7 +1,7 @@
 # DO NOT EDIT - Automatically generated
-version_string	v1.36.7
-last_commit_hash	25fa217
-last_commit_time	2021-08-11 09:41:11 +0200
+version_string	v1.36.11
+last_commit_hash	855ecf3
+last_commit_time	2021-09-05 23:28:00 +0200
 #
 de1plus/plugins/DPx_Screen_Saver/_version_string	v1.3
 de1plus/plugins/DPx_Screen_Saver/_last_commit_hash	d66853f
@@ -23,22 +23,22 @@ de1plus/plugins/old_lcd_disable/_version_string	gc1d4a3c
 de1plus/plugins/old_lcd_disable/_last_commit_hash	c1d4a3c
 de1plus/plugins/old_lcd_disable/_last_commit_time	2021-08-02 18:11:09 -0500
 #
-de1plus/skins/DSx/_version_string	v4.51-22-g09f08f7
-de1plus/skins/DSx/_last_commit_hash	09f08f7
-de1plus/skins/DSx/_last_commit_time	2021-07-27 22:11:11 +1000
+de1plus/skins/DSx/_version_string	v4.51-28-g6fba8ad
+de1plus/skins/DSx/_last_commit_hash	6fba8ad
+de1plus/skins/DSx/_last_commit_time	2021-09-05 22:10:48 +1000
 #
 de1plus/skins/MimojaCafe/_version_string	v1.4.1-56-g6857e0b
 de1plus/skins/MimojaCafe/_last_commit_hash	6857e0b
 de1plus/skins/MimojaCafe/_last_commit_time	2021-06-27 23:22:09 +0200
 #
-de1plus/skins/metric/_version_string	g52c48c5
-de1plus/skins/metric/_last_commit_hash	52c48c5
-de1plus/skins/metric/_last_commit_time	2021-06-25 11:14:51 +0100
+de1plus/skins/metric/_version_string	gd7ddf6c
+de1plus/skins/metric/_last_commit_hash	d7ddf6c
+de1plus/skins/metric/_last_commit_time	2021-08-30 22:39:10 +0100
 #
-misc/_version_string	g40e8362
-misc/_last_commit_hash	40e8362
-misc/_last_commit_time	2021-08-11 09:39:03 +0200
+misc/_version_string	g38eb319
+misc/_last_commit_hash	38eb319
+misc/_last_commit_time	2021-09-05 23:26:32 +0200
 #
-psd/_version_string	g1bb32d8
-psd/_last_commit_hash	1bb32d8
-psd/_last_commit_time	2021-08-09 18:57:44 +0800
+psd/_version_string	g0b19e99
+psd/_last_commit_hash	0b19e99
+psd/_last_commit_time	2021-08-11 15:57:19 +0800

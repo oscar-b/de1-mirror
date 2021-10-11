@@ -1,5 +1,5 @@
 # Barney's Metric skin
-package provide metric 2.12
+package provide metric 2.13
 package require de1plus 1.0
 
 set ::skindebug 0

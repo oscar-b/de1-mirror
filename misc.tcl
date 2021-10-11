@@ -94,8 +94,6 @@ proc make_de1_dir {srcdir destdirs} {
         skins/SWDark3/1280x800/preheat_3.png *
         skins/SWDark3/1280x800/preheat_4.png *
         skins/SWDark3/1280x800/espresso_2_zoomed.png *
-
-
     }
 
 
@@ -887,6 +885,7 @@ proc make_de1_dir {srcdir destdirs} {
         saver/2560x1600/rainbow_dj.jpg *
 
         profiles/adaptive_allonge.tcl *
+        profiles/Filter_20.tcl *
         profiles/best_practice.tcl *
         profiles/flow_calibration.tcl *
         profiles/7g\ basket.tcl *
@@ -949,6 +948,8 @@ proc make_de1_dir {srcdir destdirs} {
 
         plugins/log_upload/plugin.tcl *
 
+        plugins/old_lcd_disable/plugin.tcl *
+
         plugins/DPx_Screen_Saver/plugin.tcl *
         plugins/DPx_Steam_Stop/plugin.tcl *
 
@@ -992,7 +993,6 @@ proc make_de1_dir {srcdir destdirs} {
         plugins/SDB/plugin.tcl *
 
         allcerts.pem *
-        
     }
 #        profiles/Traditional\ lever\ machine\ at\ 9\ bar.tcl *
 #        profiles/Powerful\ 10\ bar\ shot.tcl *
@@ -1027,6 +1027,8 @@ proc make_de1_dir {srcdir destdirs} {
         set manifest ""
         set files_copied 0
 
+        set prev_existing_file {}
+
         set filecnt 0
         foreach {file scope} $files {
             incr filecnt
@@ -1036,6 +1038,13 @@ proc make_de1_dir {srcdir destdirs} {
 
             set source "$srcdir/$file"
             set dest "$destdir/$file"
+
+            if {[file exists $source] != 1} {
+                puts "File '$source' ($file) does not exist, previous file was: '$prev_existing_file'"
+                continue
+            }
+
+            set prev_existing_file $file
 
             set mtime [file mtime $source]
             set mtime_saved [ifexists lmanifest_mtime($file)]

@@ -1,19 +1,19 @@
 # DO NOT EDIT - Automatically generated
-version_string	v1.37.0
-last_commit_hash	8d4b605
-last_commit_time	2021-09-13 18:34:46 +0200
+version_string	v1.38.2
+last_commit_hash	40121d6
+last_commit_time	2021-10-05 21:08:15 +0200
 #
 de1plus/plugins/DPx_Screen_Saver/_version_string	v1.3
 de1plus/plugins/DPx_Screen_Saver/_last_commit_hash	d66853f
 de1plus/plugins/DPx_Screen_Saver/_last_commit_time	2021-04-30 17:06:34 +1000
 #
-de1plus/plugins/DYE/_version_string	v2.03-29-g85076a2
-de1plus/plugins/DYE/_last_commit_hash	85076a2
-de1plus/plugins/DYE/_last_commit_time	2021-07-26 21:04:33 +0200
+de1plus/plugins/DYE/_version_string	v2.08
+de1plus/plugins/DYE/_last_commit_hash	87a8a64
+de1plus/plugins/DYE/_last_commit_time	2021-10-03 19:10:52 +0200
 #
-de1plus/plugins/SDB/_version_string	v1.02-17-gaf25c6d
-de1plus/plugins/SDB/_last_commit_hash	af25c6d
-de1plus/plugins/SDB/_last_commit_time	2021-05-25 19:07:50 +0200
+de1plus/plugins/SDB/_version_string	v1.02-23-ge3c6b04
+de1plus/plugins/SDB/_last_commit_hash	e3c6b04
+de1plus/plugins/SDB/_last_commit_time	2021-10-03 19:31:13 +0200
 #
 de1plus/plugins/keyboard_control/_version_string	gac9d6fa
 de1plus/plugins/keyboard_control/_last_commit_hash	ac9d6fa
@@ -27,17 +27,17 @@ de1plus/skins/DSx/_version_string	v4.51-30-g604fec0
 de1plus/skins/DSx/_last_commit_hash	604fec0
 de1plus/skins/DSx/_last_commit_time	2021-09-09 20:25:57 +1000
 #
-de1plus/skins/MimojaCafe/_version_string	v1.4.1-58-g4c0452d
-de1plus/skins/MimojaCafe/_last_commit_hash	4c0452d
-de1plus/skins/MimojaCafe/_last_commit_time	2021-09-13 15:04:28 +0200
+de1plus/skins/MimojaCafe/_version_string	v1.4.1-59-g70fc429
+de1plus/skins/MimojaCafe/_last_commit_hash	70fc429
+de1plus/skins/MimojaCafe/_last_commit_time	2021-10-05 21:06:50 +0200
 #
-de1plus/skins/metric/_version_string	gd7ddf6c
-de1plus/skins/metric/_last_commit_hash	d7ddf6c
-de1plus/skins/metric/_last_commit_time	2021-08-30 22:39:10 +0100
+de1plus/skins/metric/_version_string	gcf096ad
+de1plus/skins/metric/_last_commit_hash	cf096ad
+de1plus/skins/metric/_last_commit_time	2021-09-27 11:14:26 +0100
 #
-misc/_version_string	ge7946a6
-misc/_last_commit_hash	e7946a6
-misc/_last_commit_time	2021-09-13 16:11:43 +0200
+misc/_version_string	gcfff086
+misc/_last_commit_hash	cfff086
+misc/_last_commit_time	2021-09-14 17:49:04 +0200
 #
 psd/_version_string	g0b19e99
 psd/_last_commit_hash	0b19e99

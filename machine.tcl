@@ -40,6 +40,8 @@ array set ::de1 {
     bluetooth_scale_connection_attempts_tried 0
     scanning 1
     device_handle 0
+    scale_battery_level 100
+    scale_usb_powered 0
     language_rtl 0
     scale_device_handle 0
     decentscale_device_handle 0
@@ -116,8 +118,8 @@ array set ::de1 {
 	voltage 110
 	has_catering_kit 0
 	has_plumbing_kit 0
-	max_pressure 12
-	max_flowrate 6
+	max_pressure 12.0
+	max_flowrate 12.0
 	max_flowrate_v11 8
 	version ""
 	min_temperature 80
@@ -467,12 +469,6 @@ if { $settings(bluetooth_address) != ""} {
 	append_to_de1_list $settings(bluetooth_address) "DE1" "ble"
 }
 
-
-	#error "atomaxscale"
-# initial filling of BLE scale list
-#set ::scale_bluetooth_list $::settings(scale_bluetooth_address)
-
-
 array set ::de1_state {
 	Sleep \x00
 	GoingToSleep \x01
@@ -526,7 +522,7 @@ array set ::de1_num_state {
 
 
 
-set ::scale_bluetooth_list ""
+set ::peripheral_device_list ""
 array set ::de1_num_state_reversed [reverse_array ::de1_num_state]
 
 
@@ -1002,7 +998,7 @@ proc start_idle {} {
 	#after 1000 read_de1_state
 	
 	if {$::de1(scale_device_handle) != 0} {
-		#scale_enable_lcd
+		scale_enable_lcd
 	}
 
 	if {$::android == 0} {
@@ -1054,7 +1050,11 @@ proc start_sleep {} {
 	de1_send_state "go to sleep" $::de1_state(Sleep)
 
 	if {$::de1(scale_device_handle) != 0} {
-		#scale_disable_lcd
+
+		# of on usb power, then turn off the LCD when the tablet goes to sleep
+		if {[ifexists ::de1(scale_usb_powered)] == 1} {
+			scale_disable_lcd
+		}
 	}
 
 	
@@ -1077,6 +1077,8 @@ proc check_if_steam_clogged {} {
 		return 
 	}
 
+	#msg -DEBUG "check_if_steam_clogged"	
+
 	if {$::settings(enable_descale_steam_check) != 1} {
 		return
 	}
@@ -1087,7 +1089,7 @@ proc check_if_steam_clogged {} {
 		set ::settings(steam_over_temp_threshold) [celsius_to_fahrenheit 180]
 	}
 	
-	set ::settings(steam_over_pressure_threshold) 6
+	set ::settings(steam_over_pressure_threshold) 8
 
 	set bad_pressure 0
 	set bad_temp 0
@@ -1118,11 +1120,16 @@ proc check_if_steam_clogged {} {
 
 	}
 
-	if {$bad_pressure == 1 || $bad_temp == 1} {
+	if {$bad_pressure == 1} {
 		set_next_page off descalewarning;
 		page_show descalewarning
 
+	} elseif {$bad_temp == 1} {
+		info_page [subst {[translate "Your steam is getting too hot."] [translate "Increase your steam flow rate or lower the steam temperature in the calibration settings."]}] [translate Ok] steam_3
+	} else {
+		#msg -DEBUG "check_if_steam_clogged found no problem"	
 	}
+
 }
 
 proc has_flowmeter {} {

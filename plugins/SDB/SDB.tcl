@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.08
+	variable version 1.09
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -15,7 +15,7 @@ namespace eval ::plugins::SDB {
 	variable db_version 4
 	variable sqlite_version {}
 	
-	variable min_de1app_version {1.36}
+	variable min_de1app_version {1.37}
 	variable filename_clock_format "%Y%m%dT%H%M%S"
 	variable friendly_clock_format "%Y/%m/%d %H:%M"
 	
@@ -125,7 +125,7 @@ proc ::plugins::SDB::preload {} {
 	check_settings
 	plugins save_settings SDB
 
-	dui page add SDB_settings -namespace true -theme default
+	dui page add SDB_settings -namespace true -theme default -type fpdialog
 	return SDB_settings
 }
 
@@ -1011,7 +1011,10 @@ proc ::plugins::SDB::field_names { {data_types {} } {db_tables {}} {desc_section
 
 # Builds a full path to a shot file and returns the path if the file exists, otherwise an empty string.
 # If the filename happens to be an integer number, it is assumed it's a clock rather than a filename, and it is
-#	transformed to a shot filename.
+#	transformed to a shot filename. 
+#	BEWARE: The transformation from clock to filename differs between systems (i.e. the clock format call may return
+#		a different string in the tablet than in a PC), so we first check if a shot clock exists in the database,
+#		and only do the direct formatting if it is not.
 # If the filename does not have ".shot" extension, adds it.
 # If the filename is already a full path and the file exists, returns it. If it's just the filename, checks
 # 	existence of file first in history folder, then in history_archive folder.
@@ -1024,7 +1027,12 @@ proc ::plugins::SDB::get_shot_file_path { filename {relative_path 0} } {
 		return
 	}
 	if { [string is integer $filename] } {
-		set filename "[clock format $filename -format $filename_clock_format].shot"
+		set db_filename [shots filename 0 "clock=$filename" 1]
+		if { $db_filename eq {} } {
+			set filename "[clock format $filename -format $filename_clock_format].shot"
+		} else {
+			set filename "$db_filename.shot"
+		}		
 	} elseif { [string range $filename end-4 end] ne ".shot" } { 
 		append filename ".shot"	
 	}
@@ -1208,12 +1216,18 @@ proc ::plugins::SDB::modify_shot_file { path arr_new_settings { backup_file {} }
 			} else {
 				msg "Added new $key='$new_settings($key)' in shot file '[file tail $path]'"
 			}			
-		} elseif { [info exists past_sets($key)] } {			
-			#set old_value $past_sets($key)
-			msg "Modified $key from '$past_sets($key)' to '$new_settings($key)' in shot file '[file tail $path]'"
 		} else {
-			#set old_value {}
-			msg "Added new $key='$new_settings($key)' in shot file '[file tail $path]'"
+			if { [metadata get $key data_type] eq "number" && $new_settings($key) eq "" } {
+				set new_settings($key) 0
+			}
+			
+			if { [info exists past_sets($key)] } {
+				#set old_value $past_sets($key)
+				msg "Modified $key from '$past_sets($key)' to '$new_settings($key)' in shot file '[file tail $path]'"
+			} else {
+				#set old_value {}
+				msg "Added new $key='$new_settings($key)' in shot file '[file tail $path]'"
+			}
 		}
 		
 		set past_sets($key) $new_settings($key)
@@ -2129,8 +2143,13 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 	# Only make series inserts, never updates
 	if { $persist_series == 1 && [db exists {SELECT 1 FROM shot_series WHERE shot_clock=$shot(clock) LIMIT 1}] == 0 } {
 		if { [llength $shot(espresso_elapsed)] > 1 } {
+			set n_pressure [llength $shot(espresso_pressure)]
 			set n_weight [llength $shot(espresso_weight)]
+			set n_flow [llength $shot(espresso_flow)]
+			set n_flow_weight [llength $shot(espresso_flow_weight)]
 			set n_flow_weight_raw [llength $shot(espresso_flow_weight_raw)]
+			set n_temp_basket [llength $shot(espresso_temperature_basket)]
+			set n_temp_mix [llength $shot(espresso_temperature_mix)]
 			set n_water_dispensed [llength $shot(espresso_water_dispensed)]
 			set n_pressure_goal [llength $shot(espresso_pressure_goal)]
 
@@ -2140,21 +2159,42 @@ temperature_basket,temperature_mix,water_dispensed,pressure_goal,flow_goal,tempe
 				# I can't make embedding the [lindex ...] statement in the SQL string work, so
 				# I need to create each variable
 				set elapsed [lindex $shot(espresso_elapsed) $i]
-				set pressure [lindex $shot(espresso_pressure) $i]
+				# From 1.36.5 sometimes elapsed time is logged 
+				if { $i < $n_pressure } {
+					set pressure [lindex $shot(espresso_pressure) $i]
+				} else {
+					set pressure "NULL"
+				}
 				if { $i < $n_weight } {
 					set weight [lindex $shot(espresso_weight) $i]
 				} elseif {[info exists weight] == 1} {
 					set weight "NULL"
 				}
-				set flow [lindex $shot(espresso_flow) $i]
-				set flow_weight [lindex $shot(espresso_flow_weight) $i]
+				if { $i < $n_flow } {
+					set flow [lindex $shot(espresso_flow) $i]
+				} else {
+					set flow "NULL"
+				}
+				if { $i < $n_flow_weight } {
+					set flow_weight [lindex $shot(espresso_flow_weight) $i]
+				} else {
+					set flow_weight "NULL"
+				}
 				if { $i < $n_flow_weight_raw } {
 					set flow_weight_raw [lindex $shot(espresso_flow_weight_raw) $i]
 				} else {
 					set flow_weight_raw "NULL"
 				}
-				set temperature_basket [lindex $shot(espresso_temperature_basket) $i]
-				set temperature_mix [lindex $shot(espresso_temperature_mix) $i]
+				if { $i < $n_temp_basket } {
+					set temperature_basket [lindex $shot(espresso_temperature_basket) $i]
+				} else {
+					set temperature_basket "NULL"
+				}
+				if { $i < $n_temp_mix } {
+					set temperature_mix [lindex $shot(espresso_temperature_mix) $i]
+				} else {
+					set temperature_mix "NULL"
+				}
 				if { $i < $n_water_dispensed } {
 					set water_dispensed [lindex $shot(espresso_water_dispensed) $i]
 				} else {
@@ -3126,5 +3166,5 @@ proc ::dui::pages::SDB_settings::resync_db {} {
 
 proc ::dui::pages::SDB_settings::page_done {} {
 	dui say [translate {Done}] button_in
-	dui page load extensions
+	dui page close_dialog
 }

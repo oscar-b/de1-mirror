@@ -1,41 +1,6 @@
 #######################################################################################################################
-### A Decent DE1app plugin for the DSx skin that improves the default logging / "describe your espresso"
-### functionality in Insight and DSx.
+### A Decent DE1app extension that provides shot logging (metadata description) of any shot in the history.
 ###  
-### INSTALLATION: 
-###	    1) Ensure you have DE1 app v1.33 stable (except for fontawesome symbols, which may need to be downloaded manually) 
-###			or higher, and DSx version v4.39 or higher.
-###		2) Copy this file "describe_your_espresso.dsx" to the "de1_plus/skins/DSx/DSx_Plugins" folder.
-###		3) Restart the app with DSx as skin.
-###
-### Features:
-###	1) "Describe your espresso" accesible from DSx home screen with a single click, for both next and last shots.
-###	2) All main description data in a single screen for easier data entry.
-###		* Irrelevant options ("I weight my beans" / "I use a refractometer") are removed.
-###	3) Facilitate data entry in the UI:
-###		* Numeric fields can be typed directly.
-###		* Keyboard return in non-multiline entries take you directly to the next field.
-###		* Choose categories fields (bean brand, type, grinder, etc) from a list of all previously typed values.
-###		* Star-rating system for Enjoyment
-###		* Mass-modify past entered categories values at once.
-###	4) Description data from previous shot can now be retrieved and modified:
-###		* A summary is shown on the History Viewer page, below the profile on both the left and right shots.
-###		* When that summary is clicked, the describe page is open showing the description for the past shot,
-###			which can be modified.
-### 5) Create a SQLite database of shot descriptions.
-### 	* Populate on startup
-###		* User decides what is to be stored in the database.
-###		* Update whenever there are new shots or shot data changes
-###		* Update on startup when a shot file has been changed on disk (TODO using a simple/fast test, some cases
-###			may be undetected, review)
-###		* TBD Persist profiles too (as an option)
-### 6) "Filter Shot History" page callable from the history viewer to restrict the shots being shown on both 
-###		left and right listboxes.
-### 7) TBD Add new description data: other equipment, beans details (country, variety), detailed coffee ratings like
-##		in cupping scoring sheets, etc.
-### 8) Upload shot files to Miha's visualizer or other repositories with a button press.
-### 9) Configuration page allows defining settings and launch database maintenance actions from within the app. 
-###
 ### Source code available in GitHub: https://github.com/ebengoechea/dye_de1app_dsx_plugin/
 ### This code is released under GPLv3 license. See LICENSE file under the DE1 source folder in github.
 ###
@@ -45,17 +10,21 @@
 #set ::skindebug 1 
 #plugins enable DYE
 #fconfigure $::logging::_log_fh -buffering line
+package require zint
+package require http
+package require tls
+package require json
 
 namespace eval ::plugins::DYE {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 2.06
+	variable version 2.08
 	variable github_repo ebengoechea/de1app_plugin_DYE
 	variable name [translate "Describe Your Espresso"]
 	variable description [translate "Describe any shot from your history and plan the next one: beans, grinder, extraction parameters and people."]
 
-	variable min_de1app_version {1.36}
-	variable min_DSx_version {4.54}
+	variable min_de1app_version {1.37}
+	variable min_DSx_version {4.79}
 	variable debug_text {}	
 	
 	# Store widgets used in the skin-specific GUI integration 
@@ -87,15 +56,19 @@ proc ::plugins::DYE::main {} {
 	set skin $::settings(skin)
 	set skin_src_fn "[plugin_directory]/DYE/setup_${skin}.tcl"
 	if { [file exists $skin_src_fn] } { source $skin_src_fn }
-	
+		
 	if { [namespace which -command "::plugins::DYE::setup_ui_$::settings(skin)"] ne "" } {
 		::plugins::DYE::setup_ui_$::settings(skin)
 	}
 	foreach page {DYE DYE_fsh} {
-		dui page add $page -namespace true
+		dui page add $page -namespace true -type fpdialog
 	}
+	# Default slice/button height in menu dialogs: 120
+	dui page add dye_edit_dlg -namespace true -type dialog -bbox {0 0 900 600}
+	dui page add dye_visualizer_dlg -namespace true -type dialog -bbox {0 0 900 960}
+	
 	foreach page $::dui::pages::DYE_v3::pages {
-		dui page add $page -namespace ::dui::pages::DYE_v3
+		dui page add $page -namespace ::dui::pages::DYE_v3 -type fpdialog
 	}
 	
 	# Update/propagate the describe settings when the a shot is started 
@@ -127,6 +100,7 @@ proc ::plugins::DYE::preload {} {
 	package require de1_logging 1.0
 	package require de1_dui 1.0
 	
+		
 	# Because DUI calls the page setup commands automatically we need to initialize stuff here
 	dui add image_dirs "[homedir]/[plugin_directory]/DYE/"
 
@@ -134,7 +108,7 @@ proc ::plugins::DYE::preload {} {
 	plugins save_settings DYE
 	
 	setup_default_aspects
-	dui page add DYE_settings -namespace true -theme default
+	dui page add DYE_settings -namespace true -theme default -type fpdialog
 	return DYE_settings
 }
 
@@ -332,7 +306,8 @@ proc ::plugins::DYE::setup_default_aspects { args } {
 	# DYE v3
 	set bg_color [dui aspect get page bg_color -theme default]
 	set btn_spacing 100
-	set half_button_width [expr {int(($::dui::pages::DYE_v3::page_coords(panel_width)-$btn_spacing)/2)}]
+	set half_button_width [expr {int(($::dui::pages::DYE_v3::page_coords(panel_width)-$btn_spacing)/2)}]	
+	set half_button_width 200
 	
 	dui aspect set -theme default [subst { 
 		dbutton.bheight.dyev3_topnav 90 
@@ -724,14 +699,15 @@ proc ::plugins::DYE::upload_to_visualizer_and_save { clock } {
 	set content [::plugins::SDB::modify_shot_file $clock arr_changes 0 0]
 	if { $content eq "" } return
 	
+    set ::plugins::visualizer_upload::settings(last_action) "upload"
 	set ::plugins::visualizer_upload::settings(last_upload_shot) $clock
 	set ::plugins::visualizer_upload::settings(last_upload_result) ""
 	set ::plugins::visualizer_upload::settings(last_upload_id) ""
-	
+    
 	set repo_link ""
 	set visualizer_id [::plugins::visualizer_upload::upload $content]
 	if { $visualizer_id ne "" } {
-		regsub "<ID>" $::plugins::visualizer_upload::settings(visualizer_browse_url) $visualizer_id link 
+		set link [::plugins::visualizer_upload::id_to_url $visualizer_id browse]
 		set repo_link "Visualizer $link"
 		if { [string match "*$repo_link*" $content] != 1 } {
 			set arr_changes(repository_links) $repo_link
@@ -758,7 +734,8 @@ proc ::plugins::DYE::plugin_directory_graphics {} {
 	return $dir
 }
 
-proc ::plugins::DYE::page_skeleton { page {title {}} {titlevar {}} {done_button yes} {cancel_button yes} {buttons_loc right} } {
+proc ::plugins::DYE::page_skeleton { page {title {}} {titlevar {}} {done_button yes} {cancel_button yes} {buttons_loc right} \
+		{buttons_style dsx_done} } {
 	if { $title ne "" } {
 		dui add dtext $page 1280 60 -text $title -tags page_title -style page_title 
 	} elseif { $titlevar ne "" } {
@@ -767,7 +744,7 @@ proc ::plugins::DYE::page_skeleton { page {title {}} {titlevar {}} {done_button 
 
 	set done_button [string is true $done_button]
 	set cancel_button [string is true $cancel_button]
-	set button_width [dui aspect get dbutton bwidth -style dsx_done -default 220]
+	set button_width [dui aspect get dbutton bwidth -style $buttons_style -default 220]
 	
 	if { $buttons_loc eq "center" } {
 		if { $done_button && $cancel_button } {
@@ -798,12 +775,16 @@ proc ::plugins::DYE::page_skeleton { page {title {}} {titlevar {}} {done_button 
 		}
 	}
 
-	set y 1425	
+	if { $buttons_style eq "insight_ok" } {
+		set y 1460
+	} else {
+		set y 1425
+	}
 	if { $cancel_button } {
-		dui add dbutton $page $x_cancel $y -label [translate Cancel] -tags page_cancel -style dsx_done
+		dui add dbutton $page $x_cancel $y -label [translate Cancel] -tags page_cancel -style $buttons_style
 	}
 	if { $done_button } {
-		dui add dbutton $page $x_done $y -label [translate Ok] -tags page_done -style dsx_done
+		dui add dbutton $page $x_done $y -label [translate Ok] -tags page_done -style $buttons_style
 	}
 }
 
@@ -835,17 +816,11 @@ namespace eval ::dui::pages::DYE {
 	# Widgets in the page bind to variables in this data array, not to the actual global variables behind, so they 
 	# can be changed dynamically to load and save to different shots (last, next or those selected in the left or 
 	# right of the history viewer). Values are actually saved only when tapping the "Done" button.
+	# describe_which_shot: next / current / past / DSx_past / DSx_past2	
 	variable data
-	array set data {
-		page_painted 0
-		previous_page {}
+	array set data {		
 		page_title {translate {Describe your espresso}}
-		# next / current / past / DSx_past / DSx_past2
 		describe_which_shot {current}
-		read_from_status "last"
-		read_from_last_text "Read from\rlast shot" 
-		read_from_prev_text "Read from\rselection"
-		read_from_label {}
 		shot_file {}
 		clock 0
 		grinder_dose_weight 0
@@ -865,7 +840,7 @@ namespace eval ::dui::pages::DYE {
 		drinker_name {}
 		skin {}
 		beverage_type {}
-		upload_to_visualizer_label {}
+		visualizer_status_label {}
 		repository_links {}
 		warning_msg {}
 	}
@@ -875,6 +850,9 @@ namespace eval ::dui::pages::DYE {
 	# has changed.
 	variable src_data
 	array set src_data {}
+	# If editing the next shot description, remember whether it was modified originally, to be able to restore the
+	# value in case the changes are cancelled.
+	variable src_next_modified 0
 }
 
 proc ::dui::pages::DYE::setup {} {
@@ -883,8 +861,11 @@ proc ::dui::pages::DYE::setup {} {
 	set page [namespace tail [namespace current]]
 	set skin $::settings(skin)	
 	
-	::plugins::DYE::page_skeleton $page "" page_title yes yes right
+	::plugins::DYE::page_skeleton $page "" page_title yes no center insight_ok
 
+	dui add variable $page 1280 125 -textvariable {[::dui::pages::DYE::propagate_state_msg]} -tags propagate_state_msg \
+		-anchor center -justify center -font_size -3
+	
 	# NAVIGATION
 	set x_left_label 100; set y 40; set hspace 110
 	dui add symbol $page $x_left_label $y -symbol backward -tags move_backward -style dye_main_nav_button -command yes
@@ -950,13 +931,7 @@ proc ::dui::pages::DYE::setup {} {
 
 	dui add image $page $x_left_label $y "niche_${skin}.png" -tags equipment_img
 	dui add dtext $page $x_left_field [expr {$y+130}] -text [translate "Equipment"] -style section_header
-		
-	# Other equipment (EXPERIMENTAL)
-#	if { [info exists ::debugging] && $::debugging == 1 } {
-#		dui add dbutton $page $x_left_label [expr {$y+50}] [expr {$x_left_field+400}] [expr {$y+200}] \
-#			-command { say "" $::settings(sound_button_in); ::plugins::DYE::SEQ::load_page } \			
-#	}
-	
+			
 	# Grinder model
 	incr y 240
 	dui add dcombobox $page $x_left_field $y -tags grinder_model -width $width_left_field \
@@ -1023,8 +998,7 @@ proc ::dui::pages::DYE::setup {} {
 	dui add dclicker $page [expr {$x_right_field+300}] $y -bwidth 610 -bheight 75 -tags drink_ey \
 		-labelvariable {$%NS::data(drink_ey)%} -style dye_double \
 		-min $min -max $max -default $default -n_decimals $n_decimals -smallincrement $smallinc -bigincrement $biginc \
-		-editor_page yes -editor_page_title [translate "Edit Extraction Yield (%%)"]	
-
+		-editor_page yes -editor_page_title [translate "Edit Extraction Yield (%%)"]
 	
 	# Enjoyment entry with horizontal clicker
 	incr y 100
@@ -1044,7 +1018,7 @@ proc ::dui::pages::DYE::setup {} {
 	
 	# Espresso notes
 	incr y 100
-	dui add multiline_entry $page $x_right_field $y -tags espresso_notes -height 5 -canvas_width 900 \
+	dui add multiline_entry $page $x_right_field $y -tags espresso_notes -height 5 -canvas_width 900 -label_width 245 \
 		-label [translate [::plugins::SDB::field_lookup espresso_notes name]] -label_pos [list $x_right_label $y]
 
 	# PEOPLE
@@ -1065,40 +1039,28 @@ proc ::dui::pages::DYE::setup {} {
 		-values {[::plugins::SDB::available_categories drinker_name]} -page_title [translate "Select the coffee drinker"] \
 		-listbox_width 800
 	
-	# BOTTOM BUTTONS	
-	# Clear shot data (only clears "propagated" fields)
-	set x 100; set y 1385
-	dui add dbutton $page $x $y -tags clear_shot_data -style dsx_settings -symbol eraser -label [translate "Clear shot\rdata"]	
+	# BOTTOM BUTTONS
+	set y 1415 	
+	dui add dbutton $page 100 $y -tags edit_dialog -style dsx_settings -symbol chevron-up -label [translate "Edit data"] -bheight 160
 
-	# Recover "propagated" fields from a previous shot
-	set x [expr {$x+[dui aspect get dbutton bwidth -style dsx_settings -default 400]+75}]
-	set data(read_from_label) [translate $data(read_from_last_text)]
-	dui add dbutton $page $x $y -tags read_from -style dsx_settings -symbol file-import -labelvariable read_from_label
-
-	# Upload to Miha's Visualizer button
-	set x [expr {$x+[dui aspect get dbutton bwidth -style dsx_settings -default 400]+75}]
-	set data(upload_to_visualizer_label) [translate "Upload to\rVisualizer"]
-	dui add dbutton $page $x $y -tags upload_to_visualizer -style dsx_settings -symbol file-upload \
-		-labelvariable upload_to_visualizer_label -initial_state hidden
+	dui add dbutton $page 2440 $y -anchor ne -tags visualizer_dialog -style dsx_settings -symbol chevron-up -symbol_pos {0.8 0.45} \
+		-label [translate "Visualizer"] -label_pos {0.35 0.45} -label1variable visualizer_status_label -label1_pos {0.5 0.8} \
+		-label1_anchor center -label1_justify center -label1_font_size -3 -bheight 160
 	
-	dui add variable $page 2420 1380 -tags warning_msg -style remark -anchor e -justify right -initial_state hidden
+	dui add variable $page 2420 1390 -tags warning_msg -style remark -anchor e -justify right -initial_state hidden
 }
 
 # 'which_shot' can be either a clock value matching a past shot clock, or any of 'current', 'next', 'DSx_past' or 
 #	'DSx_past2'.
 proc ::dui::pages::DYE::load { page_to_hide page_to_show {which_shot current} } {
 	variable data
-	# If reloading the page (to show a different shot data), remember the original page we came from
-	if { $page_to_hide ne "DYE" } {
-		set data(previous_page) $page_to_hide
-	}
 	
 	if { [info exists ::settings(espresso_clock)] && $::settings(espresso_clock) ne "" && $::settings(espresso_clock) > 0} {
 		set current_clock $::settings(espresso_clock)
 	} else {	
 		set current_clock 0
 	}
-	
+		
 	set data(describe_which_shot) $which_shot
 	if { [string is integer $which_shot] && $which_shot > 0 } {
 		if { $which_shot == $current_clock } {
@@ -1149,9 +1111,10 @@ proc ::dui::pages::DYE::load { page_to_hide page_to_show {which_shot current} } 
 		return 0
 	}
 	
-	if { [load_description] == 0 } {
-		info_page [translate "The requested shot description for '$which_shot' is not available"] [translate Ok]
-		return 0
+	if { ![load_description] } {
+#		info_page [translate "The requested shot description for '$which_shot' is not available"] [translate Ok]
+#		return 0
+		#set data()
 	}
 	
 	return 1
@@ -1167,12 +1130,32 @@ proc ::dui::pages::DYE::show { page_to_hide page_to_show } {
 	dui item show_or_hide [expr {!$use_stars}] $page_to_show espresso_enjoyment*
 
 	set is_not_next [expr {$data(describe_which_shot) ne "next"}]
-	dui item enable_or_disable $is_not_next $page_to_show {move_forward move_to_next grinder_dose_weight* 
-		drink_weight* drink_tds* drink_ey* espresso_enjoyment* espresso_enjoyment_rater* espresso_enjoyment_label}
+	
+	if { $is_not_next && $data(path) eq {} } {
+		set fields {beans_select edit_dialog* visualizer_dialog* espresso_enjoyment_rater* espresso_enjoyment_label}
+		foreach f [metadata fields -domain shot -category description] {
+			lappend fields $f*
+		}
+		dui item disable $page_to_show $fields
+	} else {
+		set cond_fields {move_forward move_to_next grinder_dose_weight* drink_weight* drink_tds* drink_ey* 
+			espresso_enjoyment* espresso_enjoyment_rater* espresso_enjoyment_label}
+		set fields {beans_select edit_dialog* espresso_enjoyment_rater* espresso_enjoyment_label}
+		foreach f [metadata fields -domain shot -category description] {
+			if { "$f*" ni $cond_fields } {
+				lappend fields $f*
+			}
+		}
+		dui item enable $page_to_show $fields
+		
+		dui item enable_or_disable $is_not_next $page_to_show $cond_fields
+#		dui item enable_or_disable $is_not_next $page_to_show {move_forward move_to_next grinder_dose_weight* 
+#			drink_weight* drink_tds* drink_ey* espresso_enjoyment* espresso_enjoyment_rater* espresso_enjoyment_label}
+	}
 	
 	if { $is_not_next } {
 		set previous_shot [::plugins::SDB::previous_shot $data(clock)]
-		dui item enable_or_disable [expr {$previous_shot ne ""}] $page_to_show "move_backward"
+		dui item enable_or_disable [expr {$previous_shot ne ""}] $page_to_show "move_backward*"
 		
 		if { $use_stars } {
 			dui item enable $page_to_show espresso_enjoyment_rater*
@@ -1187,24 +1170,48 @@ proc ::dui::pages::DYE::show { page_to_hide page_to_show } {
 	calc_ey_from_tds
 	update_visualizer_button 0
 }
-	
-proc ::dui::pages::DYE::unload_page {} {
+
+# Ensure the shot description is saved if it has been modified and we're leaving the page unexpectedly, for example
+# 	if a GHC button is tapped while editing the shot, or the machine is starting up.
+# ALWAYS saves the shot changes when the page is hidden, EXCEPT if the Cancel button has been clicked.
+# Because we save here, we don't need to save explicitly when leaving the page, EXCEPT if we're loading a new shot
+#	in the same page (e.g. when navigation buttons are clicked).
+proc ::dui::pages::DYE::hide { page_to_hide page_to_show } {
 	variable data
 
-	if { $data(previous_page) eq "sleep" } {
-		set_next_page off off
-		set ::current_espresso_page "off"
-		start_sleep				
-	} elseif { $data(previous_page) ne "" } {
-		dui page load $data(previous_page)
+	save_description
+	dui say [translate "Saved"] ""
+}
+
+proc ::dui::pages::DYE::propagate_state_msg {} {
+	variable data
+	
+	if { $data(describe_which_shot) eq "next" } {
+		if { ![string is true $::plugins::DYE::settings(propagate_previous_shot_desc)] } {
+			return [translate "Propagation is disabled"]
+		} elseif { [string is true $::plugins::DYE::settings(next_modified)] } {
+			return [translate "Next shot description manually edited, changes in last shot won't propagate here"]
+		} else {
+			return [translate "Changes in last shot metadata will propagate here"]
+		}
+	} elseif { $data(path) eq {} } {
+		return [translate "Shot not saved to history"]
+	} elseif { $data(describe_which_shot) eq "current" || $data(clock) == $::settings(espresso_clock) } {
+		if { ![string is true $::plugins::DYE::settings(propagate_previous_shot_desc)] } {
+			return [translate "Propagation is disabled"]
+		} elseif { [string is true $::plugins::DYE::settings(next_modified)] } {
+			return [translate "Next shot description manually edited, changes here won't propagate to next"]
+		} else {
+			return [translate "Changes here will propagate to next shot"]
+		}
 	} else {
-		dui page load off
+		return ""
 	}	
-}	
+}
 
 proc ::dui::pages::DYE::move_backward {} {
 	variable data
-	if { [ask_to_save_if_needed] eq "cancel" } return
+	save_description
 
 	if { $data(describe_which_shot) eq "next" } {
 		dui page load DYE current -reload yes		
@@ -1217,10 +1224,10 @@ proc ::dui::pages::DYE::move_backward {} {
 }
 
 proc ::dui::pages::DYE::move_forward {} {
-	variable data
-	
+	variable data	
 	if { $data(describe_which_shot) eq "next" } return
-	if { [ask_to_save_if_needed] eq "cancel" } return
+	
+	save_description
 	
 	if { $data(describe_which_shot) eq "current" || $data(clock) == $::settings(espresso_clock) } {
 		dui page load DYE next -reload yes
@@ -1234,56 +1241,38 @@ proc ::dui::pages::DYE::move_forward {} {
 
 proc ::dui::pages::DYE::move_to_next {} {
 	variable data
-	if { $data(describe_which_shot) eq "next" } return	
-	if { [ask_to_save_if_needed] eq "cancel" } return
-	
+	if { $data(describe_which_shot) eq "next" } return
+	save_description
 	dui page load DYE next -reload yes
 }
 
 proc ::dui::pages::DYE::search_shot {} {
-	set answer [ask_to_save_if_needed]
-	if { $answer eq "cancel" } return
-
-	dui page load DYE_fsh -page_title [translate "Select the shot to describe"] -callback_cmd ::dui::pages::DYE::search_shot_callback
+	dui page open_dialog DYE_fsh -page_title [translate "Select the shot to describe"] \
+		-return_callback ::dui::pages::DYE::search_shot_callback
 }
 
 proc ::dui::pages::DYE::search_shot_callback { selected_shots matched_shots } {
-	variable data
-	if { [llength $selected_shots] == 0 } { 
-		dui page show DYE
-	} else {
-		set previous_page $data(previous_page)
-		dui page load DYE [lindex $selected_shots 0]
-		set data(previous_page) $previous_page
+	if { [llength $selected_shots] > 0 } {
+		dui page load DYE [lindex $selected_shots 0] -reload yes
 	}
 }
 
 proc ::dui::pages::DYE::select_shot {} {
-	set answer [ask_to_save_if_needed]
-	if { $answer eq "cancel" } return
-	
 	array set shots [::plugins::SDB::shots "clock shot_desc" 1 {} 500]
-	dui page load dui_item_selector {} $shots(shot_desc) -values_ids $shots(clock) \
-		-page_title [translate "Select the shot to describe"] \
-		-callback_cmd [namespace current]::select_shot_callback -listbox_width 2300
+	dui page open_dialog dui_item_selector {} $shots(shot_desc) -values_ids $shots(clock) -listbox_width 2300 \
+		-page_title [translate "Select the shot to describe"] -return_callback [namespace current]::select_shot_callback \
+		-theme [dui theme get]
 }
 
 proc ::dui::pages::DYE::select_shot_callback { shot_desc shot_id args } {
 	variable data
 
-	if { [llength $shot_id] == 0 } { 
-		dui page show DYE
-	} else {
-		set previous_page $data(previous_page)
-		dui page load DYE [lindex $shot_id 0]
-		set data(previous_page) $previous_page
+	if { [llength $shot_id] > 0 } {
+		dui page load DYE [lindex $shot_id 0] -reload yes
 	}
 }
 
 proc ::dui::pages::DYE::open_history_viewer {} {
-	set answer [ask_to_save_if_needed]
-	if { $answer eq "cancel" } return
-	
 	if { $::settings(skin) eq "DSx" } {
 		::history_prep
 	} else {
@@ -1294,13 +1283,18 @@ proc ::dui::pages::DYE::open_history_viewer {} {
 proc ::dui::pages::DYE::history_viewer_callback { left_clock right_clock } {
 	variable data
 	
-	if { $left_clock eq "" } { 
-		dui page show DYE
-	} else {
-		set previous_page $data(previous_page)
+#	if { $left_clock eq "" } { 
+#		dui page show DYE
+#	} else {
+#		set previous_page $data(previous_page)
+#		dui page load DYE [lindex $left_clock 0]
+#		set data(previous_page) $previous_page
+#	}
+	
+	if { $left_clock ne "" } { 
 		dui page load DYE [lindex $left_clock 0]
-		set data(previous_page) $previous_page
 	}
+	
 }
 
 proc ::dui::pages::DYE::beans_select {} {
@@ -1310,8 +1304,8 @@ proc ::dui::pages::DYE::beans_select {} {
 	set selected [string trim "$data(bean_brand) $data(bean_type) $data(roast_date)"]
 	regsub -all " +" $selected " " selected
 
-	dui page load dui_item_selector {} [::plugins::SDB::available_categories bean_desc] \
-		-page_title "Select the beans batch" -selected $selected -callback_cmd [namespace current]::select_beans_callback \
+	dui page open_dialog dui_item_selector {} [::plugins::SDB::available_categories bean_desc] -theme [dui theme get] \
+		-page_title "Select the beans batch" -selected $selected -return_callback [namespace current]::select_beans_callback \
 		-listbox_width 1700
 }
 
@@ -1352,10 +1346,9 @@ proc ::dui::pages::DYE::grinder_setting_select { variable values args} {
 	dui sound make button_in
 	if { $data(grinder_model) eq "" } return
 
-	dui page load dui_item_selector ::dui::pages::DYE::data(grinder_setting) \
-		[::plugins::SDB::available_categories grinder_setting \
-		-filter " grinder_model=[::plugins::SDB::string2sql $data(grinder_model)]"] \
-		-page_title [translate "Select the grinder setting"] -selected $data(grinder_setting) -listbox_width 700
+	dui page open_dialog dui_item_selector ::dui::pages::DYE::data(grinder_setting) -theme [dui theme get] \
+		[::plugins::SDB::available_categories grinder_setting 1 " grinder_model=[::plugins::SDB::string2sql $data(grinder_model)]"] \
+		-page_title [translate "Select the grinder setting"] -selected $data(grinder_setting) -listbox_width 700 
 }
 
 proc ::dui::pages::DYE::grinder_model_change {} {
@@ -1366,49 +1359,49 @@ proc ::dui::pages::DYE::grinder_model_change {} {
 
 proc ::dui::pages::DYE::clear_shot_data {} {
 	variable data
-	say "clear" $::settings(sound_button_in)
-	foreach f $::plugins::DYE::propagated_fields {
-		set data($f) {}
+	
+	dui say "clear" sound_button_in
+	foreach fn [metadata fields -domain shot -category description -propagate 1] {
+		set data($fn) {}
 	}
 	set data(espresso_notes) {}
+
+	# Why commented?
 #	if { $data(describe_which_shot) eq "next" } {
 #		set ::plugins::DYE::settings(next_modified) 1
 #	}
 }
 
-proc ::dui::pages::DYE::read_from {} {
+# what = [previous] / selected
+proc ::dui::pages::DYE::read_from { {what previous} } {
 	variable data
 	say "read" $::settings(sound_button_in)
 
-	# Bring descriptive data from last shot (in-memory if editing the next description), if not using
-	# the last shot use the DB to get it back.
-	if { ![info exists data(clock) ]|| $data(clock) == 0 || $data(clock) eq {} } {			
+	set propagated_fields [metadata fields -domain shot -category description -propagate 1]
+	
+	# Next shot spec doesn't have a clock
+	if { $data(clock) == 0 || $data(clock) eq {} } {
 		set filter "clock < [clock seconds]"
 	} else {
 		set filter "clock < $data(clock)"
 	}
 	set sql_conditions {}
-	foreach f $::plugins::DYE::propagated_fields {
+	foreach f $propagated_fields {
 		lappend sql_conditions "LENGTH(TRIM(COALESCE($f,'')))>0"
 	}
 	
-	if { $data(read_from_status) eq "prev" } {
+	if { $what eq "selected" } {
 		array set shots [::plugins::SDB::shots "clock shot_desc" 1 "$filter AND ([join $sql_conditions { OR }])" 500]
-		dui page load dui_item_selector {} $shots(shot_desc) -values_ids $shots(clock) \
-			-page_title [translate "Select the shot to read the data from"] \
-			-callback_cmd [namespace current]::select_read_from_shot_callback -listbox_width 2300
-		set data(read_from_status) "last"
+		dui page open_dialog dui_item_selector {} $shots(shot_desc) -values_ids $shots(clock) \
+			-page_title [translate "Select the shot to read the data from"] -theme [dui theme get] \
+			-return_callback [namespace current]::select_read_from_shot_callback -listbox_width 2300
 	} else {
-		array set last_shot [::plugins::SDB::shots "$::plugins::DYE::propagated_fields" 1 \
-			"$filter AND ([join $sql_conditions { OR }])" 1]
+		array set last_shot [::plugins::SDB::shots $propagated_fields 1 "$filter AND ([join $sql_conditions { OR }])" 1]
 		foreach f [array names last_shot] {
 			set data($f) [lindex $last_shot($f) 0]
 		}
-				
-		set data(read_from_status) "prev"
 	}
 	
-	set data(read_from_label) [translate $data(read_from_${data(read_from_status)}_text)]
 #	if { $data(describe_which_shot) eq "next" } {
 #		set DYE::settings(next_modified) 1
 #	}
@@ -1431,389 +1424,250 @@ proc ::dui::pages::DYE::select_read_from_shot_callback { shot_desc shot_clock it
 # Opens the last shot, the shot on the left of the history viewer, or the shot on the right of the history
 # 	viewer, and writes all relevant DYE fields to the ::dui::pages::DYE page variables.
 # Returns 1 if successful, 0 otherwise.
+# NOTE: Originally, if opened from DSx history viewer this reads the variables from DSx shot parsed variables,
+#	if opened to see the last shot it used the settings variables, and only opened and read the shot file for
+#	other cases. This produced a number of problems, so was changed on 2021-09-28 to always read the shot file,
+#	which avoids problems and simplifies code a lot.
 proc ::dui::pages::DYE::load_description {} {
 	variable widgets
 	variable data
 	variable src_data
+	variable src_next_modified
 	
-#	foreach f {grinder_dose_weight drink_weight drink_tds drink_ey espresso_enjoyment} {
-#		$widgets(${f}) configure -state normal
-#	}
+	array set src_data {}
 	
-	set data(read_from_label) [translate $data(read_from_${data(read_from_status)}_text)]
-	
-	if { $data(describe_which_shot) eq "DSx_past" } {
-#		if { ! [info exists ::DSx_settings(past_clock)] } { return 0 }
-#		set data(clock) $::DSx_settings(past_clock)
-						
-		set data(shot_file) $::DSx_settings(past_shot_file)
-		set data(page_title) "Describe past espresso: $::DSx_settings(shot_date_time)"
-
-		foreach f $::plugins::DYE::desc_text_fields {
-			if { [info exists ::DSx_settings(past_$f)] } {
-				set data($f) [string trim $::DSx_settings(past_$f)]
-			} else {
-				set data($f) {}
-			}
-		}
-		foreach f $::plugins::DYE::desc_numeric_fields {
-			if { [info exists ::DSx_settings(past_$f)] } {
-				set data($f) [::plugins::DYE::return_blank_if_zero $::DSx_settings(past_$f)]
-			} else {
-				set data($f) {}
-			}
-		}
-		
-		# Bean and Drink weights past variable names don't follow the past_* naming convention, so we have to handle
-		# them differently
-		if { [return_zero_if_blank [ifexists ::DSx_settings(past_bean_weight) 0]] > 1 } {
-			set data(grinder_dose_weight) $::DSx_settings(past_bean_weight)
-		} else {
-			set data(grinder_dose_weight) {}
-		}
-		
-		if { [return_zero_if_blank [ifexists ::DSx_settings(drink_weight) 0]] > 1 } {
-			set data(drink_weight) $::DSx_settings(drink_weight) 
-#		} elseif { $::DSx_settings(past_final_desired_shot_weight) > 0 } {
-#			set data(drink_weight) $::DSx_settings(past_final_desired_shot_weight)
-		} else {
-			set data(drink_weight) {}
-		}
-
-#		if { $data(drink_weight) eq "" && $::DSx_settings(past_final_desired_shot_weight) > 0 } {
-#			set data(drink_weight) $::DSx_settings(past_final_desired_shot_weight)
-#		}
-	} elseif { $data(describe_which_shot) eq "DSx_past2" } {
-#		if { ! [info exists ::DSx_settings(past_clock2)] } { return 0 }
-#		set data(clock) $::DSx_settings(past_clock2)
-		
-		set data(shot_file) $::DSx_settings(past_shot_file2)
-		set data(page_title) "Describe past espresso: $::DSx_settings(shot_date_time2)"
-		
-		foreach f $::plugins::DYE::desc_text_fields {
-			if { [info exists ::DSx_settings(past_${f}2)] } {
-				set data($f) [string trim $::DSx_settings(past_${f}2)]
-			} else {
-				set data($f) {}
-			}
-		}
-		foreach f $::plugins::DYE::desc_numeric_fields {
-			if { [info exists ::DSx_settings(past_${f}2)] } {
-				set data($f) [::plugins::DYE::return_blank_if_zero $::DSx_settings(past_${f}2)]
-			} else {
-				set data($f) {}
-			}
-		}
-
-		# Bean and Drink weights past variable names don't follow the past_* naming convention, so we have to handle
-		# them differently
-		if { [return_zero_if_blank [ifexists ::DSx_settings(past_bean_weight2) 0]] > 1 } {
-			set data(grinder_dose_weight) $::DSx_settings(past_bean_weight2)
-		} else {
-			set data(grinder_dose_weight) {}
-		}
-		
-		if { [return_zero_if_blank [ifexists ::DSx_settings(drink_weight2) 0]] > 1} {
-			set data(drink_weight) $::DSx_settings(drink_weight2) 
-#		} elseif { $::DSx_settings(past_final_desired_shot_weight2) > 0 } {
-#			set data(drink_weight) $::DSx_settings(past_final_desired_shot_weight2)
-		} else {
-			set data(drink_weight) {}
-		}
-		
-#		if { $data(drink_weight) eq "" && $::DSx_settings(past_final_desired_shot_weight) > 0 } {
-#			set data(drink_weight) $::DSx_settings(past_final_desired_shot_weight)
-#		}
-		
-	} elseif { $data(describe_which_shot) eq "next" } {
+	if { $data(describe_which_shot) eq "next" } {
 		#set data(clock) {}
-		set data(shot_file) {}
+		set src_next_modified $::plugins::DYE::settings(next_modified)
+		set data(path) {}
 		set data(page_title) "Describe your next espresso"
 
-		foreach f {grinder_dose_weight drink_weight drink_tds drink_ey espresso_enjoyment} {
-			set data($f) {}
-#			$widgets($f) configure -state disabled
+		foreach fn [metadata fields -domain shot -category description -propagate 1] {
+			set src_data($fn) $::plugins::DYE::settings(next_$fn)
+			set data($fn) $::plugins::DYE::settings(next_$fn)
 		}
-
-#		foreach f {bean_brand bean_type roast_date roast_level bean_notes grinder_model grinder_setting \
-#				other_equipment espresso_notes my_name drinker_name} 		
-		foreach f {bean_brand bean_type roast_date roast_level bean_notes grinder_model grinder_setting \
-				espresso_notes my_name drinker_name} {
-			set data($f) [string trim $::plugins::DYE::settings(next_$f)]
+		foreach fn [metadata fields -domain shot -category description -propagate 0] {
+			set src_data($fn) {}
+			set data($fn) {}
 		}
 		
-		set data(grinder_dose_weight) {}
-		set data(drink_weight) {}
-		set data(repository_links) {}
-	} elseif { $data(describe_which_shot) eq "past" } {
-		array set shot [::plugins::SDB::load_shot $data(clock)]
-		if { [array size shot] == 0 } { return 0 }
-		# What for?
-		set data(shot_file) [::plugins::SDB::get_shot_file_path $data(clock)]
-		set data(page_title) "Describe past espresso: [formatted_shot_date]"
-		
-		foreach f "$::plugins::DYE::desc_text_fields $::plugins::DYE::desc_numeric_fields" {
-			set data($f) $shot($f) 
+		return 1
+	} else {
+		set src_next_modified {}
+		if { $data(clock) == [value_or_default ::settings(espresso_clock) 0] } {
+			set data(page_title) "Describe last espresso: [formatted_shot_date]"
+		} else {
+			set data(page_title) "Describe past espresso: [formatted_shot_date]"
 		}
 		
-	} elseif { $data(describe_which_shot) eq "current" } {
-		#if { ! [info exists ::settings(espresso_clock)] } { return 0 }
-		# Assume $data(describe_which_shot) eq "current"
-		#set data(clock) $::settings(espresso_clock)
-		set data(shot_file) [::plugins::SDB::get_shot_file_path $::settings(espresso_clock)]
-		#"[homedir]/history/[clock format $::settings(espresso_clock) -format $::plugins::DYE::filename_clock_format].shot"
-		set data(page_title) "Describe last espresso: [::dui::pages::DYE::last_shot_date]"
-		
-		foreach f $::plugins::DYE::desc_text_fields {
-			if { [info exists ::settings($f)] } {
-				set data($f) [string trim $::settings($f)]
-			} else {
-				set data($f) {}
+		array set shot [::plugins::SDB::load_shot $data(clock)]	
+		if { [array size shot] == 0 } {
+			foreach fn [metadata fields -domain shot -category description] {
+				set src_data($fn) {}
+				set data($fn) {}
 			}
-		}		
-		foreach f $::plugins::DYE::desc_numeric_fields {
-			if { [info exists ::settings($f)] } {
-				set data($f) [::plugins::DYE::return_blank_if_zero $::settings($f)]
-			} else {
-				set data($f) {}
+			set data(path) {}
+			return 0 
+		} else {			
+			foreach fn [metadata fields -domain shot -category description] {
+				set src_data($fn) $shot($fn)
+				set data($fn) $shot($fn)
 			}
+			set data(path) $shot(path)
+			return 1
 		}
-		
 	}
+}
+
+proc ::dui::pages::DYE::save_description { {force_save_all 0} } {
+	variable data
+	variable src_data
+	array set changes {}
+	
+	# Non-saved shot
+	if { $data(path) eq {} } {
+		return 1
+	}
+	
+	# Determine what to change (either all, or detect the actual changes)
+	if { [string is true $force_save_all] } {
+		foreach field [metadata fields -domain shot -category description] {
+			if { [info exists data($field)] } {
+				set changes($field) $data($field)
+			}
+		}
+	} else {
+		foreach field [metadata fields -domain shot -category description] {
+			if { [info exists data($field)] } {
+				if { $data($field) ne $src_data($field) } {
+					set changes($field) $data($field)
+				}
+			}
+		}	
+		if { [array size changes] == 0 } {
+			return 1
+		}
+	}
+	
+	set last_espresso_clock [value_or_default ::settings(espresso_clock) 0]
+	set propagate [string is true $::plugins::DYE::settings(propagate_previous_shot_desc)]
+	set next_modified [string is true $::plugins::DYE::settings(next_modified)]
+	set settings_changed 0
+	set dye_settings_changed 0
+	set dsx_settings_changed 0
+	
+	if { $data(describe_which_shot) eq "next" } {
+		foreach field [array names changes] {
+			if { [info exists ::plugins::DYE::settings(next_$field)] } {
+				set ::plugins::DYE::settings(next_modified) 1
+				set ::plugins::DYE::settings(next_$field) $changes($field)
+				if { [metadata get $field propagate] && [info exists ::settings($field)] } {
+					if { $changes($field) eq "" && [metadata get $field data_type] eq "number" } {
+						set ::settings($field) 0
+					} else {
+						set ::settings($field) $changes($field)
+					}
+					set settings_changed 1
+				}
+			}
+		}
 		
-	array set src_data {}
-	foreach fn "$::plugins::DYE::desc_numeric_fields $::plugins::DYE::desc_text_fields" {
-		set src_data($fn) $data($fn)
+		set dye_settings_changed 1
+		set ::plugins::DYE::next_shot_desc [::plugins::DYE::shot_description_summary $data(bean_brand) $data(bean_type) $data(roast_date) \
+			$data(grinder_model) $data(grinder_setting) $data(drink_tds) $data(drink_ey) $data(espresso_enjoyment)]
+	} else {
+		set dye_settings_changed 1
+		if { $data(describe_which_shot) eq "current" || $data(clock) == $last_espresso_clock } {
+			foreach field [array names changes] {
+				if { $propagate && !$next_modified && [metadata get $field propagate] } {
+					set ::plugins::DYE::settings(next_$field) $changes($field)
+										
+					set dye_settings_changed 1
+					if { [info exists ::settings($field)] } {
+						if { $changes($field) eq "" && [metadata get $field data_type] eq "number" } {
+							set ::settings($field) 0
+						} else {
+							set ::settings($field) $changes($field)
+						}
+						set settings_changed 1
+					}
+				}
+			}
+			
+			set ::plugins::DYE::last_shot_desc [::plugins::DYE::shot_description_summary $data(bean_brand) $data(bean_type) $data(roast_date) \
+				$data(grinder_model) $data(grinder_setting) $data(drink_tds) $data(drink_ey) $data(espresso_enjoyment)]
+	
+			# Update data on labels in small chart on DSx home page
+			if { $::settings(skin) eq "DSx" } {
+				if { [return_zero_if_blank $data(grinder_dose_weight)] > 0 && \
+						[value_or_default ::DSx_settings(live_graph_beans) {}] ne $data(grinder_dose_weight)} {
+					set ::DSx_settings(live_graph_beans) [round_to_one_digits $data(grinder_dose_weight)]
+					set dsx_settings_changed 1
+				}
+				if { [return_zero_if_blank $data(drink_weight)] > 0 && \
+						[value_or_default ::DSx_settings(live_graph_weight) {}] ne $data(drink_weight) } {
+					set ::DSx_settings(live_graph_weight) [round_to_one_digits $data(drink_weight)]
+					set dsx_settings_changed 1
+				}
+			}
+		}
+		
+		::plugins::SDB::modify_shot_file $data(path) changes
+		
+		if { $::plugins::SDB::settings(db_persist_desc) == 1 } {
+			set changes(file_modification_date) [file mtime $data(path)]
+			::plugins::SDB::update_shot_description $data(clock) changes
+		}
+		
+		# Handle DSx history viewer variables
+		if { $::settings(skin) eq "DSx" } {
+			if { $data(clock) == [value_or_default ::DSx_settings(past_clock) 0] } {
+#				This doesn't seem required (the DSx vars behind get outdated but think they aren't used for anything) 
+				foreach field [array names changes] {
+					if { [info exists ::DSx_settings(past_$field)] } {
+						if { $changes($field) eq "" && [metadata get $field data_type] eq "number" } {
+							set ::DSx_settings(past_$field) 0
+						} else {
+							set ::DSx_settings(past_$field) $changes($field)
+						}
+						set dsx_settings_changed 1
+					}
+					# These two don't follow the above var naming convention
+					if { $field eq "grinder_dose_weight" && [return_zero_if_blank $changes($field)] > 0 } {
+						set ::DSx_settings(past_bean_weight) [round_to_one_digits $changes($field)]
+					}
+					if { $field eq "drink_weight" && [return_zero_if_blank $changes($field)] > 0 } {
+						set ::DSx_settings(drink_weight) [round_to_one_digits $data($field)]
+					}
+				}
+			
+				set ::plugins::DYE::past_shot_desc [::plugins::DYE::shot_description_summary $data(bean_brand) $data(bean_type) $data(roast_date) \
+					$data(grinder_model) $data(grinder_setting) $data(drink_tds) $data(drink_ey) $data(espresso_enjoyment)]
+				set ::plugins::DYE::past_shot_desc_one_line [::plugins::DYE::shot_description_summary $data(bean_brand) $data(bean_type) $data(roast_date) \
+					$data(grinder_model) $data(grinder_setting) $data(drink_tds) $data(drink_ey) $data(espresso_enjoyment) 1 ""]
+			}
+			
+			if { $data(clock) == [value_or_default ::DSx_settings(past_clock2) 0] } {
+				foreach field [array names changes] {
+					if { [info exists ::DSx_settings(past_${field}2)] } {
+						if { $changes($field) eq "" && [metadata get $field data_type] eq "number" } {
+							set ::DSx_settings(past_${field}2) 0
+						} else {
+							set ::DSx_settings(past_${field}2) $changes($field)
+						}
+						set dsx_settings_changed 1
+					}
+					# These two don't follow the above var naming convention
+					if { $field eq "grinder_dose_weight" && [return_zero_if_blank $changes($field)] > 0 } {
+						set ::DSx_settings(past_bean_weight2) [round_to_one_digits $changes($field)]
+					}
+					if { $field eq "drink_weight" && [return_zero_if_blank $changes($field)] > 0 } {
+						set ::DSx_settings(drink_weight2) [round_to_one_digits $data($field)]
+					}
+				}
+				
+				set ::plugins::DYE::past_shot_desc2 [::plugins::DYE::shot_description_summary $data(bean_brand) $data(bean_type) $data(roast_date) \
+					$data(grinder_model) $data(grinder_setting) $data(drink_tds) $data(drink_ey) $data(espresso_enjoyment)]
+				set ::plugins::DYE::past_shot_desc_one_line2 [::plugins::DYE::shot_description_summary $data(bean_brand) $data(bean_type) $data(roast_date) \
+					$data(grinder_model) $data(grinder_setting) $data(drink_tds) $data(drink_ey) $data(espresso_enjoyment) 1 ""]
+			}
+		}
+	}
+
+	if { $settings_changed } {
+		::save_settings
+	}
+	if { $dye_settings_changed } {
+		plugins save_settings DYE
+	}
+	if { $dsx_settings_changed } {
+		::save_DSx_settings
 	}
 	
 	return 1
 }
 
-
-# Saves the local variables from the Describe Espresso page into the target variables depending on which
-#	description we're editing (last shot, left on the history viewer, or right in the history viewer),
-#	and saves the modified data in the correct history .shot file.
-proc ::dui::pages::DYE::save_description {} {
+# Undo changes, reverting all editions done since entering the page. 
+# Beware that there may have been intermediate saves (when the page is hidden, e.g. for showing a dialog), so we
+#	need to do exactly the reverse as save_description, going back to data in the src_data array.
+proc ::dui::pages::DYE::undo_changes {} {
 	variable data
 	variable src_data
-	set needs_saving 0
-	array set new_settings {}
+	variable src_next_modified
 	
-	# $::settings(espresso_clock) may not be defined on a new install!
-	set last_clock [ifexists ::settings(espresso_clock) 0]
+	set copy_src_next_modified $src_next_modified
 	
-	set is_past_edition_of_current 0
-	if { $::settings(skin) eq "DSx" } {
-msg "COMPARING. data(describe_which_shot)=$data(describe_which_shot), DSX_settings(past_clock)=$::DSx_settings(past_clock), last_clock=$last_clock"		
-		if { ($data(describe_which_shot) eq "DSx_past" && $::DSx_settings(past_clock) == $last_clock) || \
-				($data(describe_which_shot) eq "DSx_past2" && $::DSx_settings(past_clock2) == $last_clock) } {
-			set is_past_edition_of_current 1
-					
+	# Revert values for all fields and force-save
+	foreach field [metadata fields -domain shot -category description] {
+		if { [info exists data($field)] && [info exists src_data($field)]} {
+			set data($field) $src_data($field)
 		}
-msg "is_past_edition_of_current=$is_past_edition_of_current"
 	}
+	save_description 1
 	
-	if { $::settings(skin) eq "DSx" && ($data(describe_which_shot) eq "DSx_past" || $data(describe_which_shot) eq "DSx_past2")} {
-		if { $data(describe_which_shot) eq "DSx_past" || ($data(describe_which_shot) eq "DSx_past2" && \
-				$::DSx_settings(past_clock) == $::DSx_settings(past_clock2)) } {
-			set clock $::DSx_settings(past_clock) 
-			foreach f $::plugins::DYE::desc_numeric_fields {
-				if { ![info exists ::DSx_settings(past_$f)] || $::DSx_settings(past_$f) ne [return_zero_if_blank $data($f)] } {
-					set ::DSx_settings(past_$f) [return_zero_if_blank $data($f)]
-					set new_settings($f) [return_zero_if_blank $data($f)] 
-					set needs_saving 1
-					
-					# These two don't follow the above var naming convention
-					# These two don't follow the above var naming convention
-					if { $f eq "grinder_dose_weight" && [return_zero_if_blank $data($f)] > 0 } {
-						set ::DSx_settings(past_bean_weight) [round_to_one_digits $data(grinder_dose_weight)]
-					}
-					if { $f eq "drink_weight" && [return_zero_if_blank $data($f)] > 0 } {
-						set ::DSx_settings(drink_weight) [round_to_one_digits $data(drink_weight)]
-					}
-				}
-			}
-			foreach f $::plugins::DYE::desc_text_fields {
-				if { ![info exists ::DSx_settings(past_$f)] || $::DSx_settings(past_$f) ne $data($f) } {
-					set ::DSx_settings(past_$f) [string trim $data($f)]
-					set new_settings($f) $data($f)
-					set needs_saving 1
-				}
-			}
-
-			if { $needs_saving == 1 } { 
-				::plugins::DYE::define_past_shot_desc 
-				if { $::DSx_settings(past_clock) == $::DSx_settings(past_clock2) } {
-					::plugins::DYE::define_past_shot_desc2
-				}
-				::save_DSx_settings
-			}
-		} 
-		
-		if { $data(describe_which_shot) eq "DSx_past2" || ($data(describe_which_shot) eq "DSx_past" && \
-				$::DSx_settings(past_clock) == $::DSx_settings(past_clock2)) } {
-			set clock $::DSx_settings(past_clock2) 
-			foreach f $::plugins::DYE::desc_numeric_fields {
-				if { ![info exists ::DSx_settings(past_${f}2)] || \
-						$::DSx_settings(past_${f}2) ne [return_zero_if_blank $data($f)] } {
-					set ::DSx_settings(past_${f}2) [return_zero_if_blank $data($f)]
-					set new_settings($f) [return_zero_if_blank $data($f)]
-					set needs_saving 1
-					
-					# These two don't follow the above var naming convention
-					if { $f eq "grinder_dose_weight" && [return_zero_if_blank $data($f)] > 0 } {
-						set ::DSx_settings(past_bean_weight2) [round_to_one_digits $data(grinder_dose_weight)]
-					}
-					if { $f eq "drink_weight" && [return_zero_if_blank $data($f)] > 0 } {
-						set ::DSx_settings(drink_weight2) [round_to_one_digits $data(drink_weight)]
-					}
-				}
-			}
-			foreach f $::plugins::DYE::desc_text_fields {
-				if { ![info exists ::DSx_settings(past_${f}2)] || $::DSx_settings(past_${f}2) ne $data($f) } {
-					set ::DSx_settings(past_${f}2) $data($f)
-					set new_settings($f) [string trim $data($f)]
-					set needs_saving 1
-				}
-			}
-
-			if { $needs_saving == 1 } { 
-				::plugins::DYE::define_past_shot_desc2 
-				if { $::DSx_settings(past_clock) == $::DSx_settings(past_clock2) } {
-					::plugins::DYE::define_past_shot_desc
-				}
-			}
-		}
-
-		if { $needs_saving == 0 } { return 1 }
-
-		if { $is_past_edition_of_current == 0 } {
-			::plugins::SDB::modify_shot_file $data(shot_file) new_settings
-			
-			if { $::plugins::SDB::settings(db_persist_desc) == 1 } {
-				set new_settings(file_modification_date) [file mtime $data(shot_file)]
-				::plugins::SDB::update_shot_description $clock new_settings
-			}
-			
-			::save_DSx_settings
-			msg "DYE: Save past espresso to history"
-			
-			return 1
-		}
-	} 
-	
-	if { $data(describe_which_shot) eq "current" || $is_past_edition_of_current == 1 } {
-		# With the new events system from v1.35 the last shot file may take a few seconds to save to disk
-		if { $data(shot_file) eq "" } {
-			set data(shot_file) [::plugins::SDB::get_shot_file_path $::settings(espresso_clock)]
-			if { $data(shot_file) eq "" } {
-				set data(warning_msg) [translate "Shot file not saved to history yet. Please wait a few seconds and retry"]
-				dui item show DYE warning_msg
-				after 3000 { dui item hide DYE warning_msg }
-				return 0
-			}
-		}
-		
-		foreach f $::plugins::DYE::desc_numeric_fields {
-			if { ![info exists ::settings($f)] || $::settings($f) ne [return_zero_if_blank $data($f)] } {
-				set ::settings($f) [return_zero_if_blank $data($f)]
-				set new_settings($f) [return_zero_if_blank $data($f)]
-				set needs_saving 1
-			}			
-		}
-		foreach f $::plugins::DYE::desc_text_fields {
-			if { ![info exists ::settings($f)] || $::settings($f) ne $data($f) } {
-				set ::settings($f) [string trim $data($f)]
-				set new_settings($f) [string trim $data($f)]
-				set needs_saving 1
-
-				if { $::plugins::DYE::settings(next_modified) == 0 && [lsearch $::plugins::DYE::propagated_fields $f] > -1 && \
-						$::plugins::DYE::settings(propagate_previous_shot_desc) == 1 } {
-					set ::plugins::DYE::settings(next_$f) [string trim $data($f)]
-				}
-			}
-		}
-
-		set needs_save_DSx_settings 0
-		if { $::settings(skin) eq "DSx" } {
-			if { [return_zero_if_blank $data(grinder_dose_weight)] > 0 && \
-					[ifexists ::DSx_settings(live_graph_beans) {}] ne $data(grinder_dose_weight)} {
-				set ::DSx_settings(live_graph_beans) [round_to_one_digits $data(grinder_dose_weight)]
-				set needs_save_DSx_settings 1
-			}
-			if { [return_zero_if_blank $data(drink_weight)] > 0 && \
-					[ifexists ::DSx_settings(live_graph_weight) {}] ne $data(drink_weight) } {
-				set ::DSx_settings(live_graph_weight) [round_to_one_digits $data(drink_weight)]
-				set needs_save_DSx_settings 1
-			}
-		}
-		
-#		# TBD THIS IS TO UPDATE THE TEXT WITH THE WEIGHTS AND RATIOS BELOW THE LAST SHOT CHART IN THE MAIN PAGE,
-#		# 	BUT THE TEXT IS NOT BEING UPDATED, UNLIKE IN THE HISTORY VIEWER.
-#		if { [return_zero_if_blank $data(grinder_dose_weight)] > 0 && \
-#				$data(grinder_dose_weight) != $::settings(DSx_bean_weight) } {
-#			set ::settings(DSx_bean_weight) [round_to_one_digits $data(grinder_dose_weight)]
-#		}
-		
-		if { $needs_save_DSx_settings } {
-			::save_DSx_settings
-		}
-		if { $needs_saving == 1 } {
-			::save_settings
-			plugins save_settings DYE
-			
-			::plugins::SDB::modify_shot_file $data(shot_file) new_settings
-			if { $::plugins::SDB::settings(db_persist_desc) == 1 } {
-				set new_settings(file_modification_date) [file mtime $data(shot_file)]
-				::plugins::SDB::update_shot_description $data(clock) new_settings
-			}
-			
-			# OLD (before v1.11), wrongly stored profile changes for next shot made after making the shot but before editing last shot description.
-			#::save_espresso_rating_to_history
-			::plugins::DYE::define_last_shot_desc
-			::plugins::DYE::define_next_shot_desc
-		}
-	
-	} elseif { $data(describe_which_shot) eq "past" } {
-		foreach f $::plugins::DYE::desc_numeric_fields {
-			if { [return_zero_if_blank $data($f)] ne [return_zero_if_blank $src_data($f)] } {
-				set new_settings($f) [return_zero_if_blank $data($f)]
-				set needs_saving 1
-			}			
-		}
-		foreach f $::plugins::DYE::desc_text_fields {
-			if { $data($f) ne $src_data($f) } {
-				set new_settings($f) [string trim $data($f)]
-				set needs_saving 1
-			}
-		}
-		
-		if { $needs_saving } {
-			::plugins::SDB::modify_shot_file $data(shot_file) new_settings
-			if { $::plugins::SDB::settings(db_persist_desc) == 1 } {
-				set new_settings(file_modification_date) [file mtime $data(shot_file)]
-				::plugins::SDB::update_shot_description $data(clock) new_settings
-			}
-		}
-	} elseif { $data(describe_which_shot) eq "next" } {
-#		foreach f {bean_brand bean_type roast_date roast_level bean_notes grinder_model grinder_setting \
-#				other_equipment espresso_notes my_name drinker_name} 		
-		foreach f {bean_brand bean_type roast_date roast_level bean_notes grinder_model grinder_setting \
-				espresso_notes my_name drinker_name} {
-			if { $::plugins::DYE::settings(next_$f) ne $data($f) } {
-				set ::plugins::DYE::settings(next_$f) [string trim $data($f)]
-				set needs_saving 1
-			}			
-		}
-
-		if { $needs_saving == 1 } {
-			set ::plugins::DYE::settings(next_modified) 1
-			::plugins::DYE::define_next_shot_desc
-			plugins save_settings DYE
-		}		
+	if { $data(describe_which_shot) eq "next" } {
+		set ::plugins::DYE::settings(src_next_modified) $copy_src_next_modified 
 	}
-	
-	return 1
 }
 
 # A clone of DSx last_shot_date, but uses settings(espresso_clock) if DSx_settings(live_graph_time) is not
@@ -1872,10 +1726,16 @@ proc ::dui::pages::DYE::formatted_shot_date {} {
 	return "$date $c$b$pm"
 }
 
-# Return 1 if some data has changed in the form.
+# TBR: NO LONGER NEEDED
+# Return 1 if some data has changed in the form, with respect to the data that was there when we originally loaded
+# the shot in the page.
 proc ::dui::pages::DYE::needs_saving { } {
 	variable data
 	variable src_data
+		
+	if { $data(close_action) ne {} } {
+		return 0		
+	}
 	
 	foreach fn $::plugins::DYE::desc_text_fields {
 		if { $data($fn) ne $src_data($fn) } {
@@ -1887,6 +1747,7 @@ proc ::dui::pages::DYE::needs_saving { } {
 			return 1
 		}
 	}
+	
 	return 0
 }
 
@@ -1897,7 +1758,7 @@ proc ::dui::pages::DYE::calc_ey_from_tds_click {} {
 	} else { 
 		set ::plugins::DYE::settings(calc_ey_from_tds) on 
 		::dui::pages::DYE::calc_ey_from_tds
-	}		
+	}
 }
 
 # Calculates the Extraction Yield % to be shown in the Describe Espresso page from the user-entered
@@ -1915,57 +1776,35 @@ proc ::dui::pages::DYE::calc_ey_from_tds  {} {
 	}
 }
 
-proc ::dui::pages::DYE::upload_to_visualizer {} {
+proc ::dui::pages::DYE::edit_dialog {} {
+	dui sound make sound_button_in
+	
+	dui page open_dialog dye_edit_dlg -coords {100 1390} -anchor sw -disable_items 1 -return_callback [namespace current]::process_edit_dialog
+}
+
+proc ::dui::pages::DYE::process_edit_dialog { {action {}} } {
+	if { $action eq "clear" } {
+		clear_shot_data
+	} elseif { $action eq "read_previous" } {
+		read_from previous
+	} elseif { $action eq "read_selected" } {
+		read_from selected
+	} elseif { $action eq "undo" } {
+		undo_changes
+	}
+}
+
+proc ::dui::pages::DYE::visualizer_dialog {} {
 	variable data
-	variable widgets
-	set remark_color [dui aspect get dtext fill -style remark -default orange]
-#	if { $::dui::pages::DYE::data(repository_links) ne {} } {
-#		say [translate "browsing"] $::settings(sound_button_in)
-#		if { [llength $::dui::pages::DYE::data(repository_links)] > 1 } {
-#			web_browser [lindex $::dui::pages::DYE::data(repository_links) 1]
-#		}
-#		return
-#	}
+	dui sound make sound_button_in
 	
-	say "" $::settings(sound_button_in)
-	if { $::android == 1 && [borg networkinfo] eq "none" } {
-		set data(upload_to_visualizer_label) [translate "Failed\rNo wifi"]
-#		set ::plugins::DYE::settings(last_visualizer_result) "[translate {Upload failed}]: [translate {No wifi}]"
-		dui item config $widgets(upload_to_visualizer-lbl) -fill $remark_color 
-		#update
-		after 3000 ::dui::pages::DYE::update_visualizer_button
-		dui sound make button_out
-		return
+	save_description
+	set repo_link {}
+	if { $data(repository_links) ne {} } {
+		set repo_link [lindex $data(repository_links) 1]
 	}
-	
-	# Ensure latest values are in the shot file in case they have changed
-	if { [::dui::pages::DYE::needs_saving] } {
-		set answer [ask_to_save_if_needed]
-		if { $answer eq "cancel" } return
-	}
-		
-	set data(upload_to_visualizer_label) [translate "Uploading..."]
-	dui item config $widgets(upload_to_visualizer-lbl) -fill $remark_color
-	#update
-	
-	set repo_link [::plugins::DYE::upload_to_visualizer_and_save $data(clock)]
-	
-	if { $repo_link eq "" } {
-		set data(upload_to_visualizer_label) [translate "Upload\rfailed"]
-		#update
-		after 3000 ::dui::pages::DYE::update_visualizer_button
-	} else {
-		set data(upload_to_visualizer_label) [translate "Upload\rsuccessful"]
-		if { $data(repository_links) eq "" } { 
-			set data(repository_links) $repo_link
-		} elseif { $data(repository_links) ne $repo_link } {
-			lappend data(repository_links) $repo_link
-		}
-		
-		#update
-		after 3000 ::dui::pages::DYE::update_visualizer_button
-	}
-	dui sound make button_out
+	dui page open_dialog dye_visualizer_dlg -coords {2440 1390} -anchor se -disable_items 1 \
+		-return_callback [namespace current]::process_visualizer_dlg $data(clock) {} $repo_link
 }
 
 proc ::dui::pages::DYE::update_visualizer_button { {check_page 1} } {
@@ -1978,57 +1817,345 @@ proc ::dui::pages::DYE::update_visualizer_button { {check_page 1} } {
 		return
 	}
 
-	if { $data(describe_which_shot) ne "next" && [plugins enabled visualizer_upload] &&
-			$::plugins::visualizer_upload::settings(visualizer_username) ne "" && 
-			$::plugins::visualizer_upload::settings(visualizer_password) ne "" } {
-		dui item config $widgets(upload_to_visualizer-lbl) -fill [dui aspect get {dbutton_label text} fill]
-		dui item show $page upload_to_visualizer*
-				
-		if { $data(repository_links) eq {} } {
-			#dui item config $widgets(upload_to_visualizer_symbol) -text [dui symbol get file-upload]
-			set data(upload_to_visualizer_label) [translate "Upload to\rVisualizer"]
-		} else {
-			set data(upload_to_visualizer_label) [translate "Re-upload to\rVisualizer"]
-		}
-#		else {
-			#dui item config $widgets(upload_to_visualizer_symbol) -text [dui symbol get file-contract]
-#			set $data(upload_to_visualizer_label) [translate "See in\rVisualizer"]
-#		}
-	} else {
-		dui item hide $page "upload_to_visualizer*"
-	}
-}
-
-proc ::dui::pages::DYE::ask_to_save_if_needed {} {
-	if { [needs_saving] == 1 } {
-		set answer [tk_messageBox -message "[translate {You have unsaved changes to the shot description.}]\r\
-			[translate {Do you want to save your changes first?}]" \
-			-type yesnocancel -icon question]
-		if { $answer eq "yes" } { 
-			save_description
-		} 
-		return $answer 
-	} else {
-		return "yes"
-	}
-}
-
-proc ::dui::pages::DYE::page_cancel {} {
-	set answer [ask_to_save_if_needed]
-	if { $answer eq "cancel" } return
+	set data(visualizer_status_label) {}
 	
-	say [translate {cancel}] $::settings(sound_button_in);
-	unload_page
+	if { [plugins available visualizer_upload] } {
+		if { $data(describe_which_shot) eq "next" } {
+			dui item disable $page visualizer_dialog*
+		}
+				
+		if { $data(repository_links) ne {} } {
+			set data(visualizer_status_label) [translate "Uploaded"]
+		} elseif { [plugins enabled visualizer_upload] && $::plugins::visualizer_upload::settings(last_upload_shot) == $data(clock) } {
+			set data(visualizer_status_label) [translate [lrange $::plugins::visualizer_upload::settings(last_upload_result) 0 1]]
+		} else {
+			set data(visualizer_status_label) [translate "Not uploaded"]
+		} 
+	} else {
+		dui item hide $page visualizer_dialog* -current yes -initial yes
+	}
+}
+
+proc ::dui::pages::DYE::process_visualizer_dlg { {repo_link {}} {downloaded_shot {}} } {
+	variable data
+	
+	if { $repo_link ne {} && $data(repository_links) eq {} } {
+		set data(repository_links) [list Visualizer $repo_link]
+	}
+	
+	if { $downloaded_shot ne {} } {
+		foreach f {drink_tds drink_ey espresso_enjoyment bean_weight drink_weight grinder_model grinder_setting 
+				bean_brand bean_type roast_date espresso_notes roast_level bean_notes} {
+			set down_value [dict get $downloaded_shot $f]			
+			if { $f eq "bean_weight" } {
+				set f "grinder_dose_weight"
+			} 
+			
+			if { $down_value ne "null" && $down_value ne {} && $down_value ne $data($f) } {
+				lassign [metadata get $f data_type] data_type
+				if { $data_type eq "number" } {
+					if { $down_value > 0 } {
+						set data($f) [number_in_range $down_value]
+					}
+				}
+				set data($f) $down_value
+			}
+		}
+	}
+	
+	update_visualizer_button
+}
+
+# TBR: NO LONGER NEEDED
+proc ::dui::pages::DYE::ask_to_save_if_needed { {action page_cancel} } {
+	variable data
+	
+	if { [needs_saving] == 1 } {
+		set data(close_action) $action
+		dui page open_dialog dui_confirm_dialog -coords {0.5 0.5} -anchor center -size {1300 450} \
+			-return_callback ::dui::pages::DYE::confirm_save -theme [dui theme get] \
+			"You have unsaved changes to the shot description. Do you want to save your changes first?" \
+			{"Save changes" "Discard changes"} -buttons_y 0.8
+		return 0
+	} else {
+		set data(close_action) {}
+		return 1
+	}
 }
 
 proc ::dui::pages::DYE::page_done {} {
-	say [translate {done}] $::settings(sound_button_in)
-	# BEWARE: If we don't fully qualify this call, code [info args $pname] in stacktrace, as invoked from 
-	#	save_settings, fails.
-	if { ! [save_description] } {
-		return
+	variable data
+	dui sound make sound_button_in
+	
+	# Don't need to save_description here, it is done automatically in dui::pages::DYE::hide. 
+	dui page close_dialog
+}
+
+### DYE EDIT DIALOG PAGE ###########################################################################################
+
+namespace eval ::dui::pages::dye_edit_dlg {
+	variable widgets
+	array set widgets {}
+		
+	variable data
+	array set data {}
+
+	# Actions: Clear shot data, Read from last shot, Read from selected shot, Undo changes
+	proc setup {} {
+		variable data
+		set page [namespace tail [namespace current]]
+		
+		set page_width [dui page width $page 0]
+		set page_height [dui page height $page 0]
+		set splits [dui page split_space 0 $page_height 0.1 0.1 0.1 0.1 0.1]
+		
+		set i 0		
+		set y0 [lindex $splits $i]
+		set y1 [lindex $splits [incr i]]
+		
+		dui add dtext $page 0.5 [expr {int(($y1-$y0)/2)}] -tags title -style menu_dlg_title -text [translate "Choose an edit action:"] 
+		dui add dbutton $page [expr {$page_width-120}] 0 $page_width 120 -tags close_dialog -style menu_dlg_close \
+			-command dui::page::close_dialog
+		dui add canvas_item line $page 0.01 $y1 0.99 $y1 -style menu_dlg_sepline
+		
+		set y0 $y1
+		set y1 [lindex $splits [incr i]]
+		dui add dbutton $page 0.01 $y0 0.99 $y1 -tags clear_data -style menu_dlg_btn \
+			-label [translate "Clear all shot data"] -symbol eraser -command [list dui::page::close_dialog clear]
+		dui add canvas_item line $page 0.01 $y1 0.99 $y1 -style menu_dlg_sepline 
+
+		dui add variable $page 0.5 $y1 -anchor center -justify center -width 0.8 -tags warning_msg -fill red -font_size +3 
+		
+		set y0 $y1
+		set y1 [lindex $splits [incr i]]
+		dui add dbutton $page 0.01 $y0 0.99 $y1 -tags read_last -style menu_dlg_btn \
+			-label [translate "Read from previous shot"] -symbol file-import -command [list dui::page::close_dialog read_previous]
+		dui add canvas_item line $page 0.01 $y1 0.99 $y1 -style menu_dlg_sepline
+
+		set y0 $y1
+		set y1 [lindex $splits [incr i]]
+		dui add dbutton $page 0.01 $y0 0.99 $y1 -tags read_selected -style menu_dlg_btn \
+			-label "[translate {Read from selected shot}]..." -symbol file-import -command [list dui::page::close_dialog read_selected]
+		dui add canvas_item line $page 0.01 $y1 0.99 $y1 -style menu_dlg_sepline
+		
+		set y0 $y1
+		set y1 [lindex $splits [incr i]]
+		dui add dbutton $page 0.01 $y0 0.99 $y1 -tags undo_changes -style menu_dlg_btn \
+			-label [translate "Undo changes"] -symbol undo -command [list dui::page::close_dialog undo]
 	}
-	unload_page
+
+}
+
+### VISUALIZER DIALOG PAGE #########################################################################################
+
+namespace eval ::dui::pages::dye_visualizer_dlg {
+	variable widgets
+	array set widgets {}
+		
+	variable data
+	array set data {
+		shot_clock {}
+		visualizer_id {}
+		repo_link {}
+		upload_status_msg {}
+		download_status_msg {}
+		browse_msg {}
+		warning_msg {}
+		downloaded_shot {}
+	}
+
+	variable qr_img
+	
+	proc setup {} {
+		variable data
+		set page [namespace tail [namespace current]]
+		
+		set page_width [dui page width $page 0]
+		set page_height [dui page height $page 0]
+		set splits [dui page split_space 0 $page_height 0.1 0.1 0.1 0.4 0.1]
+		
+		set i 0		
+		set y0 [lindex $splits $i]
+		set y1 [lindex $splits [incr i]]
+		
+		dui add dtext $page 0.5 [expr {int(($y1-$y0)/2)}] -tags title -style menu_dlg_title -text [translate "Choose a Visualizer action:"] 
+		dui add dbutton $page [expr {$page_width-120}] 0 $page_width 120 -tags close_dialog -style menu_dlg_close
+		dui add canvas_item line $page 0.01 $y1 0.99 $y1 -style menu_dlg_sepline
+		
+		set y0 $y1
+		set y1 [lindex $splits [incr i]]
+		dui add dbutton $page 0.01 $y0 0.99 $y1 -tags upload -style menu_dlg_btn \
+			-label [translate "Upload shot"] -symbol cloud-upload -label1variable upload_status_msg
+		dui add canvas_item line $page 0.01 $y1 0.99 $y1 -style menu_dlg_sepline -tags line_up_down
+
+		dui add variable $page 0.5 $y1 -anchor center -justify center -width 0.8 -tags warning_msg -fill red -font_size +3 
+		
+		set y0 $y1
+		set y1 [lindex $splits [incr i]]
+		dui add dbutton $page 0.01 $y0 0.99 $y1 -tags download -style menu_dlg_btn \
+			-label [translate "Download shot"] -symbol cloud-download -label1variable download_status_msg
+		dui add canvas_item line $page 0.01 $y1 0.99 $y1 -style menu_dlg_sepline
+
+		set y0 $y1
+		set y1 [lindex $splits [incr i]]
+		dui add dbutton $page 0.01 $y0 0.99 $y1 -tags browse -style menu_dlg_btn \
+			-label "[translate {Browse shot}]..." -label_pos {0.25 0.1} -label_anchor w \
+			-symbol chart-line -symbol_pos {0.15 0.1} -symbol_anchor center -symbol_justify center \
+			-label1variable browse_msg -label1_pos {0.1 0.3} -label1_anchor nw -label1_width 300
+				
+		image create photo [namespace current]::qr_img -width [dui::platform::rescale_x 1500] \
+			-height [dui::platform::rescale_y 1500]
+		dui add image $page 0.5 [expr {$y0+100}] {} -tags qr
+		dui item config $page qr -image [namespace current]::qr_img
+		
+		dui add canvas_item line $page 0.01 $y1 0.99 $y1 -style menu_dlg_sepline
+		
+		set y0 $y1
+		set y1 [lindex $splits [incr i]]
+		dui add dbutton $page 0.01 $y0 0.99 $y1 -tags settings -style menu_dlg_btn \
+			-label "[translate {Visualizer settings}]..." -symbol cogs -label1variable settings_msg
+	}
+
+	
+	proc load { page_to_hide page_to_show {shot_clock {}} {visualizer_id {}} {repo_link {}} } {
+		variable data		
+		if { ![plugins available visualizer_upload] } {
+			return 0
+		}
+		
+		set data(shot_clock) $shot_clock
+		if { $visualizer_id eq {} && $repo_link ne {} } {
+			set visualizer_id [file tail $repo_link]
+		} 
+		set data(visualizer_id) $visualizer_id
+
+		if { $repo_link eq {} && $visualizer_id ne {} } {
+			set repo_link [plugins::visualizer_upload::id_to_url $visualizer_id browse]
+		}
+		set data(repo_link) $repo_link
+	
+		set data(upload_status_msg) {}
+		set data(download_status_msg) {}
+		set data(browse_msg) {}
+		set data(settings_msg) {}
+		set data(warning_msg) {}
+		set data(downloaded_shot) {}
+		
+		return 1
+	}
+	
+	proc show { page_to_hide page_to_show } {
+		variable data
+		set page [namespace tail [namespace current]]
+		
+		if { ![plugins enabled visualizer_upload] } {
+			set data(warning_msg) [translate "\"Upload to Visualizer\" extension is not enabled"]
+			dui item config $page settings-lbl -text [translate "Enable Visualizer"]
+			#set data(settings_msg) [translate "Requires app restart"]
+		} elseif { $::android == 1 && [borg networkinfo] eq "none" } {
+			set data(warning_msg) [translate "No wifi, can't access Visualizer"]
+		} elseif { ![::plugins::visualizer_upload::has_credentials] } {
+			set data(warning_msg) [translate "Visualizer username or password is not defined, can't access Visualizer"]
+		} else {
+			dui item config $page settings-lbl -text "[translate {Visualizer settings}]..."
+			set data(settings_msg) {}
+			set data(warning_msg) {}
+		}
+		
+		if { $data(warning_msg) eq {} } {
+			dui item show $page {upload* download* line_up_down}
+			dui item enable_or_disable [expr {$data(shot_clock) ne {} }] $page upload*
+			dui item enable_or_disable [expr {$data(shot_clock) ne {} && $data(repo_link) ne {}}] $page {download* browse*}
+		} else {
+			dui item hide $page {upload* download* line_up_down}
+			dui item enable_or_disable [expr {$data(shot_clock) ne {} && $data(repo_link) ne {}}] $page browse*
+		}
+		
+		if { $data(repo_link) eq {} } {
+			dui item config $page upload-lbl -text [translate "Upload shot"]
+			set data(browse_msg) ""
+		} else {
+			dui item config $page upload-lbl -text [translate "Re-upload shot"]
+			set data(browse_msg) [translate "Scan the QR code or tap here to open the link in the system browser"]
+		}
+		generate_qr $data(repo_link)
+	}
+	
+	proc close_dialog {} {
+		variable data
+		dui page close_dialog $data(repo_link) $data(downloaded_shot)
+	}
+	
+	proc upload {} {
+		variable data
+		set page [namespace tail [namespace current]]
+		if { $data(shot_clock) eq {} } {
+			return
+		}
+		set data(upload_status_msg) "[translate Uploading]..."
+		set new_repo_link [::plugins::DYE::upload_to_visualizer_and_save $data(shot_clock)]
+
+		if { $new_repo_link eq "" } {
+			set data(upload_status_msg) [translate "Failed, see details on settings page"]
+		} else {
+			set data(repo_link) [lindex $new_repo_link 1]
+			set data(visualizer_id) [file tail $data(repo_link)]
+			set data(upload_status_msg) [translate "Successful"]
+			show {} $page
+		}
+		
+	}
+	
+	# See http://www.androwish.org/index.html/file?name=jni/zint/backend_tcl/demo/demo.tcl&ci=b68e63bacab3647f
+	proc generate_qr { repo_link } {
+		if { $repo_link eq {} } {
+			[namespace current]::qr_img blank
+		} else {			
+			zint encode $repo_link [namespace current]::qr_img -barcode QR -scale 2.5
+		}
+	}
+	
+	proc download {} {
+		variable data
+		if { $data(visualizer_id) eq {} } {
+			return
+		}
+		
+		set data(download_status_msg) "[translate Downloading]..."
+		set vis_shot [plugins::visualizer_upload::download $data(visualizer_id)]
+
+		if { [dict size $vis_shot] == 0 } {
+			set data(download_status_msg) [translate "Failed"]
+		} else {
+			set data(download_status_msg) [translate "Successful"]
+		}
+		set data(downloaded_shot) $vis_shot	
+		
+		return $vis_shot
+		
+	}
+	
+	proc browse {} {
+		variable data
+		if { $data(repo_link) ne {} } {
+			web_browser $data(repo_link)
+		}
+	}
+	
+	proc settings {} {
+		variable data
+		
+		if { [plugins enabled visualizer_upload] } {
+			dui page open_dialog visualizer_settings
+		} else {
+			if { [plugins enable visualizer_upload] } {
+				show {} [namespace tail [namespace current]]
+			} else {
+				set data(settings_msg) "Can't enable Visualizer"
+			}
+		}
+	}
+	
 }
 
 ### "FILTER SHOT HISTORY" PAGE #########################################################################################
@@ -2040,8 +2167,6 @@ namespace eval ::dui::pages::DYE_fsh {
 	variable data
 	array set data {
 		page_title "Filter Shot History"
-		previous_page {}
-		callback_cmd {}
 		category1 {profile_tile}
 		categories1_label {Profiles}
 		category2 {beans}
@@ -2199,8 +2324,6 @@ proc ::dui::pages::DYE_fsh::load { page_to_hide page_to_show args } {
 	variable data
 	array set opts $args
 	
-	set data(previous_page) $page_to_hide
-	set data(callback_cmd) [value_or_default opts(-callback_cmd) {}]
 	set data(category1) [value_or_default opts(-category1) profile_title]
 	set data(category2) [value_or_default opts(-category2) bean_desc]
 	set data(page_title) [value_or_default opts(-page_title) [translate "Filter Shot History"]]
@@ -2225,8 +2348,11 @@ proc ::dui::pages::DYE_fsh::show { page_to_hide page_to_show } {
 	set data(enjoyment_from) $data(enjoyment_from) 
 	set data(enjoyment_to) $data(enjoyment_to)
 	
-	dui item show_or_hide [expr {$::settings(skin) eq "DSx" && $data(previous_page) eq "DSx_past"}] $page_to_show \
+	dui item show_or_hide [expr {$::settings(skin) eq "DSx" && [dui page previous] eq "DSx_past"}] $page_to_show \
 		{apply_to_left_side* apply_to_right_side*}
+	
+#	dui item show_or_hide [expr {$::settings(skin) eq "DSx" && $data(previous_page) eq "DSx_past"}] $page_to_show \
+#		{apply_to_left_side* apply_to_right_side*}
 }
 
 proc ::dui::pages::DYE_fsh::categories1_label_dropdown { } {
@@ -2249,9 +2375,9 @@ proc ::dui::pages::DYE_fsh::categories1_label_dropdown { } {
 	}
 	
 	dui say [translate "Select"] button_in
-	dui page load dui_item_selector [namespace current]::data(category1) $items -selected $data(categories1_label) \
+	dui page open_dialog dui_item_selector [namespace current]::data(category1) $items -selected $data(categories1_label) \
 		-values_ids $item_ids -item_type categories -page_title [translate "Select a category"] \
-		-callback_cmd [namespace current]::select_category1_callback 
+		-return_callback [namespace current]::select_category1_callback -theme [dui theme get]
 }
 
 proc ::dui::pages::DYE_fsh::category1_change { new_category } {
@@ -2323,9 +2449,9 @@ proc ::dui::pages::DYE_fsh::categories2_label_dropdown { } {
 	}
 	
 	dui say [translate "Select"] button_in
-	dui page load dui_item_selector [namespace current]::data(category2) $items -selected $data(categories2_label)  \
+	dui page open_dialog dui_item_selector [namespace current]::data(category2) $items -selected $data(categories2_label)  \
 		-values_ids $item_ids -item_type categories -page_title [translate "Select a category"] \
-		-callback_cmd [namespace current]::select_category2_callback
+		-return_callback [namespace current]::select_category2_callback -theme [dui theme get]
 }
 	
 proc ::dui::pages::DYE_fsh::category2_change { new_category } {
@@ -2649,39 +2775,43 @@ proc ::dui::pages::DYE_fsh::page_cancel {} {
 	variable data
 	dui say [translate {save}] button_in
 	
-	if { $data(callback_cmd) ne "" } {
-		uplevel #0 [list $data(callback_cmd) {} {}]
-	} elseif { $data(previous_page) eq "" } {
-		if { $::settings(skin) eq "DSx" } {
-			dui page show DSx_past
-		} else {
-			dui page show DYE
-		}
-	} else {
-		dui page show $data(previous_page)
-	} 	
+	dui page close_dialog {} {}
+#	if { $data(callback_cmd) ne "" } {
+#		uplevel #0 [list $data(callback_cmd) {} {}]
+#	} elseif { $data(previous_page) eq "" } {
+#		if { $::settings(skin) eq "DSx" } {
+#			dui page show DSx_past
+#		} else {
+#			dui page show DYE
+#		}
+#	} else {
+#		dui page show $data(previous_page)
+#	} 	
 }
 
 proc ::dui::pages::DYE_fsh::page_done {} {
 	variable data
 	dui say [translate {save}] button_in
 	
-	if { $data(callback_cmd) ne "" } {
-		#msg "::dui::pages::DYE_fsh::page_done, callback_cmd=$data(callback_cmd)"
-		#msg "::dui::pages::DYE_fsh::page_done, matched_clocks=$data(matched_clocks), selected_clock=[dui item listbox_get_selection DYE_fsh shots $data(matched_clocks)]"				
-		uplevel #0 [list $data(callback_cmd) [dui item listbox_get_selection DYE_fsh shots $data(matched_clocks)] $data(matched_clocks)]
-		return
-	} elseif { $data(previous_page) eq "" } {
-		if { $::settings(skin) eq "DSx" } {
-			dui page show DSx_past
-		} else {
-			dui page show DYE
-		}
-	} else {
-		dui page show $data(previous_page)
-	} 
+	set previous_page [dui page previous]
+	dui page close_dialog [dui item listbox_get_selection DYE_fsh shots $data(matched_clocks)] $data(matched_clocks)
 	
-	if { $::settings(skin) eq "DSx" && $data(previous_page) eq "DSx_past" } {
+#	if { $data(callback_cmd) ne "" } {
+#		#msg "::dui::pages::DYE_fsh::page_done, callback_cmd=$data(callback_cmd)"
+#		#msg "::dui::pages::DYE_fsh::page_done, matched_clocks=$data(matched_clocks), selected_clock=[dui item listbox_get_selection DYE_fsh shots $data(matched_clocks)]"				
+#		uplevel #0 [list $data(callback_cmd) [dui item listbox_get_selection DYE_fsh shots $data(matched_clocks)] $data(matched_clocks)]
+#		return
+#	} elseif { $data(previous_page) eq "" } {
+#		if { $::settings(skin) eq "DSx" } {
+#			dui page show DSx_past
+#		} else {
+#			dui page show DYE
+#		}
+#	} else {
+#		dui page show $data(previous_page)
+#	} 
+	
+	if { $::settings(skin) eq "DSx" && $previous_page eq "DSx_past" } {
 		if {$data(left_filter_status) eq "on"} {
 			fill_DSx_past_shots_listbox
 		}
@@ -2769,8 +2899,6 @@ namespace eval ::dui::pages::DYE_settings {
 	variable data
 	array set data {
 		page_name "::dui::pages::DYE_settings"
-		previous_page {}
-		callback_cmd {}
 		db_status_msg {}
 		update_plugin_state {-}
 		latest_plugin_version {}
@@ -2848,11 +2976,7 @@ proc ::dui::pages::DYE_settings::setup {} {
 # Normally not used as this is not invoked directly but by the DSx settings pages carousel, but still kept for 
 # consistency or for launching the page from a menu.
 proc ::dui::pages::DYE_settings::load { page_to_hide page_to_show args } {
-	variable data
-	array set opts $args
-	
-	set data(previous_page) $page_to_hide
-	set data(callback_cmd) [value_or_default opts(-callback_cmd) ""]
+	return 1
 }
 
 # Added to context actions, so invoked automatically whenever the page is loaded
@@ -3017,16 +3141,8 @@ proc ::dui::pages::DYE_settings::set_default_shot_desc_font_color {} {
 #}
 
 proc ::dui::pages::DYE_settings::page_done {} {
-	variable data
 	dui say [translate {Done}] button_in
-	
-	if { $data(callback_cmd) ne "" } {
-		uplevel #0 $data(callback_cmd)
-	} elseif { $data(previous_page) eq "" } {
-		dui page load extensions
-	} else {
-		dui page show $data(previous_page)
-	} 
+	dui page close_dialog
 }
 
 #### DYE v3  #########################################################################################
@@ -3036,11 +3152,11 @@ namespace eval ::dui::pages::DYE_v3 {
 	array set widgets {}
 	
 	variable data
+	# which_shot can be "next", "last" or "past"
 	array set data {
 		previous_page {}
 		callback_cmd {}
 		page_title {translate {Describe your espresso}}
-		# next / last / past
 		which_shot {current}
 		clock 0		
 		shot_file {}
@@ -3564,7 +3680,7 @@ proc ::dui::pages::DYE_v3::load { page_to_hide page_to_show args } {
 	if { $which_shot eq "next" } {
 		set data(which_shot) next
 		set data(clock) {}		
-		set data(shot_file) {}
+#		set data(shot_file) {}
 		$widgets(edited_graph) configure -height 0
 		if { $page_to_show eq "DYE_v3" } {
 			set page_to_show DYE_v3_next
@@ -3573,7 +3689,7 @@ proc ::dui::pages::DYE_v3::load { page_to_hide page_to_show args } {
 		if { $which_shot in {last current} } {
 			set data(which_shot) "last"
 			set data(clock) $::settings(espresso_clock)
-			set data(shot_file) [::plugins::SDB::get_shot_file_path $data(clock)]
+			set data(path) [::plugins::SDB::get_shot_file_path $data(clock)]
 			if { $page_to_show eq "DYE_v3_next" } {
 				set page_to_show DYE_v3
 			}		
@@ -3584,10 +3700,10 @@ proc ::dui::pages::DYE_v3::load { page_to_hide page_to_show args } {
 				set data(which_shot) past
 			}
 			set data(clock) $which_shot
-			set data(shot_file) [::plugins::SDB::get_shot_file_path $data(clock)]
+			set data(path) [::plugins::SDB::get_shot_file_path $data(clock)]
 		} else {
-			set data(shot_file) [::plugins::SDB::get_shot_file_path $which_shot]
-			if { $data(shot_file) eq "" } {
+			set data(path) [::plugins::SDB::get_shot_file_path $which_shot]
+			if { $data(path) eq "" } {
 				msg -ERROR [namespace current] "'which_shot' value '$which_shot' is not valid"
 				return 0
 			}
@@ -3619,14 +3735,14 @@ proc ::dui::pages::DYE_v3::load { page_to_hide page_to_show args } {
 		}
 	}
 	
-	if { $data(shot_file) eq "" } {
+	if { $data(path) eq "" } {
 		if { $data(which_shot) ne "next" } {
 			msg -ERROR [namespace current] "shot file '$which_shot' not found"
 			return 0
 		}
 		set shot_list [::plugins::DYE::load_next_shot]
 	} else {
-		set shot_list [::plugins::SDB::load_shot $data(shot_file)]
+		set shot_list [::plugins::SDB::load_shot $data(path)]
 	}
 	#calc_derived_shot_values
 	
@@ -4498,9 +4614,9 @@ proc ::dui::pages::DYE_v3::select_shot {} {
 	save_description
 	
 	array set shots [::plugins::SDB::shots "clock shot_desc" 1 {} 500]
-	dui page load dui_item_selector {} $shots(shot_desc) -values_ids $shots(clock) \
-		-page_title [translate "Select the shot to describe"] \
-		-callback_cmd [namespace current]::select_shot_callback -listbox_width 2300
+	dui page open_dialog dui_item_selector {} $shots(shot_desc) -values_ids $shots(clock) \
+		-page_title [translate "Select the shot to describe"] -theme [dui theme get] \
+		-return_callback [namespace current]::select_shot_callback -listbox_width 2300
 }
 
 proc ::dui::pages::DYE_v3::select_shot_callback { shot_desc shot_id args } {
@@ -4592,10 +4708,10 @@ proc ::dui::pages::DYE_v3::save_description {} {
 			::plugins::DYE::define_last_shot_desc
 		}
 		
-		::plugins::SDB::modify_shot_file $data(shot_file) changes
+		::plugins::SDB::modify_shot_file $data(path) changes
 		
 		if { $::plugins::SDB::settings(db_persist_desc) == 1 } {
-			set changes(file_modification_date) [file mtime $data(shot_file)]
+			set changes(file_modification_date) [file mtime $data(path)]
 			::plugins::SDB::update_shot_description $data(clock) changes
 		}
 	}

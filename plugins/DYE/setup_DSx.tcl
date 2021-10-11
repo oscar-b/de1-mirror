@@ -16,6 +16,12 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		page.bg_img {}
 		page.bg_color $::DSx_settings(bg_colour)
 		
+		dialog_page.bg_shape round_outline
+		dialog_page.bg_color $::DSx_settings(bg_colour)
+		dialog_page.fill $::DSx_settings(bg_colour)
+		dialog_page.outline white
+		dialog_page.width 1
+		
 		font.font_family "$::DSx_settings(font_name)"
 		font.font_size $default_font_size
 		
@@ -85,8 +91,8 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		dbutton_label.font_family.insight_ok "$::DSx_settings(font_name)"
 		dbutton_label.font_size.insight_ok 19
 		
-		dclicker.fill $::DSx_settings(font_colour)
-		dclicker.disabledfill $disabled_colour
+		dclicker.fill {}
+		dclicker.disabledfill {}
 		dclicker_label.pos {0.5 0.5}
 		dclicker_label.font_size 16
 		dclicker_label.fill $::DSx_settings(font_colour)
@@ -98,7 +104,9 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		entry.disabledbackground $disabled_colour
 		entry.width 2
 		entry.foreground $::DSx_settings(font_colour)
+		entry.disabledforeground black
 		entry.font_size $default_font_size
+		entry.insertbackground orange
 		 
 		multiline_entry.relief sunken
 		multiline_entry.foreground $::DSx_settings(font_colour)
@@ -108,6 +116,8 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		multiline_entry.font_size $default_font_size
 		multiline_entry.width 15
 		multiline_entry.height 5
+		multiline_entry.insertbackground orange
+		multiline_entry.wrap word
 	
 		dcombobox.relief sunken
 		dcombobox.bg $::DSx_settings(bg_colour)
@@ -211,6 +221,8 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		text.font_size $default_font_size
 		text.relief flat
 		text.highlightthickness 1
+		text.insertbackground orange
+		text.wrap word
 	}]
 	
 	# dui_number_editor page styles
@@ -239,6 +251,51 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		dbutton_label.font_size.dne_pad_button 24 
 		dbutton_label.anchor.dne_pad_button center
 	}
+	
+	# DUI confirm dialog styles
+	dui aspect set -theme DSx {
+		dbutton.shape.dui_confirm_button outline
+		dbutton.bheight.dui_confirm_button 100
+		dbutton.width.dui_confirm_button 1
+		dbutton.arc_offset.dui_confirm_button 20
+	}
+
+	# Menu dialogs
+	dui aspect set -theme DSx [subst {
+		dtext.font_size.menu_dlg_title +1
+		dtext.anchor.menu_dlg_title center
+		dtext.justify.menu_dlg_title center
+		
+		dbutton.shape.menu_dlg_close rect 
+		dbutton.fill.menu_dlg_close {} 
+		dbutton.symbol.menu_dlg_close times
+		dbutton_symbol.pos.menu_dlg_close {0.5 0.5}
+		dbutton_symbol.anchor.menu_dlg_close center
+		dbutton_symbol.justify.menu_dlg_close center
+		dbutton_symbol.fill.menu_dlg_close white
+		
+		dbutton.shape.menu_dlg_btn rect
+		dbutton.fill.menu_dlg_btn {}
+		dbutton.disabledfill.menu_dlg_btn {}
+		dbutton_label.pos.menu_dlg_btn {0.3 0.4} 
+		dbutton_label.anchor.menu_dlg_btn w
+		dbutton_label.fill.menu_dlg_btn $::DSx_settings(font_colour)
+		dbutton_label.disabledfill.menu_dlg_btn $disabled_colour
+		
+		dbutton_label1.pos.menu_dlg_btn {0.3 0.78} 
+		dbutton_label1.anchor.menu_dlg_btn w
+		dbutton_label1.fill.menu_dlg_btn #bbb
+		dbutton_label1.disabledfill.menu_dlg_btn $disabled_colour
+		dbutton_label1.font_size.menu_dlg_btn -3
+		
+		dbutton_symbol.pos.menu_dlg_btn {0.18 0.5} 
+		dbutton_symbol.anchor.menu_dlg_btn center
+		dbutton_symbol.fill.menu_dlg_btn white
+		dbutton_symbol.disabledfill.menu_dlg_btn $disabled_colour
+		
+		line.fill.menu_dlg_sepline #ddd
+		line.width.menu_dlg_sepline 1 
+	}]
 	
 	# History Viewer styles
 	set smooth $::settings(live_graph_smoothing_technique)

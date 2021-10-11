@@ -29,13 +29,13 @@ proc scale_enable_lcd {} {
 proc scale_disable_lcd {} {
 	::bt::msg -NOTICE scale_disable_lcd
 	if {$::settings(scale_type) == "atomaxskale"} {
-		set do_this 0
+		set do_this 1
 		if {$do_this == 1} {
 			skale_disable_lcd
 		}
 	} elseif {$::settings(scale_type) == "decentscale"} {
 		
-		set do_this 0
+		set do_this 1
 		if {$do_this == 1} {
 			# disabled the LCD off for Decent Scale, so that we don't give false impression tha the scale is off
 			# ideally in future firmware we can find out if they are on usb power, and disable LEDs if they are
@@ -560,17 +560,29 @@ proc decent_scale_calc_xor4 {cmdtype cmdddata1 cmdddata2} {
 	return $xor
 }
 
-proc decent_scale_make_command {cmdtype cmdddata {cmddata2 {}} } {
+proc decent_scale_calc_xor8 {cmdtype cmdddata1 cmdddata2 cmdddata3} {
+	set xor [format %02X [expr {0x03 ^ $cmdtype ^ $cmdddata1 ^ $cmdddata2 ^ $cmdddata3 ^ 0x00}]]
+	::bt::msg -DEBUG "decent_scale_calc_xor4 for '$cmdtype' '$cmdddata1' '$cmdddata2' '$cmdddata3' is '$xor'"
+	return $xor
+}
+
+proc decent_scale_make_command {cmdtype cmdddata {cmddata2 {}} {cmddata3 {}} } {
 	::bt::msg -DEBUG "decent_scale_make_command $cmdtype $cmdddata $cmddata2"
 	if {$cmddata2 == ""} {
+		# 1 command
 		::bt::msg -DEBUG "1 part decent scale command"
 		set hex [subst {03${cmdtype}${cmdddata}000000[decent_scale_calc_xor "0x$cmdtype" "0x$cmdddata"]}]
 		#set hex2 [subst {03${cmdtype}${cmdddata}000000[decent_scale_calc_xor4 "0x$cmdtype" "0x$cmdddata" "0x00"]}]
-	} else {
+	} elseif {$cmddata3 == ""} {
+		# 2 commands
 		::bt::msg -DEBUG "2 part decent scale command"
 		set hex [subst {03${cmdtype}${cmdddata}${cmddata2}0000[decent_scale_calc_xor4 "0x$cmdtype" "0x$cmdddata" "0x$cmddata2"]}]
+	} else {
+		# 3 commands
+		::bt::msg -DEBUG "3 part decent scale command"
+		set hex [subst {03${cmdtype}${cmdddata}${cmddata2}${cmddata3}00[decent_scale_calc_xor8 "0x$cmdtype" "0x$cmdddata" "0x$cmddata2" "0x$cmddata3"]}]
 	}
-	::bt::msg -DEBUG "hex is '$hex' for '$cmdtype' '$cmdddata' '$cmddata2'"
+	::bt::msg -DEBUG "hex is '$hex' for '$cmdtype' '$cmdddata' '$cmddata2' '$cmddata3'"
 	return [binary decode hex $hex]
 }
 
@@ -610,16 +622,23 @@ proc decentscale_enable_notifications {} {
 
 proc decentscale_enable_lcd {} {
 
-	if {$::de1(scale_device_handle) == 0} {
+	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "decentscale"} {
 		return
 	}
-	set screenon [decent_scale_make_command 0A 01 01]
+
+	if {$::settings(enable_fluid_ounces) != 1} {
+		# grams on display
+		set screenon [decent_scale_make_command 0A 01 01 00]
+	} else {
+		# ounces on display
+		set screenon [decent_scale_make_command 0A 01 01 01]
+	}
 	::bt::msg -DEBUG "decent scale screen on: '[::logging::format_asc_bin $screenon]'"
 	userdata_append "decentscale : enable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $screenon] 0
 }
 
 proc decentscale_disable_lcd {} {
-	if {$::de1(scale_device_handle) == 0} {
+	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "decentscale"} {
 		return
 	}
 	set screenoff [decent_scale_make_command 0A 00 00]
@@ -633,7 +652,7 @@ proc decentscale_disable_lcd {} {
 }
 
 proc decentscale_timer_start {} {
-	if {$::de1(scale_device_handle) == 0} {
+	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "decentscale"} {
 		::bt::msg -DEBUG "decentscale_timer_start - no scale_device_handle"
 		return
 	}
@@ -660,7 +679,7 @@ proc decentscale_timer_start {} {
 proc decentscale_timer_stop {} {
 
 
-	if {$::de1(scale_device_handle) == 0} {
+	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "decentscale"} {
 		return
 	}
 
@@ -687,7 +706,7 @@ proc decentscale_timer_stop {} {
 
 proc decentscale_timer_reset {} {
 
-	if {$::de1(scale_device_handle) == 0} {
+	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "decentscale"} {
 		return
 	}
 
@@ -767,14 +786,6 @@ proc close_all_ble_and_exit {} {
 
 	close_misc_bluetooth_handles
 
-	catch {
-		if {$::settings(ble_unpair_at_exit) == 1} {
-			#ble unpair $::de1(de1_address)
-			#ble unpair $::settings(bluetooth_address)
-		}
-	}
-
-	#after 2000 exit
 	::bt::msg -DEBUG "close_all_ble_and_exit, at exit: [ble info]"
 	foreach h [ble info] {
 		::bt::msg -INFO "Closing this open BLE handle: [ble info $h]"
@@ -1162,28 +1173,26 @@ proc ble_connect_to_scale {} {
 
 }
 
-proc append_to_scale_bluetooth_list {address name type} {
-	::bt::msg -NOTICE append_to_scale_bluetooth_list
+proc append_to_peripheral_list {address name connectiontype devicetype devicefamily} {
+	::bt::msg -NOTICE append_to_peripheral_list
 
-	set ::scale_types($address) $type
-
-	foreach { entry } $::scale_bluetooth_list {
+	foreach { entry } $::peripheral_device_list {
 		if { [dict get $entry address] eq $address} {
 			return
 		}
 	}
 
 	if { $name == "" } {
-		set name $type
+		set name $devicefamily
 	}
 
-	set newlist $::scale_bluetooth_list
-	lappend newlist [dict create address $address name $name type $type]
+	set newlist $::peripheral_device_list
+	lappend newlist [dict create address $address name $name connectiontype $connectiontype devicetype $devicetype devicefamily $devicefamily]
 
-	::bt::msg -INFO "Scan found recognized scale at: $address ($type)"
-	set ::scale_bluetooth_list $newlist
+	::bt::msg -INFO "Scan found $connectiontype peripheral: $address ($devicetype:$devicefamily)"
+	set ::peripheral_device_list $newlist
 	catch {
-		fill_ble_scale_listbox
+		fill_peripheral_listbox
 	}
 }
 
@@ -1307,7 +1316,7 @@ proc de1_ble_handler { event data } {
 						}
 					}
 				} elseif {[string first Skale $name] == 0} {
-					append_to_scale_bluetooth_list $address $name "atomaxskale"
+					append_to_peripheral_list $address $name "ble" "scale" "atomaxskale"
 
 					if {$address == $::settings(scale_bluetooth_address)} {
 						if {$::currently_connecting_scale_handle == 0} {
@@ -1317,7 +1326,7 @@ proc de1_ble_handler { event data } {
 					}
 
 				} elseif {[string first "Decent Scale" $name] == 0} {
-					append_to_scale_bluetooth_list $address $name "decentscale"
+					append_to_peripheral_list $address $name "ble" "scale" "decentscale"
 
 					if {$address == $::settings(scale_bluetooth_address)} {
 						if {$::currently_connecting_scale_handle == 0} {
@@ -1326,7 +1335,7 @@ proc de1_ble_handler { event data } {
 						}
 					}
 				} elseif {[string first "FELICITA" $name] == 0} {
-					append_to_scale_bluetooth_list $address $name "felicita"
+					append_to_peripheral_list $address $name "ble" "scale" "felicita"
 
 					if {$address == $::settings(scale_bluetooth_address)} {
 						if {$::currently_connecting_scale_handle == 0} {
@@ -1335,7 +1344,7 @@ proc de1_ble_handler { event data } {
 						}
 					}
  				} elseif {[string first "HIROIA JIMMY" $name] == 0} {
-					append_to_scale_bluetooth_list $address $name "hiroiajimmy"
+					append_to_peripheral_list $address $name "ble" "scale" "hiroiajimmy"
 
 					if {$address == $::settings(scale_bluetooth_address)} {
 						if {$::currently_connecting_scale_handle == 0} {
@@ -1350,7 +1359,7 @@ proc de1_ble_handler { event data } {
 					if { [string first "PROCH" $name] != -1 } {
 						set ::settings(force_acaia_heartbeat) 1
 					}
- 					append_to_scale_bluetooth_list $address $name "acaiascale"
+					append_to_peripheral_list $address $name "ble" "scale" "acaiascale"
 
 					if {$address == $::settings(scale_bluetooth_address)} {
 						if {$::currently_connecting_scale_handle == 0} {
@@ -1401,7 +1410,6 @@ proc de1_ble_handler { event data } {
 
 						::device::scale::event::apply::on_disconnect_callbacks $event_dict
 
-
 						# john 1-11-19 automatic reconnection attempts eventually kill the bluetooth stack on android 5.1
 						# john might want to make this happen automatically on Android 8, though. For now, it's a setting, which might
 						# eventually get auto-set as per the current Android version, if we can trust that to give us a reliable BLE stack.
@@ -1431,10 +1439,6 @@ proc de1_ble_handler { event data } {
 							ble_connect_to_de1
 						}
 
-						#if {$::de1(scale_device_handle) == 0 && $::settings(scale_bluetooth_address) != "" && $::currently_connecting_scale_handle == 0} {
-							#userdata_append "connect to scale" ble_connect_to_scale
-							#ble_connect_to_scale
-						#}
 					}
 					set ::scanning 0
 				} elseif {$state eq "discovery"} {
@@ -1469,12 +1473,7 @@ proc de1_ble_handler { event data } {
 							stop_scanner
 						}
 
-
 					} elseif {$::de1(scale_device_handle) == 0 && $address == $::settings(scale_bluetooth_address)} {
-
-
-						#append_to_scale_bluetooth_list $address [ifexists ::scale_types($address)]
-						#append_to_scale_bluetooth_list $address $::settings(scale_type)
 
 						set ::de1(wrote) 0
 						set ::de1(scale_device_handle) $handle
@@ -1490,9 +1489,8 @@ proc de1_ble_handler { event data } {
 							set ::settings(scale_type) "atomaxskale"
 						}
 
-						#set ::de1(scale_type) [ifexists ::scale_types($address)]
 						if {$::settings(scale_type) == "decentscale"} {
-							append_to_scale_bluetooth_list $address $::settings(scale_bluetooth_name) "decentscale"
+							append_to_peripheral_list $address $::settings(scale_bluetooth_name) "ble" "scale" "decentscale"
 							decentscale_enable_lcd
 							after 100 decentscale_enable_lcd
 							after 200 decentscale_enable_notifications
@@ -1502,20 +1500,26 @@ proc de1_ble_handler { event data } {
 							after 400 decentscale_enable_lcd
 
 						} elseif {$::settings(scale_type) == "atomaxskale"} {
-							append_to_scale_bluetooth_list $address $::settings(scale_bluetooth_name) "atomaxskale"
+							append_to_peripheral_list $address $::settings(scale_bluetooth_name) "ble" "scale" "atomaxskale"
 							#set ::de1(scale_type) "atomaxskale"
+
+							# atomax Bluetooth has a bug where battery level is always reported as 100%, so no point
+							# in fetching it.  Setting it to as-if-usb-powered because that's how most people use it.
+							set ::de1(scale_battery_level) 100
+							set ::de1(scale_usb_powered) 1
+
 							skale_enable_lcd
 							after 1000 skale_enable_weight_notifications
 							after 2000 skale_enable_button_notifications
 							after 3000 skale_enable_lcd
 						} elseif {$::settings(scale_type) == "felicita"} {
-							append_to_scale_bluetooth_list $address $::settings(scale_bluetooth_name) "felicita"
+							append_to_peripheral_list $address $::settings(scale_bluetooth_name) "ble" "scale" "felicita"
 							after 2000 felicita_enable_weight_notifications
 						} elseif {$::settings(scale_type) == "hiroiajimmy"} {
-							append_to_scale_bluetooth_list $address $::settings(scale_bluetooth_name) "hiroiajimmy"
+							append_to_peripheral_list $address $::settings(scale_bluetooth_name) "ble" "scale" "hiroiajimmy"
 							after 200 hiroia_enable_weight_notifications
 						} elseif {$::settings(scale_type) == "acaiascale"} {
-							append_to_scale_bluetooth_list $address $::settings(scale_bluetooth_name) "acaiascale"
+							append_to_peripheral_list $address $::settings(scale_bluetooth_name) "ble" "scale" "acaiascale"
 							acaia_send_ident
 							after 500 acaia_send_config
 							after 1000 acaia_enable_weight_notifications
@@ -1552,26 +1556,10 @@ proc de1_ble_handler { event data } {
 			}
 
 			characteristic {
-				#.t insert end "${event}: ${data}\n"
-				#if {[string first A001 $data] != -1} {
-				#}
-				#if {[string first 83 $data] != -1} {
-				#}
-
 				if {$state eq "discovery"} {
 					# save the mapping because we now need it for Android 7
 					set ::cinstance($cuuid) $cinstance
 					set ::sinstance($suuid) $sinstance
-
-
-					#ble_connect_to_de1
-					# && ($properties & 0x10)
-					# later turn on notifications
-
-					# john don't enable all notifications
-					#set cmds [ble userdata $handle]
-					#lappend cmds [list ble enable $handle $suuid $sinstance $cuuid $cinstance]
-					#ble userdata $handle $cmds
 				} elseif {$state eq "connected"} {
 
 					if {$access eq "r" || $access eq "c"} {
@@ -1579,13 +1567,7 @@ proc de1_ble_handler { event data } {
 							set ::de1(wrote) 0
 							run_next_userdata_cmd
 						}
-							#set ::de1(wrote) 0
-							#run_next_userdata_cmd
 
-						# change notification or read request
-						#de1_ble_new_value $cuuid $value
-						# change notification or read request
-						#de1_ble_new_value $cuuid $value
 						if {$suuid eq $::de1(suuid) \
 							&& [info exists ::de1_cuuids_to_command_names($cuuid)]} {
 							eval set command_name $::de1_cuuids_to_command_names($cuuid)
@@ -1596,8 +1578,6 @@ proc de1_ble_handler { event data } {
 						if {$cuuid eq $::de1(cuuid_0D)} {
 							set ::de1(last_ping) [clock seconds]
 							::de1::state::update::from_shotvalue $value $event_time
-							#set ::de1(wrote) 0
-							#run_next_userdata_cmd
 							set do_this 0
 							if {$do_this == 1} {
 								# this tries to handle bad write situations, but it might have side effects if it is not working correctly.
@@ -1669,7 +1649,6 @@ proc de1_ble_handler { event data } {
 								}
 
 							} elseif {$mmr_id == "803834"} {
-								#parse_binary_mmr_read_int $value arr2
 
 								::bt::msg -INFO "MMR read: heater voltage: '[ifexists arr2(Data0)]' len=[ifexists arr(Len)]"
 								set ::settings(heater_voltage) [ifexists arr2(Data0)]
@@ -1689,13 +1668,11 @@ proc de1_ble_handler { event data } {
 									::bt::msg -INFO "MMR read: espresso_warmup_timeout2: '[ifexists arr2(Data1)]'"
 									set ::settings(espresso_warmup_timeout) [ifexists arr2(Data1)]
 
-									#mmr_read "hot_water_idle_temp" "803818" "00"
 									mmr_read "phase_1_flow_rate" "803810" "02"
 								}
 
 
 							} elseif {$mmr_id == "800008"} {
-								#parse_binary_mmr_read_int $value arr2
 
 								if {[ifexists arr(Len)] == 12} {
 									# it's possibly to read all 3 MMR characteristics at once
@@ -1755,7 +1732,6 @@ proc de1_ble_handler { event data } {
 							run_next_userdata_cmd
 
 						} elseif {$cuuid eq $::de1(cuuid_12)} {
-							#set ::de1(last_ping) [clock seconds]
 							calibration_ble_received $value
 						} elseif {$cuuid eq $::de1(cuuid_11)} {
 							set ::de1(last_ping) [clock seconds]
@@ -1766,7 +1742,6 @@ proc de1_ble_handler { event data } {
 							set ::de1(water_level) $mm
 
 						} elseif {$cuuid eq $::de1(cuuid_09)} {
-							#set ::de1(last_ping) [clock seconds]
 							parse_map_request $value arr2
 							#
 							# TODO: These messages need clarification
@@ -1775,10 +1750,8 @@ proc de1_ble_handler { event data } {
 							if {$::de1(currently_erasing_firmware) == 1 && [ifexists arr2(FWToErase)] == 0} {
 								::bt::msg -NOTICE "BLE recv: finished erasing fw '[ifexists arr2(FWToMap)]'"
 								set ::de1(currently_erasing_firmware) 0
-								#write_firmware_now
 							} elseif {$::de1(currently_erasing_firmware) == 1 && [ifexists arr2(FWToErase)] == 1} {
 								::bt::msg -NOTICE "BLE recv: currently erasing fw '[ifexists arr2(FWToMap)]'"
-								#after 1000 read_fw_erase_progress
 							} elseif {$::de1(currently_erasing_firmware) == 0 && [ifexists arr2(FWToErase)] == 0} {
 								::bt::msg -ERROR "BLE firmware find error BLE recv: [array get arr2] '$value_for_log'"
 
@@ -1796,9 +1769,6 @@ proc de1_ble_handler { event data } {
 							set ::de1(last_ping) [clock seconds]
 							parse_binary_hotwater_desc $value arr2
 							::bt::msg -INFO "hotwater data received: [array get arr2] ($data_for_log)"
-
-							#update_de1_substate $value
-
 						} elseif {$cuuid eq $::de1(cuuid_0C)} {
 							set ::de1(last_ping) [clock seconds]
 							parse_binary_shot_desc $value arr2
@@ -1815,15 +1785,6 @@ proc de1_ble_handler { event data } {
 							set ::de1(last_ping) [clock seconds]
 							update_de1_state $value
 
-							#if {[info exists ::globals(if_in_sleep_move_to_idle)] == 1} {
-							#	unset ::globals(if_in_sleep_move_to_idle)
-							#	if {$::de1_num_state($::de1(state)) == "Sleep"} {
-									# when making a new connection to the espresso machine, if the machine is currently asleep, then take it out of sleep
-									# but only do this check once, right after connection establisment
-							#		start_idle
-							#	}
-							#}
-							#update_de1_substate $value
 							set ::de1(wrote) 0
 							run_next_userdata_cmd
 
@@ -1831,8 +1792,6 @@ proc de1_ble_handler { event data } {
 							# decent scale
 							#::bt::msg -INFO "Decentscale writeback received"
 							parse_decent_scale_recv $value vals
-
-							#set sensorweight [expr {$t1 / 10.0}]
 
 						} elseif {$cuuid eq $::de1(cuuid_skale_EF81)} {
 							# Atomax scale
@@ -1868,6 +1827,17 @@ proc de1_ble_handler { event data } {
 										after 500 decentscale_timer_start
 									}
 								} 
+							} elseif {[ifexists weightarray(command)] == 0x0A} {
+								::bt::msg -INFO "decentscale LED callback recv: [array get weightarray]"								
+								set ::de1(scale_battery_level) [ifexists weightarray(data5)]
+								if {$::de1(scale_battery_level) > 100} {
+									set ::de1(scale_battery_level) 100
+									set ::de1(scale_usb_powered) 1
+								}
+
+								::bt::msg -INFO "decentscale battery: $::de1(scale_battery_level)"								
+								::bt::msg -INFO "decentscale usb powered: $::de1(scale_usb_powered)"								
+
 							} elseif {[info exists weightarray(weight)] == 1} {
 								set sensorweight [expr {$weightarray(weight) / 10.0}]
 								::device::scale::process_weight_update $sensorweight $event_time
@@ -1911,8 +1881,6 @@ proc de1_ble_handler { event data } {
 							    "[::logging::short_ble_uuid $cuuid]: $value_for_log"
 						}
 
-						#set ::de1(wrote) 0
-
 					} elseif {$access eq "w"} {
 						set ::de1(wrote) 0
 						run_next_userdata_cmd
@@ -1932,10 +1900,8 @@ proc de1_ble_handler { event data } {
 							parse_binary_water_level $value arr2
 							::bt::msg -INFO "ACK water level write: [array get arr2] ($data_for_log)"
 						} elseif {$cuuid eq $::de1(cuuid_decentscale_writeback)} {
-							#parse_binary_water_level $value arr2
 							::bt::msg -INFO "ACK decentscale write back: '$value_for_log'"
 						} elseif {$cuuid eq $::de1(cuuid_decentscale_write)} {
-							#parse_binary_water_level $value arr2
 							::bt::msg -INFO "ACK decentscale write: '$value_for_log'"
 						} elseif {$cuuid eq $::de1(cuuid_skale_EF80)} {
 							set tare [binary decode hex "10"]
@@ -1970,8 +1936,6 @@ proc de1_ble_handler { event data } {
 									::bt::msg -INFO "ACK state change written to DE1: '[array get arr]'"
 								} elseif {$cuuid eq $::de1(cuuid_06)} {
 									if {$::de1(currently_erasing_firmware) == 1 && $::de1(currently_updating_firmware) == 0} {
-										# erase ack received
-										#set ::de1(currently_erasing_firmware) 0
 										::bt::msg -INFO "firmware erase write ack recved: [string length $value] bytes: $value : [array get arr2]"
 									} elseif {$::de1(currently_erasing_firmware) == 0 && $::de1(currently_updating_firmware) == 1} {
 
@@ -1983,7 +1947,6 @@ proc de1_ble_handler { event data } {
 									}
 								} elseif {$cuuid eq $::de1(cuuid_09) && $::de1(currently_erasing_firmware) == 1} {
 									::bt::msg -INFO "fw request to erase sent"
-									#write_firmware_now
 								} else {
 								    ::bt::msg -INFO "ACK wrote to" \
 									    [::logging::short_ble_uuid $cuuid] \
@@ -2000,26 +1963,14 @@ proc de1_ble_handler { event data } {
 							}
 						}
 
-						#set ::de1(wrote) 0
-
-						# change notification or read request
-						#de1_ble_new_value $cuuid $value
 
 					} else {
 						::bt::msg -ERROR "weird characteristic received: $data_for_log"
 					}
 
-					#run_next_userdata_cmd
-					#run_next_userdata_cmd
 				}
 			}
 			service {
-
-				#if {$suuid == "0000180A-0000-1000-8000-00805F9B34FB"} {
-				#	set ::scale_types($address) "atomaxskale"
-				#} elseif {$suuid == "83CDC3D4-3BA2-13FC-CC5E-106C351A9352"} {
-				#	set ::scale_types($address) "decentscale"
-				#}
 
 			}
 			descriptor {
@@ -2063,7 +2014,6 @@ proc de1_ble_handler { event data } {
 					set run_this 0
 
 					if {$run_this == 1} {
-						#set cmds [lindex [ble userdata $handle] 0]
 						set lst [ble userdata $handle]
 						set cmds [unshift lst]
 						ble userdata $handle $lst
@@ -2086,9 +2036,6 @@ proc de1_ble_handler { event data } {
 			}
 		}
 	}
-
-	#run_next_userdata_cmd
-
 }
 
 # john 1/15/2020 this is a bit of a hack to work around a firmware bug in 7C24F200 that has the fan turn on during sleep, if the fan threshold is set > 0
@@ -2176,7 +2123,7 @@ proc scanning_state_text {} {
 	}
 
 	#return [translate "Tap to select"]
-	if {[ifexists ::de1_needs_to_be_selected] == 1 || [ifexists ::scale_needs_to_be_selected] == 1} {
+	if {[ifexists ::de1_needs_to_be_selected] == 1 || [ifexists ::peripheral_needs_to_be_selected] == 1} {
 		return [translate "Tap to select"]
 	}
 
@@ -2192,13 +2139,9 @@ proc scanning_restart {} {
 
 		# insert enough dummy devices to overfill the list, to test whether scroll bars are working
 		set ::de1_device_list [list [dict create address "12:32:16:18:90" name "ble3" type "ble"] [dict create address "10.1.1.20" name "wifi1" type "wifi"] [dict create address "12:32:56:78:91" name "dummy_ble2" type "ble"] [dict create address "12:32:56:78:92" name "dummy_ble3" type "ble"] [dict create address "ttyS0" name "dummy_usb" type "usb"] [dict create address "192.168.0.1" name "dummy_wifi2" type "wifi"]]
-		set ::scale_bluetooth_list [list [dict create address "51:32:56:78:90" name "ACAIAxxx" type "ble"] [dict create address "92:32:56:78:90" name "Skale2" type "ble"] [dict create address "12:32:56:78:92" name "ACAIA2xxx" type "ble"] [dict create address "12:32:56:78:93" name "Skale2b" type "ble"] ]
+		set ::peripheral_device_list [list [dict create address "51:32:56:78:90" name "ACAIAxxx" connectiontype "ble" devicetype "scale" devicefamily "acaiascale"] [dict create address "12:32:56:78:93" name "Dummy123" connectiontype "ble" devicetype "scale" devicefamily "unknown"] ]
 
-		set ::scale_types(12:32:56:78:90) "decentscale"
-		set ::scale_types(32:56:78:90:12) "decentscale"
-		set ::scale_types(56:78:90:12:32) "atomaxskale"
-
-		after 200 fill_ble_scale_listbox
+		after 200 fill_peripheral_listbox
 		after 400 fill_ble_listbox
 
 		set ::scanning 1

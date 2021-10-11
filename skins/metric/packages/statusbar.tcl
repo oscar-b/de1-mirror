@@ -15,9 +15,8 @@ set ::temperature_meter [meter new -x [rescale_x_skin 60] -y [rescale_y_skin 131
 add_de1_variable $status_meter_contexts -100 -100 -text "" -textvariable {[$::temperature_meter update]} 
 
 # status messages
-set ::connection_message_text_id [add_de1_text $status_meter_contexts 80 180 -text "" -font $::font_setting_heading -fill $::color_temperature -anchor "w" ]
-set ::update_message_text_id [add_de1_text $status_meter_contexts 80 180 -text "" -font $::font_setting_heading -fill $::color_grey_text -anchor "w" ]
-add_de1_button $status_meter_contexts {say [translate "settings"] $::settings(sound_button_in); show_settings; metric_load_current_profile } 80 120 640 240
+set ::connection_message_text_id [add_de1_text $status_meter_contexts 2280 180 -text "" -font $::font_setting_heading -fill $::color_temperature -anchor "e" ]
+set ::update_message_text_id [add_de1_text $status_meter_contexts 2280 180 -text "" -font $::font_setting_heading -fill $::color_grey_text -anchor "e" ]
 
 set ::temperature_message_text_id  [add_de1_text $status_meter_contexts 200 1180 -text "" -font $::font_setting_heading -fill $::color_temperature -anchor "center" ]
 set ::water_message_text_id  [add_de1_text $status_meter_contexts 2360 1180 -text "" -font $::font_setting_heading -fill $::color_water -anchor "center" ]

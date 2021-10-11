@@ -374,12 +374,22 @@ proc settings2c_pressure_button {direction} {
 	if {[ifexists ::current_adv_step(pump)] == "pressure"} {
 		if {$direction eq "up"} {
 			set ::current_adv_step(pressure) [round_to_one_digits [expr {$::current_adv_step(pressure) + 0.1}]];
+
+			if {$::current_adv_step(pressure) > $::de1(max_pressure)} {
+				set ::current_adv_step(pressure) $::de1(max_pressure)
+			}
+
 		} else {
 			set ::current_adv_step(pressure) [round_to_one_digits [expr {$::current_adv_step(pressure) - 0.1}]];
 		}
 	} else { 
 		if {$direction eq "up"} {
 			set ::current_adv_step(max_flow_or_pressure) [round_to_one_digits [expr {$::current_adv_step(max_flow_or_pressure) + 0.1}]];
+
+			if {$::current_adv_step(max_flow_or_pressure) > $::de1(max_pressure)} {
+				set ::current_adv_step(max_flow_or_pressure) $::de1(max_pressure)
+			}
+			
 		} else {
 			set ::current_adv_step(max_flow_or_pressure) [round_to_one_digits [expr {$::current_adv_step(max_flow_or_pressure) - 0.1}]];
 		}
@@ -412,12 +422,22 @@ proc settings2c_flow_button {direction} {
 	if {[ifexists ::current_adv_step(pump)] == "flow"} {
 		if {$direction eq "up"} {
 			set ::current_adv_step(flow) [round_to_one_digits [expr {$::current_adv_step(flow) + 0.1}]];
+
+			if {$::current_adv_step(flow) > $::de1(max_flowrate)} {
+				set ::current_adv_step(flow) $::de1(max_flowrate)
+			}
+
 		} else {
 			set ::current_adv_step(flow) [round_to_one_digits [expr {$::current_adv_step(flow) - 0.1}]];
 		}
 	} else { 
 		if {$direction eq "up"} {
 			set ::current_adv_step(max_flow_or_pressure) [round_to_one_digits [expr {$::current_adv_step(max_flow_or_pressure) + 0.1}]];
+
+			if {$::current_adv_step(max_flow_or_pressure) > $::de1(max_flowrate)} {
+				set ::current_adv_step(max_flow_or_pressure) $::de1(max_flowrate)
+			}
+
 		} else {
 			set ::current_adv_step(max_flow_or_pressure) [round_to_one_digits [expr {$::current_adv_step(max_flow_or_pressure) - 0.1}]];
 		}
@@ -959,11 +979,11 @@ add_de1_text "settings_4" 55 970 -text [translate "Connect"] -font Helv_10_bold 
 
 	add_de1_text "settings_4" 680 1100 -text [translate "Scale"] -font Helv_7_bold -fill "#7f879a" -justify "left" -anchor "nw"
 		add_de1_variable "settings_4" 1240 1100 -text \[[translate "Remove"]\] -font Helv_7 -fill "#bec7db" -justify "right" -anchor "ne" -textvariable {[if {$::settings(scale_bluetooth_address) != ""} { return \[[translate "Remove"]\]} else {return "" } ] }
-		add_de1_button "settings_4" {say [translate {Remove}] $::settings(sound_button_in);set ::settings(scale_bluetooth_address) "";fill_ble_scale_listbox} 960 1100 1250 1140 ""
+		add_de1_button "settings_4" {say [translate {Remove}] $::settings(sound_button_in);set ::settings(scale_bluetooth_address) "";fill_peripheral_listbox} 960 1100 1250 1140 ""
 		add_de1_widget "settings_4" listbox 670 1150 { 
 				set ::ble_scale_listbox_widget $widget
 				bind $widget <<ListboxSelect>> ::change_scale_bluetooth_device
-				fill_ble_scale_listbox
+				fill_peripheral_listbox
 			} -background #fbfaff -font Helv_9 -bd 0 -height 3 -width 15  -foreground #d3dbf3 -borderwidth 0 -selectborderwidth 0  -relief flat -highlightthickness 0 -selectmode single -selectbackground #c0c4e1 -yscrollcommand {scale_scroll_new $::ble_scale_listbox_widget ::ble_scale_slider}
 
 		set ::ble_scale_slider 0

@@ -1,7 +1,7 @@
 # DO NOT EDIT - Automatically generated
-version_string	v1.38.2
-last_commit_hash	40121d6
-last_commit_time	2021-10-05 21:08:15 +0200
+version_string	v1.38.3
+last_commit_hash	8727f8b
+last_commit_time	2021-10-11 10:44:40 +0800
 #
 de1plus/plugins/DPx_Screen_Saver/_version_string	v1.3
 de1plus/plugins/DPx_Screen_Saver/_last_commit_hash	d66853f

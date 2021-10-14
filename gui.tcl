@@ -3588,6 +3588,14 @@ namespace eval ::gui::update {
 					if { [::de1::state::is_flow_during_state $this_state $this_substate] } {
 
 						steam_pressure append [round_to_two_digits $GroupPressure]
+
+						if {$GroupPressure > $::settings(steam_over_pressure_threshold)} {
+							borg toast [translate "Warning: steam pressure is too high"]
+						}
+						if {$SteamTemp > $::settings(steam_over_temp_threshold)} {
+							borg toast [translate "Warning: steam temperature is too high"]
+						}
+
 						steam_flow append [round_to_two_digits $GroupFlow]
 
 						steam_flow_goal append [round_to_two_digits [expr {$::settings(steam_flow) / 100.0}]]

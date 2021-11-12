@@ -2,6 +2,80 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.17] - 2021-11-?
+
+### Changed
+- Improve handling of arguments in `plugins::DYE::open` (for launching DYE from MimojaCafe)
+
+## [2.16] - 2021-11-08
+
+### New
+- Add setting variable `default_launch_action` with possible values `last`, `next` and `dialog` that determines what is done when the DYE icon or button is tapped. Its value can be set in a new section of the DYE settings page.
+- Support for the new **Insight Dark** skin. New "Insight_Dark" DUI theme.
+- Add `filelist.txt`.
+
+### Changed
+- Correct mispelled package name "zint**o**".
+- DYE settings page use the new DUI widgets "dselector" and "dtoggle".
+- Close the Visualizer dialog when selecting "Visualizer settings" and coming back.
+
+## [2.15] - 2021-11-01
+
+### Changed
+- Hide the "download by code" controls in the dye_visualizer_dlg page if the visualizer_upload is not enabled, as they were being shown overlapping the browse controls.
+- Avoid runtime errors if the zint package (that generates QR codes) is not available, as may happen in non-androwish installs.
+
+## [2.14] - 2021-10-28
+
+### New
+- New dialog page `dye_which_shot_dlg` shows a menu of main DYE actions (plan next shot, describe last shot,
+select shot, search shot and go to DYE settings). It is launched by long tapping the DYE icons/labels in Insight & DSx.
+- New setting `relative_dates` makes DYE show shot dates relative to today (e.g. "25 minutes ago", "Yesterday at 07:55", or "4 days ago at 12:01"). This can be modified either on the DYE settings page, or tapping on DYE page title.
+- Show "days off-roast" near the "Roast date" field, whenever the roast date can be parsed as a date. Input format can be modified by manually editing the new setting `input_date_formats`, which is a list of valid formats accepted by `clock scan`. Each format is tried from the first to the last until a parsing raises no error.
+- Shot output date/time format can now also be user-modified through the new settings `date_output_format`, `time_output_format`and `time_output_format_ampm`.
+
+### Changed
+- The DYE icon in Insight home page now has a bigger tapping area.
+- The top navigation buttons in the DYE page now have much bigger tapping areas.
+- Update theme aspects for DYE top navigation buttons.
+- Modify DYE page titles (shorter titles, replace "espresso" by "shot", capitalize "NEXT" and "LAST", remove "past")
+
+## [2.13] - 2021-10-26
+
+### New
+- The "Edit data" dialog in the DYE page now allows selecting to which block of data any of the edit actions have to be applied, including the new option "Profile" that imports profiles from past shots. The profile option is only enabled on the "Next" shot plan.
+- The "Browse" section in the Visualizer dialog now changes to "Download by code" on the "Next" shot plan, and allows to download shots of any user from Visualizer. This is only available with the new version 1.2 of the visualizer_upload extension, and only works with shots recently uploaded to Visualizer (as the profile was not kept in previous versions).
+
+### Changed
+- When the propagation subtitle is "Shot not saved to history", it is now shown in error (usually red, depends on theme) color.
+- Prevent runtime errors and log warnings when DYE is launched on a brand new DE1app install with no shots on the history.
+
+## [2.12] - 2021-10-17
+
+### Changed
+- Don't reset skin target variables in DSx and MimojaCafe if the next shot variables in DYE are cleared.
+- Use the correct variables for storing target drink weight in MimojaCafe depending on bluetooth scale connected or not and `settings(settings_profile_type)`.
+- Read from last and read from past shot now bring also the dose and yield.
+
+## [2.11] - 2021-10-14
+
+### Changed
+- Make dose and yield (`grinder_dose_weight` and `drink_weight` settings variables) editable in the next shot plan.
+  - Changes in next shot `grinder_dose_weight`, `drink_weight` and `grinder_setting` in the DYE page are now reflected in MimojaCafe home page, and viceversa.
+  - Changes in next shot `grinder_dose_weight` and `drink_weight` in the DYE page are now reflected in DSx home page, and viceversa.
+
+- Last & next shot summary description variables `last_shot_desc` and `next_shot_desc` are  now stored in DYE settings instead of being namespace variables, so they persist. This prevents the error of showing an empty `last_shot_desc` when restarting the app after v2.08 changes.
+- DSx link to open last shot desc in DYE now launches DYE even if the last shot was not saved to history.
+
+## [2.09/2.10] - 2021-10-12
+
+### Changed
+- Corrected a few bugs introduced by the refactoring of the last/next shot descriptions in v2.08 (reported by JoeD, Robert Jordan & TMC):
+
+  - Next shot description was not being saved
+  - Next shot summary string was not being updated when propagating last shot data (only visible in DSx)
+  - Field "espresso_notes" was not being saved/loaded in next shot description in some scenarios.
+
 ## [2.08] - 2021-10-03
 
 ### Changed

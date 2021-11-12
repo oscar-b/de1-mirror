@@ -625,9 +625,11 @@ add_de1_widget "settings_2czoom" graph 8 200 {
 
 
 
-add_de1_button "settings_1" {say [translate {edit}] $::settings(sound_button_in); set_next_page off $::settings(settings_profile_type); page_show off; set ::settings(active_settings_tab) $::settings(settings_profile_type); fill_advanced_profile_steps_listbox } 1330 220 2560 800
+add_de1_button "settings_1" {say [translate {edit}] $::settings(sound_button_in); set_next_page off $::settings(settings_profile_type); page_show off; set ::settings(active_settings_tab) $::settings(settings_profile_type); fill_advanced_profile_steps_listbox } 1330 220 2360 800
 
-add_de1_variable "settings_1" 2466 660 -text "" -font Helv_7 -fill "#7f879a" -anchor "center" -textvariable {[return_temperature_setting $::settings(espresso_temperature)]}
+add_de1_variable "settings_1" 2466 740 -text "" -font Helv_7 -fill "#7f879a" -anchor "center" -textvariable {[return_temperature_setting $::settings(espresso_temperature)]}
+add_de1_button "settings_1" {say [translate {temperature}] $::settings(sound_button_in); change_espresso_temperature 0.5; profile_has_changed_set } 2380 230 2590 480
+	add_de1_button "settings_1" {say [translate {temperature}] $::settings(sound_button_in); change_espresso_temperature -0.5; profile_has_changed_set } 2380 490 2590 800
 
 
 add_de1_text "settings_3" 1304 220 -text [translate "Maintenance"] -font Helv_10_bold -fill "#7f879a" -justify "left" -anchor "nw"
@@ -979,6 +981,7 @@ add_de1_text "settings_4" 55 970 -text [translate "Connect"] -font Helv_10_bold 
 
 	add_de1_text "settings_4" 680 1100 -text [translate "Scale"] -font Helv_7_bold -fill "#7f879a" -justify "left" -anchor "nw"
 		add_de1_variable "settings_4" 1240 1100 -text \[[translate "Remove"]\] -font Helv_7 -fill "#bec7db" -justify "right" -anchor "ne" -textvariable {[if {$::settings(scale_bluetooth_address) != ""} { return \[[translate "Remove"]\]} else {return "" } ] }
+		add_de1_variable "settings_4" 900 1100 -font Helv_7 -fill "#bec7db" -justify "left" -anchor "nw" -textvariable {[if {$::settings(scale_bluetooth_address) != ""} { return [return_weight_measurement [ifexists ::de1(scale_weight_rate_raw)]] } else {return "" } ] }
 		add_de1_button "settings_4" {say [translate {Remove}] $::settings(sound_button_in);set ::settings(scale_bluetooth_address) "";fill_peripheral_listbox} 960 1100 1250 1140 ""
 		add_de1_widget "settings_4" listbox 670 1150 { 
 				set ::ble_scale_listbox_widget $widget
@@ -1151,7 +1154,7 @@ add_de1_variable "settings_1" 1360 1240 -text "" -font Helv_10_bold -fill "#7f87
 
 	add_de1_button "profile_notes" {say [translate {Done}] $::settings(sound_button_in); profile_has_changed_set; page_to_show_when_off settings_1;} 0 0 2560 1600 ""
 	add_de1_text "profile_notes" 1280 300 -text [translate "Notes"] -font Helv_20_bold -width 1200 -fill "#444444" -anchor "center" -justify "center" 
-	set profile_notes_widget [add_de1_widget "profile_notes" multiline_entry 250 440 {} -width [expr {int(85 * $::globals(entry_length_multiplier))}] -height 12 -font Helv_8 -borderwidth 0 -bg #FFFFFF  -foreground #4e85f4 -textvariable ::settings(profile_notes) -relief flat -highlightthickness 1 -highlightcolor #000000]
+	set profile_notes_widget [add_de1_widget "profile_notes" multiline_entry 250 440 {} -canvas_height 730 -canvas_width 2070 -wrap word -font Helv_8 -borderwidth 0 -bg #FFFFFF  -foreground #4e85f4 -textvariable ::settings(profile_notes) -relief flat -highlightthickness 1 -highlightcolor #000000]
 
 
 
@@ -1259,13 +1262,25 @@ add_de1_text "settings_1 settings_2 settings_2a settings_2b settings_2c settings
 				de1_send_steam_hotwater_settings
 				de1_enable_water_level_notifications
 			}
-			if {[array_item_difference ::settings ::settings_backup "enable_fahrenheit orientation screen_size_width saver_brightness use_finger_down_for_tap log_enabled hot_water_idle_temp espresso_warmup_timeout scale_bluetooth_address language skin waterlevel_indicator_on default_font_calibration waterlevel_indicator_blink display_rate_espresso display_espresso_water_delta_number display_group_head_delta_number display_pressure_delta_line display_flow_delta_line display_weight_delta_line allow_unheated_water display_time_in_screen_saver enabled_plugins plugin_tabs"] == 1  || [ifexists ::app_has_updated] == 1} {
+			if {[array_item_difference ::settings ::settings_backup "enable_fahrenheit orientation screen_size_width saver_brightness use_finger_down_for_tap log_enabled hot_water_idle_temp espresso_warmup_timeout language skin waterlevel_indicator_on default_font_calibration waterlevel_indicator_blink display_rate_espresso display_espresso_water_delta_number display_group_head_delta_number display_pressure_delta_line display_flow_delta_line display_weight_delta_line allow_unheated_water display_time_in_screen_saver enabled_plugins plugin_tabs"] == 1  || [ifexists ::app_has_updated] == 1} {
 				# changes that effect the skin require an app restart
 				.can itemconfigure $::message_label -text [translate "Please quit and restart this app to apply your changes."]
 				.can itemconfigure $::message_button_label -text [translate "Wait"]
 
 				set_next_page off message; page_show message
 				after 200 app_exit
+
+			} elseif {[ifexists ::settings_backup(scale_bluetooth_address)] == "" && [ifexists ::settings(scale_bluetooth_address)] != ""} {
+				# if no scale was previously defined, and there is one now, then force an app restart
+				# but if there was a scale previously, and now there is a new one, let that be w/o an app restart
+
+				# changes that effect the skin require an app restart
+				.can itemconfigure $::message_label -text [translate "Please quit and restart this app to apply your changes."]
+				.can itemconfigure $::message_button_label -text [translate "Wait"]
+
+				set_next_page off message; page_show message
+				after 200 app_exit
+
 			} else {
 
 				if {[ifexists ::settings(settings_profile_type)] == "settings_2c2"} {
@@ -1517,4 +1532,4 @@ proc setting_profile_type_to_text { } {
 	}
 }
 
-#show_settings calibrate2
+#show_settings settings_1

@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.09
+	variable version 1.15
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -1061,7 +1061,7 @@ proc ::plugins::SDB::get_shot_file_path { filename {relative_path 0} } {
 
 # Loads from a shot file the data we use in the DYE plugin. Returns an array.
 # Input can be a filename, with or without .shot extension, a clock value, or a full path to a shot file.
-proc ::plugins::SDB::load_shot { filename } {
+proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {read_profile 0} } {
 	set path [get_shot_file_path $filename]
 	if { $path eq "" } return
 	
@@ -1082,20 +1082,30 @@ proc ::plugins::SDB::load_shot { filename } {
 	set shot_data(date_time) [clock format $file_props(clock) -format {%a, %d %b %Y   %I:%M%p}]
 	
 	if {[llength [ifexists file_props(espresso_elapsed)]] > 0} {
-		set shot_data(espresso_elapsed) $file_props(espresso_elapsed)
-		set shot_data(extraction_time) [round_to_one_digits [expr ([lindex $file_props(espresso_elapsed) end]+0.05)]]
+		if { [string is true $read_series] } {
+			set shot_data(espresso_elapsed) $file_props(espresso_elapsed)
+		}
+		if { [string is true $read_description] } {
+			set shot_data(extraction_time) [round_to_one_digits [expr ([lindex $file_props(espresso_elapsed) end]+0.05)]]
+		}
 	} else {
-		set shot_data(espresso_elapsed) {0.0}
-		set shot_data(extraction_time) 0.0
+		if { [string is true $read_series] } {
+			set shot_data(espresso_elapsed) {0.0}
+		}
+		if { [string is true $read_description] } {
+			set shot_data(extraction_time) 0.0
+		}
 	}
 	
-	foreach field_name {espresso_pressure espresso_weight espresso_flow espresso_flow_weight \
-			espresso_temperature_basket espresso_temperature_mix espresso_flow_weight_raw espresso_water_dispensed \
-			espresso_temperature_goal espresso_pressure_goal espresso_flow_goal espresso_state_change } {
-		if { [info exists file_props($field_name)] } {
-			set shot_data($field_name) $file_props($field_name)
-		} else {
-			set shot_data($field_name) {0.0}
+	if { [string is true $read_series] } {
+		foreach field_name {espresso_pressure espresso_weight espresso_flow espresso_flow_weight \
+				espresso_temperature_basket espresso_temperature_mix espresso_flow_weight_raw espresso_water_dispensed \
+				espresso_temperature_goal espresso_pressure_goal espresso_flow_goal espresso_state_change } {
+			if { [info exists file_props($field_name)] } {
+				set shot_data($field_name) $file_props($field_name)
+			} else {
+				set shot_data($field_name) {0.0}
+			}
 		}
 	}
 	
@@ -1109,9 +1119,18 @@ proc ::plugins::SDB::load_shot { filename } {
 	
 	array set file_sets $file_props(settings)
 	
-	#set text_fields [::plugins::SDB::field_names "category text long_text date" "shot"]
-	set text_fields [metadata fields -domain shot -category description -data_type {category text long_text date complex}]
-	lappend text_fields profile_title skin beverage_type
+	if { [string is true $read_description] } {
+		set text_fields [metadata fields -domain shot -category description -data_type {category text long_text date complex}]
+	} else {
+		set text_fields {}
+	}
+	if { [string is true $read_profile] } {
+		lappend text_fields profile profile_filename profile_title original_profile_title profile_to_save beverage_type \
+			advanced_shot author settings_profile_type profile_notes profile_language
+	} elseif { [string is true $read_description] } {
+		lappend text_fields profile_title skin beverage_type
+	}
+	
 	foreach field_name $text_fields {
 		if { [info exists file_sets($field_name)] } {
 			set shot_data($field_name) [string trim $file_sets($field_name)]
@@ -1120,35 +1139,51 @@ proc ::plugins::SDB::load_shot { filename } {
 		}
 	}
 	
-	#  [::plugins::SDB::field_names "numeric" "shot"] 
-	foreach field_name [metadata fields -domain shot -category description -data_type {number boolean}] {
-		if { [info exists file_sets($field_name)]  && $file_sets($field_name) > 0 } {
-			set shot_data($field_name) $file_sets($field_name)
-		} else {
-			# We use {} instead of 0 to get DB NULLs and empty values in entry textboxes
-			set shot_data($field_name) {}
+	if { [string is true $read_description] } {	
+		foreach field_name [metadata fields -domain shot -category description -data_type {number boolean}] {
+			if { [info exists file_sets($field_name)]  && $file_sets($field_name) > 0 } {
+				set shot_data($field_name) $file_sets($field_name)
+			} else {
+				# We use {} instead of 0 to get DB NULLs and empty values in entry textboxes
+				set shot_data($field_name) {}
+			}
+		}
+	
+		if { $shot_data(grinder_dose_weight) eq "" } {
+			if {[info exists file_sets(DSx_bean_weight)] == 1} {
+				set shot_data(grinder_dose_weight) $file_sets(DSx_bean_weight)
+			} elseif {[info exists file_sets(dsv4_bean_weight)] == 1} {
+				set shot_data(grinder_dose_weight) $file_sets(dsv4_bean_weight)
+			} elseif {[info exists file_sets(dsv3_bean_weight)] == 1} {
+				set shot_data(grinder_dose_weight) $file_sets(dsv3_bean_weight)
+			} elseif {[info exists file_sets(dsv2_bean_weight)] == 1} {
+				set shot_data(grinder_dose_weight) $file_sets(dsv2_bean_weight)
+			}
+		}
+	
+		foreach field_name {firmware_version_number enabled_plugins skin_version} {
+			if { [info exists file_sets($field_name)] } {
+				set shot_data($field_name) $file_sets($field_name)
+			} else {
+				set shot_data($field_name) ""
+			}
+		}
+	}
+	
+	if { [string is true $read_profile] } {
+		foreach field_name [concat profile profile_filename profile_to_save original_profile_title profile_has_changed [::profile_vars]] {  
+			if { [info exists file_sets($field_name)] } {
+				set shot_data($field_name) $file_sets($field_name)
+			} else {
+				set shot_data($field_name) 0
+			}
+		}
+		
+		if { $shot_data(settings_profile_type) eq "settings_2c2" } {
+			set ::settings(settings_profile_type) "settings_2c"
 		}
 	}
 
-	if { $shot_data(grinder_dose_weight) eq "" } {
-		if {[info exists file_sets(DSx_bean_weight)] == 1} {
-			set shot_data(grinder_dose_weight) $file_sets(DSx_bean_weight)
-		} elseif {[info exists file_sets(dsv4_bean_weight)] == 1} {
-			set shot_data(grinder_dose_weight) $file_sets(dsv4_bean_weight)
-		} elseif {[info exists file_sets(dsv3_bean_weight)] == 1} {
-			set shot_data(grinder_dose_weight) $file_sets(dsv3_bean_weight)
-		} elseif {[info exists file_sets(dsv2_bean_weight)] == 1} {
-			set shot_data(grinder_dose_weight) $file_sets(dsv2_bean_weight)
-		}
-	}
-
-	foreach field_name {firmware_version_number enabled_plugins skin_version} {
-		if { [info exists file_sets($field_name)] } {
-			set shot_data($field_name) $file_sets($field_name)
-		} else {
-			set shot_data($field_name) ""
-		}
-	}		
 	
 	return [array get shot_data]
 }
@@ -1238,7 +1273,10 @@ proc ::plugins::SDB::modify_shot_file { path arr_new_settings { backup_file {} }
 	# Sort the variables in the first part of the file exactly as in the original. 
 	set default_pars {clock espresso_elapsed espresso_pressure espresso_weight espresso_flow espresso_flow_weight \
 		espresso_flow_weight_raw espresso_temperature_basket espresso_temperature_mix espresso_water_dispensed \
-		espresso_pressure_goal espresso_flow_goal espresso_temperature_goal}
+		espresso_pressure_delta espresso_flow_delta_negative espresso_flow_delta_negative_2x \
+		espresso_resistance espresso_resistance_weight espresso_state_change \
+		espresso_pressure_goal espresso_flow_goal espresso_temperature_goal }
+	
 	set past_props_keys [array names past_props]	
 	foreach k $default_pars {
 		if { [lsearch $past_props_keys $k] > -1 } {
@@ -2142,71 +2180,56 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 
 	# Only make series inserts, never updates
 	if { $persist_series == 1 && [db exists {SELECT 1 FROM shot_series WHERE shot_clock=$shot(clock) LIMIT 1}] == 0 } {
-		if { [llength $shot(espresso_elapsed)] > 1 } {
-			set n_pressure [llength $shot(espresso_pressure)]
-			set n_weight [llength $shot(espresso_weight)]
-			set n_flow [llength $shot(espresso_flow)]
-			set n_flow_weight [llength $shot(espresso_flow_weight)]
-			set n_flow_weight_raw [llength $shot(espresso_flow_weight_raw)]
-			set n_temp_basket [llength $shot(espresso_temperature_basket)]
-			set n_temp_mix [llength $shot(espresso_temperature_mix)]
-			set n_water_dispensed [llength $shot(espresso_water_dispensed)]
-			set n_pressure_goal [llength $shot(espresso_pressure_goal)]
-
+		# Sometimes we have longer elapsed_time series than pressure or flow series			
+		set n [::min [llength $shot(espresso_elapsed)] [llength $shot(espresso_pressure)] [llength $shot(espresso_flow)]]
+		if { $n > 1 } {
 			set sql "INSERT INTO shot_series (shot_clock,elapsed,pressure,weight,flow,flow_weight,flow_weight_raw,\
 temperature_basket,temperature_mix,water_dispensed,pressure_goal,flow_goal,temperature_goal) VALUES "
-			for {set i 0} { $i < [llength $shot(espresso_elapsed)] } {incr i} {
-				# I can't make embedding the [lindex ...] statement in the SQL string work, so
-				# I need to create each variable
+			for {set i 0} { $i < $n } {incr i} {
+				# I can't make embedding the [lindex ...] statement in the SQL string work, so I need to create each variable
 				set elapsed [lindex $shot(espresso_elapsed) $i]
-				# From 1.36.5 sometimes elapsed time is logged 
-				if { $i < $n_pressure } {
-					set pressure [lindex $shot(espresso_pressure) $i]
-				} else {
+				set pressure [lindex $shot(espresso_pressure) $i]
+				if { $pressure eq {} } {
 					set pressure "NULL"
 				}
-				if { $i < $n_weight } {
-					set weight [lindex $shot(espresso_weight) $i]
-				} elseif {[info exists weight] == 1} {
-					set weight "NULL"
-				}
-				if { $i < $n_flow } {
-					set flow [lindex $shot(espresso_flow) $i]
-				} else {
+				set flow [lindex $shot(espresso_flow) $i]
+				if { $flow eq {} } {
 					set flow "NULL"
 				}
-				if { $i < $n_flow_weight } {
-					set flow_weight [lindex $shot(espresso_flow_weight) $i]
-				} else {
+				set weight [lindex $shot(espresso_weight) $i]
+				if { $weight eq {} } {
+					set weigth "NULL"
+				}
+				set flow_weight [lindex $shot(espresso_flow_weight) $i]
+				if { $flow_weight eq {} } {
 					set flow_weight "NULL"
 				}
-				if { $i < $n_flow_weight_raw } {
-					set flow_weight_raw [lindex $shot(espresso_flow_weight_raw) $i]
-				} else {
+				set flow_weight_raw [lindex $shot(espresso_flow_weight_raw) $i]
+				if { $flow_weight_raw eq {} } {
 					set flow_weight_raw "NULL"
 				}
-				if { $i < $n_temp_basket } {
-					set temperature_basket [lindex $shot(espresso_temperature_basket) $i]
-				} else {
+				set temperature_basket [lindex $shot(espresso_temperature_basket) $i]
+				if { $temperature_basket eq {} } {
 					set temperature_basket "NULL"
 				}
-				if { $i < $n_temp_mix } {
-					set temperature_mix [lindex $shot(espresso_temperature_mix) $i]
-				} else {
+				set temperature_mix [lindex $shot(espresso_temperature_mix) $i]
+				if { $temperature_mix eq {} } {
 					set temperature_mix "NULL"
 				}
-				if { $i < $n_water_dispensed } {
-					set water_dispensed [lindex $shot(espresso_water_dispensed) $i]
-				} else {
+				set water_dispensed [lindex $shot(espresso_water_dispensed) $i]
+				if { $water_dispensed eq {} } {
 					set water_dispensed "NULL"
-				}
-				if {$i < $n_pressure_goal } {
-					set pressure_goal [lindex $shot(espresso_pressure_goal) $i]
-					set flow_goal [lindex $shot(espresso_flow_goal) $i]
-					set temperature_goal [lindex $shot(espresso_temperature_goal) $i]
-				} else {
+				}				
+				set pressure_goal [lindex $shot(espresso_pressure_goal) $i]
+				if { $pressure_goal eq {} } {
 					set pressure_goal "NULL"
+				}
+				set flow_goal [lindex $shot(espresso_flow_goal) $i]
+				if { $flow_goal eq {} } {
 					set flow_goal "NULL"
+				}
+				set temperature_goal [lindex $shot(espresso_temperature_goal) $i]
+				if { $temperature_goal eq {} } { 
 					set temperature_goal "NULL"
 				}
 
@@ -2257,10 +2280,11 @@ proc ::plugins::SDB::update_shot_description { clock arr_new_settings } {
 proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 	variable settings 	
 	if { $::settings(history_saved) != 1 } return
-	#msg "save_espresso_to_history_hook"
+	#msg -INFO "save_espresso_to_history_hook"
+	#set modify_shot_file 0
+	array set new_settings {}
 	
 	set ::settings(repository_links) {}
-	
 	if { [plugins enabled visualizer_upload] &&
 			[info exists ::plugins::visualizer_upload::settings(last_upload_shot)] &&
 			$::plugins::visualizer_upload::settings(last_upload_shot) eq $::settings(espresso_clock) &&
@@ -2270,8 +2294,48 @@ proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 		set repo_link "Visualizer $link" 
 		
 		set ::settings(repository_links) $repo_link
+		set new_settings(repository_links) $repo_link
+	}
+	
+	# If no bluetooth scale, modify last shot's drink_weight to the target defined in the skin or in DYE
+	if { $::settings(drink_weight) == 0 } {
+		set skin $::settings(skin)
+		set drink_weight_modified 0
+		
+		if { $skin eq "DSx" && [info exists ::DSx_settings(saw)] && $::DSx_settings(saw) > 0 } {
+			set ::settings(drink_weight) [round_to_one_digits $::DSx_settings(saw)]
+			set drink_weight_modified 1
+		} elseif { $skin eq "MimojaCafe" } {
+			if { $::settings(settings_profile_type) eq "settings_2c" } {
+				if { $::settings(final_desired_shot_weight_advanced) > 0 } { 
+					set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_weight_advanced)]
+					set drink_weight_modified 1
+				} 
+			} else {
+				if { $::settings(final_desired_shot_weight) > 0 } { 
+					set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_weight)]
+					set drink_weight_modified 1
+				}
+			}
+		} elseif { [info exists ::plugins::DYE::settings(next_drink_weight)] && 
+				$::plugins::DYE::settings(next_drink_weight) ne {} } {
+			set ::settings(drink_weight) $::plugins::DYE::settings(next_drink_weight)
+			set drink_weight_modified 1
+		} elseif { [info exists ::settings(final_desired_shot_weight)] && $::settings(final_desired_shot_weight) > 0 } {
+			set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_weight)]
+			set drink_weight_modified 1
+		}
+		
+		if { $drink_weight_modified } {
+			set new_settings(drink_weight) $::settings(drink_weight)
+			if { $skin eq "DSx" && [value_or_default ::DSx_settings(live_graph_weight) {}] ne $::settings(drink_weight) } {
+				set ::DSx_settings(live_graph_weight) $::settings(drink_weight)
+				::save_DSx_settings
+			}
+		}
+	}
 
-		array set new_settings [list repository_links $::settings(repository_links)]
+	if { [array size new_settings] > 0 } {
 		modify_shot_file $::settings(espresso_clock) new_settings
 		::save_settings
 	}

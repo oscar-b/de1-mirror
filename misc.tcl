@@ -1,108 +1,6 @@
 package provide de1_misc 1.0
 
 proc make_de1_dir {srcdir destdirs} {
-
-    set not_these  {
-        splash/1280x800/1960.jpg *
-        splash/1280x800/8bit.jpg *
-        splash/1280x800/aliens.jpg *
-        splash/1280x800/chalkboard.jpg *
-        splash/1280x800/circus.jpg *
-        splash/1280x800/dark_choices.jpg *
-        splash/1280x800/dark_comic.jpg *
-        splash/1280x800/fashion_girls.jpg *
-        splash/1280x800/grey_room.jpg *
-        splash/1280x800/jackpot.jpg *
-        splash/1280x800/jimshaw.jpg *
-        splash/1280x800/leonardo.jpg *
-        splash/1280x800/manga_girls.jpg *
-        splash/1280x800/manga_outfits.jpg *
-        splash/1280x800/modern.jpg *
-        splash/1280x800/warhol.jpg *
-        splash/1280x800/watercolor.jpg *
-        splash/1280x800/wired_superheroes.jpg *
-
-        splash/2560x1600/1960.jpg *
-        splash/2560x1600/8bit.jpg *
-        splash/2560x1600/aliens.jpg *
-        splash/2560x1600/chalkboard.jpg *
-        splash/2560x1600/circus.jpg *
-        splash/2560x1600/dark_choices.jpg *
-        splash/2560x1600/dark_comic.jpg *
-        splash/2560x1600/fashion_girls.jpg *
-        splash/2560x1600/grey_room.jpg *
-        splash/2560x1600/jackpot.jpg *
-        splash/2560x1600/jimshaw.jpg *
-        splash/2560x1600/leonardo.jpg *
-        splash/2560x1600/manga_girls.jpg *
-        splash/2560x1600/manga_outfits.jpg *
-        splash/2560x1600/modern.jpg *
-        splash/2560x1600/warhol.jpg *
-        splash/2560x1600/watercolor.jpg *
-        splash/2560x1600/wired_superheroes.jpg *
-
-        skins/SWDark3/screen_saver/2560x1600/saver-1.jpg *
-        skins/SWDark3/screen_saver/2560x1600/saver-2.jpg *
-        skins/SWDark3/screen_saver/2560x1600/saver-3.jpg *
-        skins/SWDark3/screen_saver/1280x800/saver-1.jpg *
-        skins/SWDark3/screen_saver/1280x800/saver-2.jpg *
-        skins/SWDark3/screen_saver/1280x800/saver-3.jpg *
-        skins/SWDark3/swdark2_functions.tcl *
-        skins/SWDark3/skin.tcl *
-        skins/SWDark3/2560x1600/water_3.png *
-        skins/SWDark3/2560x1600/water_2.png *
-        skins/SWDark3/2560x1600/steam_1.png *
-        skins/SWDark3/2560x1600/steam_3.png *
-        skins/SWDark3/2560x1600/icon.jpg *
-        skins/SWDark3/2560x1600/espresso_1_zoomed.png *
-        skins/SWDark3/2560x1600/water_1.png *
-        skins/SWDark3/2560x1600/steam_2.png *
-        skins/SWDark3/2560x1600/sleep.png *
-        skins/SWDark3/2560x1600/espresso_3_zoomed.png *
-        skins/SWDark3/2560x1600/espresso_2.png *
-        skins/SWDark3/2560x1600/espresso_3.png *
-        skins/SWDark3/2560x1600/espresso_1.png *
-        skins/SWDark3/2560x1600/fill_tank.png *
-        skins/SWDark3/2560x1600/preheat_1.png *
-        skins/SWDark3/2560x1600/saver-1.png *
-        skins/SWDark3/2560x1600/preheat_2.png *
-        skins/SWDark3/2560x1600/saver-2.png *
-        skins/SWDark3/2560x1600/saver-3.png *
-        skins/SWDark3/2560x1600/preheat_3.png *
-        skins/SWDark3/2560x1600/preheat_4.png *
-        skins/SWDark3/2560x1600/espresso_2_zoomed.png *
-        skins/SWDark3/userdata/swdark2_usersettings.tdb *
-        skins/SWDark3/1280x800/water_3.png *
-        skins/SWDark3/1280x800/water_2.png *
-        skins/SWDark3/1280x800/steam_1.png *
-        skins/SWDark3/1280x800/steam_3.png *
-        skins/SWDark3/1280x800/icon.jpg *
-        skins/SWDark3/1280x800/espresso_1_zoomed.png *
-        skins/SWDark3/1280x800/water_1.png *
-        skins/SWDark3/1280x800/steam_2.png *
-        skins/SWDark3/1280x800/sleep.png *
-        skins/SWDark3/1280x800/espresso_3_zoomed.png *
-        skins/SWDark3/1280x800/espresso_2.png *
-        skins/SWDark3/1280x800/espresso_3.png *
-        skins/SWDark3/1280x800/espresso_1.png *
-        skins/SWDark3/1280x800/fill_tank.png *
-        skins/SWDark3/1280x800/preheat_1.png *
-        skins/SWDark3/1280x800/saver-1.png *
-        skins/SWDark3/1280x800/preheat_2.png *
-        skins/SWDark3/1280x800/saver-2.png *
-        skins/SWDark3/1280x800/saver-3.png *
-        skins/SWDark3/1280x800/preheat_3.png *
-        skins/SWDark3/1280x800/preheat_4.png *
-        skins/SWDark3/1280x800/espresso_2_zoomed.png *
-    }
-
-
-        # plugins/example.tcl *
-        # plugins/example-settings.tdb *
-
-#        profiles/best_practice_light.tcl *
-
-
     set files {
         binary.tcl *
         bluetooth.tcl *
@@ -114,8 +12,8 @@ proc make_de1_dir {srcdir destdirs} {
         gui.tcl *
         history_viewer.tcl *
         dui.tcl *
-		metadata.tcl *
-		app_metadata.tcl *
+        metadata.tcl *
+        app_metadata.tcl *
         machine.tcl *
         utils.tcl *
         main.tcl *
@@ -530,42 +428,69 @@ proc make_de1_dir {srcdir destdirs} {
         skins/Insight/2560x1600/describe_espresso.jpg *
         skins/Insight/2560x1600/describe_espresso2.jpg *
 
-        skins/MimojaCafe/1280x800/icon.jpg *
-        skins/MimojaCafe/2560x1600/icon.jpg *
-        skins/MimojaCafe/fonts/Font\ Awesome\ 5\ Free-Solid-900.otf *
-        skins/MimojaCafe/fonts/Mazzard\ Light.otf *
-        skins/MimojaCafe/fonts/Mazzard\ Medium.otf *
-        skins/MimojaCafe/fonts/Mazzard\ Regular.otf *
-        skins/MimojaCafe/fonts/Mazzard\ SemiBold.otf *
-        skins/MimojaCafe/framework.tcl *
-        skins/MimojaCafe/interfaces/default_settings_screen.tcl *
-        skins/MimojaCafe/interfaces/default_ui.tcl *
-        skins/MimojaCafe/interfaces/magadan_ui.tcl *
-        skins/MimojaCafe/settings.tcl *
-        skins/MimojaCafe/theme.tcl *
-        skins/MimojaCafe/skin.tcl *
-
-        skins/metric/1280x800/icon.jpg *
-        skins/metric/2560x1600/icon.jpg *
-        skins/metric/fonts/Mazzard\ Light.otf *
-        skins/metric/fonts/Mazzard\ Medium.otf *
-        skins/metric/fonts/Mazzard\ Regular.otf *
-        skins/metric/fonts/Mazzard\ SemiBold.otf *
-        skins/metric/packages/constants.tcl *
-        skins/metric/packages/framework.tcl *
-        skins/metric/packages/functions.tcl *
-        skins/metric/packages/meter.tcl *
-        skins/metric/packages/settings.tcl *
-        skins/metric/packages/statusbar.tcl *
-        skins/metric/pages/debug.tcl *
-        skins/metric/pages/espresso.tcl *
-        skins/metric/pages/espresso_done.tcl *
-        skins/metric/pages/flush.tcl *
-        skins/metric/pages/home.tcl *
-        skins/metric/pages/steam.tcl *
-        skins/metric/pages/water.tcl *
-        skins/metric/README.md *
-        skins/metric/skin.tcl *
+        skins/Insight\ Dark/1280x800/icon.jpg *
+        skins/Insight\ Dark/skin.tcl *
+        skins/Insight\ Dark/1280x800/espresso_1.png *
+        skins/Insight\ Dark/1280x800/espresso_1_zoomed.png *
+        skins/Insight\ Dark/1280x800/espresso_2.png *
+        skins/Insight\ Dark/1280x800/espresso_2_zoomed.png *
+        skins/Insight\ Dark/1280x800/espresso_3.png *
+        skins/Insight\ Dark/1280x800/espresso_3_zoomed.png *
+        skins/Insight\ Dark/1280x800/steam_1.png *
+        skins/Insight\ Dark/1280x800/steam_2.png *
+        skins/Insight\ Dark/1280x800/steam_3.png *
+        skins/Insight\ Dark/1280x800/water_1.png *
+        skins/Insight\ Dark/1280x800/water_2.png *
+        skins/Insight\ Dark/1280x800/water_3.png *
+        skins/Insight\ Dark/1280x800/preheat_1.png *
+        skins/Insight\ Dark/1280x800/preheat_2.png *
+        skins/Insight\ Dark/1280x800/preheat_3.png *
+        skins/Insight\ Dark/1280x800/preheat_4.png *
+        skins/Insight\ Dark/1280x800/scentone_1.jpg *
+        skins/Insight\ Dark/1280x800/scentone_tropical.jpg *
+        skins/Insight\ Dark/1280x800/scentone_berry.jpg *
+        skins/Insight\ Dark/1280x800/scentone_citrus.jpg *
+        skins/Insight\ Dark/1280x800/scentone_stone.jpg *
+        skins/Insight\ Dark/1280x800/scentone_cereal.jpg *
+        skins/Insight\ Dark/1280x800/scentone_chocolate.jpg *
+        skins/Insight\ Dark/1280x800/scentone_flower.jpg *
+        skins/Insight\ Dark/1280x800/scentone_spice.jpg *
+        skins/Insight\ Dark/1280x800/scentone_vegetable.jpg *
+        skins/Insight\ Dark/1280x800/scentone_savory.jpg *
+        skins/Insight\ Dark/1280x800/describe_espresso0.jpg *
+        skins/Insight\ Dark/1280x800/describe_espresso.jpg *
+        skins/Insight\ Dark/1280x800/describe_espresso2.jpg *
+        skins/Insight\ Dark/2560x1600/icon.jpg *
+        skins/Insight\ Dark/2560x1600/espresso_1.png *
+        skins/Insight\ Dark/2560x1600/espresso_1_zoomed.png *
+        skins/Insight\ Dark/2560x1600/espresso_2.png *
+        skins/Insight\ Dark/2560x1600/espresso_2_zoomed.png *
+        skins/Insight\ Dark/2560x1600/espresso_3.png *
+        skins/Insight\ Dark/2560x1600/espresso_3_zoomed.png *
+        skins/Insight\ Dark/2560x1600/steam_1.png *
+        skins/Insight\ Dark/2560x1600/steam_2.png *
+        skins/Insight\ Dark/2560x1600/steam_3.png *
+        skins/Insight\ Dark/2560x1600/water_1.png *
+        skins/Insight\ Dark/2560x1600/water_2.png *
+        skins/Insight\ Dark/2560x1600/water_3.png *
+        skins/Insight\ Dark/2560x1600/preheat_1.png *
+        skins/Insight\ Dark/2560x1600/preheat_2.png *
+        skins/Insight\ Dark/2560x1600/preheat_3.png *
+        skins/Insight\ Dark/2560x1600/preheat_4.png *
+        skins/Insight\ Dark/2560x1600/scentone_1.jpg *
+        skins/Insight\ Dark/2560x1600/scentone_tropical.jpg *
+        skins/Insight\ Dark/2560x1600/scentone_berry.jpg *
+        skins/Insight\ Dark/2560x1600/scentone_citrus.jpg *
+        skins/Insight\ Dark/2560x1600/scentone_stone.jpg *
+        skins/Insight\ Dark/2560x1600/scentone_cereal.jpg *
+        skins/Insight\ Dark/2560x1600/scentone_chocolate.jpg *
+        skins/Insight\ Dark/2560x1600/scentone_flower.jpg *
+        skins/Insight\ Dark/2560x1600/scentone_spice.jpg *
+        skins/Insight\ Dark/2560x1600/scentone_vegetable.jpg *
+        skins/Insight\ Dark/2560x1600/scentone_savory.jpg *
+        skins/Insight\ Dark/2560x1600/describe_espresso0.jpg *
+        skins/Insight\ Dark/2560x1600/describe_espresso.jpg *
+        skins/Insight\ Dark/2560x1600/describe_espresso2.jpg *
 
         skins/DSx/1280x800/2SbuttonA.png *
         skins/DSx/1280x800/2SbuttonE.png *
@@ -835,6 +760,7 @@ proc make_de1_dir {srcdir destdirs} {
         skins/DSx/skin.tcl *
 
         saver/1280x800/black_saver.jpg *
+        saver/1280x800/emmyart1.jpg *
         saver/1280x800/Black\ Steel.jpg *
         saver/1280x800/Cozy-Home.jpg *
         saver/1280x800/Floral.jpg *
@@ -859,6 +785,7 @@ proc make_de1_dir {srcdir destdirs} {
         saver/1280x800/three_women.jpg *
         saver/1280x800/rainbow_dj.jpg *
         saver/2560x1600/black_saver.jpg *
+        saver/2560x1600/emmyart1.jpg *
         saver/2560x1600/Black\ Steel.jpg *
         saver/2560x1600/Cozy-Home.jpg *
         saver/2560x1600/Floral.jpg *
@@ -893,6 +820,7 @@ proc make_de1_dir {srcdir destdirs} {
         profiles/flow_calibration.tcl *
         profiles/7g\ basket.tcl *
         profiles/cleaning_forward_flush.tcl *
+        profiles/Cleaning_forward_flush_x5.tcl *
         profiles/adaptive_espresso.tcl *
         profiles/Best\ overall\ pressure\ profile.tcl *
         profiles/weber_spring_clean.tcl *
@@ -961,50 +889,58 @@ proc make_de1_dir {srcdir destdirs} {
 
         plugins/log_debug/plugin.tcl *
 
-        plugins/DYE/1280x800/bean_DSx.png *
-        plugins/DYE/1280x800/bean_Insight.png *
-        plugins/DYE/1280x800/bean_MimojaCafe.png *
-        plugins/DYE/1280x800/espresso_DSx.png *
-        plugins/DYE/1280x800/espresso_Insight.png *
-        plugins/DYE/1280x800/espresso_MimojaCafe.png *
-        plugins/DYE/1280x800/niche_DSx.png *
-        plugins/DYE/1280x800/niche_Insight.png *
-        plugins/DYE/1280x800/niche_MimojaCafe.png *
-        plugins/DYE/1280x800/people_DSx.png *
-        plugins/DYE/1280x800/people_Insight.png *
-        plugins/DYE/1280x800/people_MimojaCafe.png *
-        plugins/DYE/2560x1600/bean_DSx.png *
-        plugins/DYE/2560x1600/bean_Insight.png *
-        plugins/DYE/2560x1600/bean_MimojaCafe.png *
-        plugins/DYE/2560x1600/espresso_DSx.png *
-        plugins/DYE/2560x1600/espresso_Insight.png *
-        plugins/DYE/2560x1600/espresso_MimojaCafe.png *
-        plugins/DYE/2560x1600/niche_DSx.png *
-        plugins/DYE/2560x1600/niche_Insight.png *
-        plugins/DYE/2560x1600/niche_MimojaCafe.png *
-        plugins/DYE/2560x1600/people_DSx.png *
-        plugins/DYE/2560x1600/people_Insight.png *
-        plugins/DYE/2560x1600/people_MimojaCafe.png *
-        plugins/DYE/changelog.md *
-        plugins/DYE/DYE.tcl *
-        plugins/DYE/plugin.tcl *
-        plugins/DYE/setup_DSx.tcl *
-        plugins/DYE/setup_Insight.tcl *
-        plugins/DYE/setup_MimojaCafe.tcl *
-
-        plugins/SDB/SDB.tcl *
-        plugins/SDB/plugin.tcl *
-
         allcerts.pem *
     }
-#        profiles/Traditional\ lever\ machine\ at\ 9\ bar.tcl *
-#        profiles/Powerful\ 10\ bar\ shot.tcl *
 
-    #set srcdir "/d/admin/code/de1beta"
-    #set srcdir "."
-    #set destdirs [list "/d/download/sync/de1" "/d/download/sync/de1plus" "/d/download/sync/de1plusbig"]
-    #set destdirs [list "/d/download/sync/de1plus"]
-    #set destdirs [list "/d/download/sync/de1beta"]
+    # Have skins deal with their own filelist if they want to
+    set skin_folders [lsort -dictionary [glob -nocomplain -tails -type d -directory "$srcdir/skins" * ]]
+    puts "Checking for skin filelists in $skin_folders"
+
+    foreach s $skin_folders {
+        set fbasename [file rootname [file tail $s]]
+        # We skip the old metric folder when creating the manifest now. This might now work on windows... :(
+        if {$fbasename == "metric"} {
+            continue
+        }
+
+        if {[file exists "$srcdir/skins/$fbasename/filelist.txt"] == 1} {
+            set log_files {}
+            puts "Found filelist.txt in $srcdir/skins/$fbasename/filelist.txt"
+            set a [open "$srcdir/skins/$fbasename/filelist.txt"]
+            set lines [split [read $a] "\n"]
+            close $a;
+            foreach line $lines {
+                if {$line eq {}} {
+                    continue
+                }
+                lappend files "skins/$fbasename/$line" *
+                lappend log_files "skins/$fbasename/$line"
+            }
+            puts "Files added from filelists: $log_files"
+        }
+    }
+
+    set plugin_folders [lsort -dictionary [glob -nocomplain -tails -type d -directory "$srcdir/plugins" * ]]
+    puts "Checking for plugin filelists in $plugin_folders"
+
+    foreach s $plugin_folders {
+        set fbasename [file rootname [file tail $s]]
+        if {[file exists "$srcdir/plugins/$fbasename/filelist.txt"] == 1} {
+            set log_files {}
+            puts "Found filelist.txt in $srcdir/plugins/$fbasename/filelist.txt"
+            set a [open "$srcdir/plugins/$fbasename/filelist.txt"]
+            set lines [split [read $a] "\n"]
+            close $a;
+            foreach line $lines {
+                if {$line eq {}} {
+                    continue
+                }
+                lappend files "plugins/$fbasename/$line" *
+                lappend log_files "plugins/$fbasename/$line"
+            }
+            puts "Files added from filelists: $log_files"
+        }
+    }
 
     set old_timestamp 0
     # load the local manifest into memory
@@ -1064,6 +1000,7 @@ proc make_de1_dir {srcdir destdirs} {
                 } else {
                     set lmanifest_sha($file) $sha256
                     set lmanifest_mtime($file) $mtime
+                    puts $sha256
                 }
             }
 

@@ -2183,10 +2183,14 @@ proc update_de1_plus_advanced_explanation_chart { {context {}} } {
 proc setup_images_for_first_page {} {
 	
 	msg -DEBUG "setup_images_for_first_page"
-	set fn [random_splash_file]
+	set fn [dui::image::find "splash.jpg"]
+
+	if {$fn == "" || ![file exists $fn]} {
+		msg "skin/splash.jpg does not exist. Using default wallpaper"
+		set fn [random_splash_file]
+	}
 	image create photo splash -file $fn 
 	.can create image {0 0} -anchor nw -image splash -tag splash -state normal
-#	pack .can
 	
 	update
 	return
@@ -2200,6 +2204,11 @@ package require de1_shot 2.0
 proc ui_startup {} {
 	
 	load_settings
+
+	# Metric is now uppercase, so this is translation code
+	if { $::settings(skin) eq "metric" } {
+		set ::settings(skin) "Metric"
+	}
 
 	::profile::sync_from_legacy	
 	setup_environment
@@ -2242,7 +2251,6 @@ proc ui_startup {} {
 	dui font add_dirs "[homedir]/fonts"
 	dui item add_image_dirs "[homedir]/skins/$::settings(skin)" "[homedir]/skins/default"
 	dui setup_ui
-	
 
 	.can itemconfigure splash -state hidden
 	
@@ -2416,6 +2424,7 @@ proc show_hide_from_variable {widgetids n1 n2 op} {
 
 # causes the water level widget to change between colors (blinking) at an inreasing rate as the water level goes lower
 proc water_level_color_check {widget} {
+
 	if {$::settings(waterlevel_indicator_blink) != 1} {
 		return
 	}
@@ -2426,6 +2435,11 @@ proc water_level_color_check {widget} {
 	}
 	incr ::water_level_color_check_count 
 	set colors [list  "#7ad2ff"  "#ff6b6b"]
+
+	if {[ifexists ::insight_dark_mode] == 1} {
+		set colors [list  "#003e5d"  "#790000"]
+	}
+
 	if {$::water_level_color_check_count > [expr {-1 + [llength $colors]}] } {
 		set ::water_level_color_check_count 0
 	}
@@ -2454,7 +2468,9 @@ proc water_level_color_check {widget} {
 		set blinkrate 500
 	}
 
-	$widget configure -background $color
+	catch {
+		$widget configure -background $color
+	}
 	after $blinkrate water_level_color_check $widget
 }
 
@@ -3198,14 +3214,14 @@ namespace eval ::gui::notify {
 
 			not_connected {
 
-			    # With automatically_ble_reconnect_forever_to_scale 1
+			    # With the ble reconnect logic
 			    # `ble` will report a connection event when attempting to connect.
 			    # When the connection fails, the disconnect logic fires.
 			    # This has been reported to cause "ticking" sounds every 30 seconds.
 
 			    if { [::de1::state::current_state] == "Sleep" } { return }
 
-				if { $::settings(show_scale_notifications) } {
+				if { $::settings(show_scale_notifications) && $::de1(bluetooth_scale_connection_attempts_tried) < 1} {
 					set what [translate {WARNING: Scale not connected}]
 					borg toast $what
 					say $what $::settings(sound_button_in)
@@ -3619,3 +3635,11 @@ namespace eval ::gui::update {
 	} ;# append_live_data_to_espresso_chart
 
 } ;# ::gui::update
+
+
+proc gridconfigure {widget} {
+	# tkblt has not implemented this command, despite what the docs say
+	if {[package versions BLT] != ""} {
+		$widget grid configure -color $::grid_color 
+	}
+}

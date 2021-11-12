@@ -17,4 +17,11 @@ proc ::plugins::DYE::setup_ui_MimojaCafe {} {
 	set widgets(describe_from_sleep) [dui add dbutton saver {*}$sleep_describe_button_coords -tags saver_to_dye \
 		-symbol $sleep_describe_symbol -symbol_pos {0.5 0.5} -symbol_font_size 45 -canvas_anchor center -justify center \
 		-command [list ::plugins::DYE::open -which_shot last]]
+	
+	### THEME DYE-SPECIFIC STYLES ###
+	dui aspect set -style dye_main_nav_button [subst { dbutton.shape {} dbutton.fill {} dbutton_symbol.font_size 28 
+		dbutton_symbol.fill [::theme button_text_dark
+			
+		] dbutton_symbol.disabledfill "#ccc"}]
+
 }

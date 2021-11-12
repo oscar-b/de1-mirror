@@ -130,6 +130,9 @@ array set ::iconik_settings {
     flush_timeout 3
     steam_active_slot 0
 
+    reset_to_main_profile 0
+    main_profile_slot 1
+
     theme "::default_theme"
 
     cleanup_use_profile 0
@@ -139,7 +142,6 @@ array set ::iconik_settings {
     tmp_profile_to_restore_after_cleanup {}
 
     show_steam 0
-    show_ghc_buttons 0
     steam_presets_enabled 1
     show_grinder_settings_on_main_page 0
     show_clock_on_main_page 0

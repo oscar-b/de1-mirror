@@ -12,6 +12,7 @@ namespace eval ::skin::mimojacafe::graph {}
 source "[skin_directory]/settings.tcl"
 
 iconik_load_settings
+set ::iconik_settings(show_ghc_buttons) {}
 iconik_save_settings
 
 set ::version_string "Version 1.7-$::iconik_settings(ui)"
@@ -24,13 +25,17 @@ proc iconik_wakeup {} {
 	start_idle
 }
 
-if { [plugins available DYE] } {
-	if { [plugins available SDB] } {
-		plugins enable SDB
-	}
-	plugins enable DYE
-}
+catch {
+	package require sqlite3
 
+	if { [plugins available DYE] } {
+		if { [plugins available SDB] } {
+			plugins enable SDB
+		}
+		plugins enable DYE
+		dui page load DYE current -theme MimojaCafe
+	}
+}
 source "[skin_directory]/interfaces/default_ui.tcl"
 source "[skin_directory]/interfaces/magadan_ui.tcl"
 
@@ -43,7 +48,6 @@ source "[skin_directory]/interfaces/default_settings_screen.tcl"
 # Return from screensaver
 set_de1_screen_saver_directory [homedir]$::iconik_settings(saver_dir)
 add_de1_button "saver" {say [translate "wake"] $::settings(sound_button_in); iconik_wakeup} 0 0 2560 1600
-
 
 # Profile QuickSettings
 create_button "settings_1" 80 1460 200 1580  $::font_tiny [::theme button] [::theme button_text_light] {iconik_save_profile 1} "1"
@@ -70,6 +74,19 @@ create_grid
 
 proc iconik_home {} {
 	::page_to_show_when_off "$::iconik_settings(ui)_off"
+	restore_espresso_chart
+}
+
+proc iconik_profile_title {slot} {
+	return [dict get $::iconik_settings(profiles) $slot title]
+}
+
+proc iconik_profile_label {slot} {
+	set title [iconik_profile_title $slot]
+	if {$::iconik_settings(reset_to_main_profile) && $slot == $::iconik_settings(main_profile_slot)} {
+		set title "> $title <" 
+	}
+	return $title
 }
 
 # We no longer have an off page
@@ -170,7 +187,7 @@ proc iconik_get_status_text {} {
 }
 
 proc show_DYE_page {} {
-	dui page load DYE current
+	plugins::DYE::open -which_shot default -theme MimojaCafe -coords {700 250} -anchor nw
 }
 
 proc iconik_status_tap {} {
@@ -285,7 +302,6 @@ proc iconik_is_steam_chosen { slot } {
 	}
 }
 
-
 proc iconik_toggle_steam_settings {slot} {
 
 	set new_steam_timeout [dict get $::iconik_settings(steam_profiles) $slot timeout]
@@ -353,7 +369,7 @@ proc iconik_show_settings {} {
 	show_settings $::settings(settings_profile_type)
 }
 
-proc iconik_select_profile {} {
+proc iconik_open_profile_settings {} {
 	fill_profiles_listbox
 	show_settings settings_1;
 	set_profiles_scrollbar_dimensions
@@ -428,9 +444,12 @@ proc iconik_get_ratio_text {} {
 proc iconik_get_final_weight_text {} {
 	set target [iconik_final_weight]
 
-	set current "$target"
 	if {[::device::scale::is_connected]} {
-		set current "$::de1(scale_weight) / $current"
+		set current "Bev. weight:\n $::de1(scale_weight)g / $target g"
+	} elseif {[::device::scale::expecting_present]} {
+		set current "Bev. weight:\n $target g"
+	} else {
+		set current "Bev. volume:\n $target ml"
 	}
 
 	return $current
@@ -509,13 +528,22 @@ proc iconik_set_weight {target} {
 
 
 proc iconik_is_cleanup {} { return [ expr { $::iconik_settings(cleanup_profile) == $::settings(profile_filename) } ] }
+proc iconik_needs_reset {} { return [ expr { $::iconik_settings(reset_to_main_profile) &&\
+											 [ifexists ::iconik_settings(main_profile_slot)] != "" &&\
+											 [iconik_profile_title $::iconik_settings(main_profile_slot)] != [ifexists ::settings(original_profile_title)] } ] }
 
 proc iconik_before_espresso { old new } {
 	if { [iconik_is_cleanup] } { iconik_before_cleanup_profile }
 }
 
 proc iconik_after_espresso { old new } {
-	if { [iconik_is_cleanup] } { iconik_after_cleanup_profile }
+	backup_espresso_chart
+	if { [iconik_is_cleanup] } {
+		iconik_after_cleanup_profile
+	} elseif { [iconik_needs_reset] } {
+		iconik_toggle_profile $::iconik_settings(main_profile_slot)
+		restore_espresso_chart
+	}
 }
 
 proc iconik_before_cleanup_profile {} {

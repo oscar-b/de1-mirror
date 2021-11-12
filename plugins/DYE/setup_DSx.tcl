@@ -144,8 +144,8 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		dcheckbox.anchor nw
 		dcheckbox.justify left
 		
-		dcheckbox_label.pos "en 30 -10"
-		dcheckbox_label.anchor nw
+		dcheckbox_label.pos "e 30 0"
+		dcheckbox_label.anchor w
 		dcheckbox_label.justify left
 		
 		listbox.relief sunken
@@ -277,24 +277,35 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		dbutton.shape.menu_dlg_btn rect
 		dbutton.fill.menu_dlg_btn {}
 		dbutton.disabledfill.menu_dlg_btn {}
-		dbutton_label.pos.menu_dlg_btn {0.3 0.4} 
+		dbutton_label.pos.menu_dlg_btn {0.25 0.4} 
 		dbutton_label.anchor.menu_dlg_btn w
 		dbutton_label.fill.menu_dlg_btn $::DSx_settings(font_colour)
 		dbutton_label.disabledfill.menu_dlg_btn $disabled_colour
 		
-		dbutton_label1.pos.menu_dlg_btn {0.3 0.78} 
+		dbutton_label1.pos.menu_dlg_btn {0.25 0.78} 
 		dbutton_label1.anchor.menu_dlg_btn w
 		dbutton_label1.fill.menu_dlg_btn #bbb
 		dbutton_label1.disabledfill.menu_dlg_btn $disabled_colour
 		dbutton_label1.font_size.menu_dlg_btn -3
 		
-		dbutton_symbol.pos.menu_dlg_btn {0.18 0.5} 
+		dbutton_symbol.pos.menu_dlg_btn {0.15 0.5} 
 		dbutton_symbol.anchor.menu_dlg_btn center
 		dbutton_symbol.fill.menu_dlg_btn white
 		dbutton_symbol.disabledfill.menu_dlg_btn $disabled_colour
 		
 		line.fill.menu_dlg_sepline #ddd
-		line.width.menu_dlg_sepline 1 
+		line.width.menu_dlg_sepline 1
+		
+		dtext.fill.menu_dlg $::DSx_settings(font_colour)
+		dtext.disabledfill.menu_dlg $disabled_colour
+		dcheckbox.fill.menu_dlg $::DSx_settings(font_colour)
+		dcheckbox.disabledfill.menu_dlg $disabled_colour
+		dcheckbox_label.fill.menu_dlg $::DSx_settings(font_colour)
+		dcheckbox_label.disabledfill.menu_dlg $disabled_colour
+		
+		dbutton.shape.menu_dlg outline
+		dbutton.arc_offset.menu_dlg 25
+		dbutton.width.menu_dlg 3
 	}]
 	
 	# History Viewer styles
@@ -402,8 +413,9 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 	dui aspect set -style dsx_done [list dbutton.shape outline dbutton.bwidth 220 dbutton.bheight 140 dbutton.width 5 \
 		dbutton_label.pos {0.5 0.5} dbutton_label.font_size 20 dbutton_label.font_family $bold_font]
 	
-	dui aspect set -type symbol -style dye_main_nav_button { font_size 24 fill "#7f879a" }
-	
+	dui aspect set -style dye_main_nav_button [subst { dbutton.shape {} dbutton.fill {} dbutton.disabledfill {}
+		dbutton_symbol.font_size 28 dbutton_symbol.fill "#7abefd" dbutton_symbol.disabledfill $disabled_colour}]
+
 	dui aspect set -type dtext -style section_header [list font_family $bold_font font_size 20]
 	
 	dui aspect set -type dclicker -style dye_double [subst {shape {} fill $::DSx_settings(bg_colour) 
@@ -536,26 +548,24 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 	set x [lindex $settings(next_shot_DSx_home_coords) 0]
 	set y [lindex $settings(next_shot_DSx_home_coords) 1]
 	if { $x > 0 && $y > 0 } {
-		set ::plugins::DYE::next_shot_desc [::plugins::DYE::define_next_shot_desc]
-		
 		dui add dbutton $::DSx_standby_pages [expr {$x-375}] [expr {$y-85}] [expr {$x+400}] [expr {$y+85}] \
 			-tags launch_dye_next -symbol $settings(describe_icon) -symbol_pos {0.01 0.5} -symbol_anchor w -symbol_justify left \
-			-symbol_font_size 28 -labelvariable {$::plugins::DYE::next_shot_desc} -label_pos {0.575 0.5} -label_anchor center \
+			-symbol_font_size 28 -labelvariable {$::plugins::DYE::settings(next_shot_desc)} -label_pos {0.575 0.5} -label_anchor center \
 			-label_justify center -label_font_size -2 -label_fill $settings(shot_desc_font_color) -label_width 700 \
-			-command [list ::plugins::DYE::open -which_shot next]
+			-command [::list ::plugins::DYE::open -which_shot next] \
+			-longpress_cmd [::list ::dui::page::open_dialog dye_which_shot_dlg -coords \[list [expr {$x-375}] [expr {$y-80}]\] -anchor sw]
 	}
 	
 	# Icon and summary of the current (last) shot description below the shot chart and steam chart (right side)
 	set x [lindex $settings(last_shot_DSx_home_coords) 0]
 	set y [lindex $settings(last_shot_DSx_home_coords) 1]
 	if { $x > 0 && $y > 0 } {
-		set ::plugins::DYE::last_shot_desc [::plugins::DYE::define_last_shot_desc]
-		
 		dui add dbutton $::DSx_standby_pages [expr {$x-375}] [expr {$y-85}] [expr {$x+400}] [expr {$y+85}] \
 			-tags launch_dye_last -symbol $settings(describe_icon) -symbol_pos {0.99 0.5} -symbol_anchor e -symbol_justify right \
-			-symbol_font_size 28 -labelvariable {$::plugins::DYE::last_shot_desc} -label_pos {0.45 0.5} -label_anchor center \
+			-symbol_font_size 28 -labelvariable {$::plugins::DYE::settings(last_shot_desc)} -label_pos {0.45 0.5} -label_anchor center \
 			-label_justify center -label_font_size -2 -label_fill $settings(shot_desc_font_color) -label_width 700 \
-			-command { if { $::settings(history_saved) == 1 && [info exists ::DSx_settings(live_graph_time)] } { ::plugins::DYE::open -which_shot last }}
+			-command [list ::plugins::DYE::open -which_shot last] \
+			-longpress_cmd [::list ::dui::page::open_dialog dye_which_shot_dlg -coords \[list [expr {$x+375}] [expr {$y-80}]\] -anchor se]
 	}
 		
 	### HISTORY VIEWER PAGE ###
@@ -651,3 +661,5 @@ proc ::plugins::DYE::history_godshots_switch_leave_hook { args } {
 		set ::plugins::DYE::past_shot_desc_one_line2 {}
 	}
 }
+
+

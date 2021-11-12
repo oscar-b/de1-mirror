@@ -966,18 +966,10 @@ proc preinfusion_pour_timer_text {} {
 
 proc total_pour_timer_text {} {
     if {$::de1(language_rtl) == 1} {
-		if {$::settings(final_desired_shot_volume_advanced) > 0 && $::settings(settings_profile_type) == "settings_2c"} {
-			return "[return_liquid_measurement [round_to_integer $::settings(final_desired_shot_volume_advanced)]] < [translate {total}] [translate {s}][espresso_elapsed_timer]"
-		} else {
-			return "[translate {s}][espresso_elapsed_timer] [translate {total}] "
-		}
+		return "[translate {s}][espresso_elapsed_timer] [translate {total}] "
 	}
 
-	if {$::settings(final_desired_shot_volume_advanced) > 0 && $::settings(settings_profile_type) == "settings_2c"} {
-		return "[espresso_elapsed_timer][translate {s}] [translate {total}] < [return_liquid_measurement [round_to_integer $::settings(final_desired_shot_volume_advanced)]]"
-	} else {
-		return "[espresso_elapsed_timer][translate {s}] [translate {total}]"
-	}
+	return "[espresso_elapsed_timer][translate {s}] [translate {total}]"
 }
 
 proc espresso_done_timer_text {} {
@@ -995,6 +987,11 @@ proc espresso_done_timer_text {} {
 
 proc pouring_timer_text {} {
     if {$::de1(language_rtl) == 1} {
+
+		if {$::settings(final_desired_shot_volume_advanced) > 0 && $::settings(settings_profile_type) == "settings_2c"} {
+			return "[return_liquid_measurement [round_to_integer $::settings(final_desired_shot_volume_advanced)]] < [translate {pouring}] [translate {s}][espresso_elapsed_timer]"
+		}
+
 		if {$::settings(scale_bluetooth_address) == "" && $::settings(final_desired_shot_volume) > 0 && ($::settings(settings_profile_type) == "settings_2a" || $::settings(settings_profile_type) == "settings_2b")} {
 			return "[translate {s}][espresso_pour_timer] [translate {pouring}] < [return_liquid_measurement [round_to_integer $::settings(final_desired_shot_volume)]]"
 
@@ -1003,11 +1000,14 @@ proc pouring_timer_text {} {
 		}
 	}
 
+	if {$::settings(final_desired_shot_volume_advanced) > 0 && $::settings(settings_profile_type) == "settings_2c"} {
+		return "[espresso_elapsed_timer][translate {s}] [translate {pouring}] < [return_liquid_measurement [round_to_integer $::settings(final_desired_shot_volume_advanced)]]"
+	}
+
 	if {$::settings(scale_bluetooth_address) == "" && $::settings(final_desired_shot_volume) > 0 && ($::settings(settings_profile_type) == "settings_2a" || $::settings(settings_profile_type) == "settings_2b")} {
 		return "[espresso_pour_timer][translate {s}] [translate {pouring}] < [return_liquid_measurement [round_to_integer $::settings(final_desired_shot_volume)]]"
-	} else {
-		return "[espresso_pour_timer][translate {s}] [translate {pouring}]"
 	}
+	return "[espresso_pour_timer][translate {s}] [translate {pouring}]"
 
 }
 
@@ -1109,7 +1109,7 @@ proc drink_weight_text {} {
 }
 
 proc dump_stack {args} {
-	msg -DEBUG [stacktrace]
+	msg -INFO [stacktrace]
 }
 
 #trace add variable de1(final_water_weight) write dump_stack
@@ -1533,6 +1533,10 @@ proc skin_directories {} {
 
 	set dirs [lsort -dictionary [glob -nocomplain -tails -directory "[homedir]/skins/" *]]
 	set dd {}
+
+	# overriding settings to include Insight Dark now
+	set ::settings(most_popular_skins) [list Insight "Insight Dark" MimojaCafe Metric DSx SWDark4]
+
 	foreach d $dirs {
 		if {$d == "CVS" || $d == "example"} {
 			continue
@@ -1589,11 +1593,6 @@ proc fill_skin_listbox {} {
 	foreach d [skin_directories] {
 		if {$d == "CVS" || $d == "example"} {
 			continue
-		}
-
-		if {$d == "metric"} {
-			# typo in github was in lower case for Metric skin, so hacking the dispay of it here
-			set d "Metric"
 		}
 
 		$widget insert $cnt [translate $d]
@@ -1827,16 +1826,24 @@ proc fill_ble_listbox {} {
 	make_current_listbox_item_blue $widget
 }
 
-proc fill_ble_scale_listbox {} {
-	fill_peripheral_listbox
-}
-
 proc fill_peripheral_listbox {} {
 
 	set widget $::ble_scale_listbox_widget
+
 	$widget delete 0 99999
 	set cnt 0
 	set current_ble_number 0
+
+	# count peripherals with the same name, so we can differentiate them in the listbox if needed
+	foreach d $::peripheral_device_list {
+		set name [dict get $d name]
+		if {[info exists peripherals_seen($name)] == 1} {
+			incr peripherals_seen($name)
+		} else {
+			set peripherals_seen($name) 1
+		}
+	}
+
 
 	set one_selected 0
 	foreach d $::peripheral_device_list {
@@ -1856,6 +1863,12 @@ proc fill_peripheral_listbox {} {
 		}
 
 		if { $name eq "" } { set name $family }
+
+		if {$peripherals_seen($name) > 1} {
+			# this peripheral appears twice in a ble scan, so give the last two digits of the ble address to differentiate it
+			set name "[string range $addr end-1 end]-$name"
+		}
+
 		if {$addr == [ifexists ::settings(scale_bluetooth_address)]} {
 			$widget insert $cnt " \[[checkboxchar]\] $icon $name"
 			set one_selected 1
@@ -2526,21 +2539,21 @@ proc change_bluetooth_device {} {
 	fill_ble_listbox
 }
 
-
 proc change_scale_bluetooth_device {} {
 	set w $::ble_scale_listbox_widget
 
 	if {$w == ""} {
 		return
 	}
-	if {[$w curselection] == ""} {
-		msg -NOTICE "change_scale_bluetooth_device: re-connecting to scale"
-		ble_connect_to_scale
+
+	set selection_index [$w curselection]
+	if {$selection_index == ""} {
 		return
 	}
-	set selection_index [$w curselection]
 
-	msg "selected item" $selection_index
+	puts "selection_index: $selection_index"
+
+	msg "selected item" 	
 	set dic [lindex $::peripheral_device_list $selection_index]
 	set addr [dict get $dic address]
 	set name [dict get $dic name]
@@ -2565,18 +2578,26 @@ proc change_scale_bluetooth_device {} {
 		set ::settings(scale_type) $devicefamily
 		msg "set scale type to: '$::settings(scale_type)' $addr"
 
-		if {$addr == $::settings(scale_bluetooth_address)} {
+		set handle $::de1(scale_device_handle)
+		if {$handle != "" && $handle != 0} {
+			set ::de1(scale_device_handle) 0
+			#set ::de1(cmdstack) {};
+			#set ::currently_connecting_scale_handle 0
+			ble close $handle
 			ble_connect_to_scale
-			return
+		}  else {
+			ble_connect_to_scale
 		}
+
+		#after 500 
+
 	} else {
 		msg -WARNING "Non scale peripheral requested for connect. Damn!"
 	}
 
 	save_settings
-	ble_connect_to_scale
-
 	fill_peripheral_listbox
+
 }
 
 
@@ -3005,8 +3026,10 @@ proc ghc_required {} {
 	if {$::settings(ghc_is_installed) != 0 && $::settings(ghc_is_installed) != 1 && $::settings(ghc_is_installed) != 2 && $::settings(ghc_is_installed) != 4} {
 		return 1
 	}
+	if {$::undroid == 1 && $::android == 0} {
+		return 0
+	}
 	return 0
-
 }
 
 proc start_text_if_espresso_ready {} {
@@ -3685,27 +3708,45 @@ proc range_check_shot_variables {} {
 	range_check_variable ::settings(final_desired_shot_volume_advanced_count_start) 0 20
 	range_check_variable ::settings(tank_desired_water_temperature) 0 45
 
-
-
-
-
-
 }
 
 proc change_espresso_temperature {amount} {
 
-	if {[ifexists ::settings(espresso_temperature_steps_enabled)] == 1} {
+	if {$::settings(settings_profile_type) == "settings_2a" || $::settings(settings_profile_type) == "settings_2b"} {
+		# pressure or flow profile
 
-		# if step temps are enabled then set the preinfusion start temp to the global temp 
-		# and then apply the relative change desired to each subsequent step
-		set ::settings(espresso_temperature) [expr {$::settings(espresso_temperature) + $amount}]
-		set ::settings(espresso_temperature_0) $::settings(espresso_temperature)			
-		set ::settings(espresso_temperature_1) [expr {$::settings(espresso_temperature_1) + $amount}]
-		set ::settings(espresso_temperature_2) [expr {$::settings(espresso_temperature_2) + $amount}]
-		set ::settings(espresso_temperature_3) [expr {$::settings(espresso_temperature_3) + $amount}]
+		if {[ifexists ::settings(espresso_temperature_steps_enabled)] == 1} {
 
+			# if step temps are enabled then set the preinfusion start temp to the global temp 
+			# and then apply the relative change desired to each subsequent step
+			set ::settings(espresso_temperature) [expr {$::settings(espresso_temperature) + $amount}]
+			set ::settings(espresso_temperature_0) $::settings(espresso_temperature)			
+			set ::settings(espresso_temperature_1) [expr {$::settings(espresso_temperature_1) + $amount}]
+			set ::settings(espresso_temperature_2) [expr {$::settings(espresso_temperature_2) + $amount}]
+			set ::settings(espresso_temperature_3) [expr {$::settings(espresso_temperature_3) + $amount}]
+
+		} else {
+			set ::settings(espresso_temperature) [expr {$::settings(espresso_temperature) + $amount}]
+		}
 	} else {
-		set ::settings(espresso_temperature) [expr {$::settings(espresso_temperature) + $amount}]
+		# advanced shots need every step changed
+
+		set newshot {}
+		set cnt 0
+		foreach step $::settings(advanced_shot) {
+			incr cnt
+			array unset -nocomplain props
+			array set props $step
+			set temp [ifexists props(temperature)]
+			set newtemp [expr {$temp + $amount}]
+			if {$cnt == 1} {
+				set ::settings(espresso_temperature) $newtemp
+			}
+
+			set props(temperature) $newtemp
+			lappend newshot [array get props]
+		}
+		set ::settings(advanced_shot) $newshot
 	}
 
 	range_check_shot_variables

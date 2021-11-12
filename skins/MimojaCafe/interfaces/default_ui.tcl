@@ -28,10 +28,6 @@ proc iconik_expresso_temperature {} {
 	return "$temp °C$profile_changed_indicator"
 }
 
-proc iconik_profile_title {slot} {
-	return [dict get $::iconik_settings(profiles) $slot title]
-}
-
 proc iconik_steam_timeout {slot} {
 	return [dict get $::iconik_settings(steam_profiles) $slot timeout]
 }
@@ -111,7 +107,7 @@ if {$::iconik_settings(create_profile_backups) == 0} {
 }
 
 ## Espresso Target Weight
-create_settings_button "default_off" 1080 30 1480 150 $::font_tiny [::theme button_secondary] [::theme button_text_light] {iconik_weight_change down} {iconik_weight_change up} {Bev. weight:\n [iconik_get_final_weight_text]g}
+create_settings_button "default_off" 1080 30 1480 150 $::font_tiny [::theme button_secondary] [::theme button_text_light] {iconik_weight_change down} {iconik_weight_change up} {[iconik_get_final_weight_text]}
 
 if {$::iconik_settings(show_grinder_settings_on_main_page) == 0} {
 	## Steam
@@ -123,7 +119,7 @@ if {$::iconik_settings(show_grinder_settings_on_main_page) == 0} {
 	create_settings_button "default_off" 1580 30 1980 150 $::font_tiny [::theme button_secondary] [::theme button_text_light] { set ::settings(grinder_dose_weight)  [round_one_digits [expr {$::settings(grinder_dose_weight) - 0.5}]]; profile_has_changed_set; save_profile; save_settings_to_de1; save_settings} { set ::settings(grinder_dose_weight) [round_one_digits [expr {$::settings(grinder_dose_weight) + 0.5}]]; profile_has_changed_set; save_profile; save_settings_to_de1; save_settings} {Dose:\n [round_one_digits $::settings(grinder_dose_weight)] ([iconik_get_ratio_text])}
 	if {$::iconik_settings(show_clock_on_main_page) == 1} {
 		## Show clock
-		create_button "default_off" 2080 30 2480 150 $::font_tiny [::theme button_secondary] [::theme button_text_light] {} { [time_format [clock seconds] 1]}
+		create_button "default_off" 2080 30 2480 150 $::font_tiny [::theme button_secondary] [::theme button_text_light] {say [time_format [clock seconds] 1} { [time_format [clock seconds] 1]}
 	} else {
 		create_settings_button "default_off" 2080 30 2480 150 $::font_tiny [::theme button_secondary] [::theme button_text_light]  { set ::settings(grinder_setting) [round_to_one_digits [expr {$::settings(grinder_setting) - 0.1}]]; profile_has_changed_set; save_profile; save_settings_to_de1; save_settings} { set ::settings(grinder_setting) [round_to_one_digits [expr {$::settings(grinder_setting) + 0.1}]]; profile_has_changed_set; save_profile; save_settings_to_de1; save_settings} {Grinder Setting:\n $::settings(grinder_setting)}
 	}
@@ -187,13 +183,12 @@ if {$::iconik_settings(show_ml_instead_of_water_level) == 1} {
 # Presets
 
 ## coffee
-create_button "default_off" 80 1140 480 1380 $::font_tiny [::theme button_coffee] [::theme button_text_light] {iconik_toggle_profile 1} {[iconik_profile_title 1]}
+create_button "default_off" 80 1140 480 1380 $::font_tiny [::theme button_coffee] [::theme button_text_light] {iconik_toggle_profile 1} {[iconik_profile_label 1]}
 create_active_marker "default_off" 80 1140 480 1380 {[iconik_is_coffee_chosen 1]}
-create_button "default_off" 580 1140 980 1380 $::font_tiny [::theme button_coffee] [::theme button_text_light] {iconik_toggle_profile 2} {[iconik_profile_title 2]}
+create_button "default_off" 580 1140 980 1380 $::font_tiny [::theme button_coffee] [::theme button_text_light] {iconik_toggle_profile 2} {[iconik_profile_label 2]}
 create_active_marker "default_off" 580 1140 980 1380 {[iconik_is_coffee_chosen 2]}
-create_button "default_off" 1080 1140 1480 1380 $::font_tiny [::theme button_coffee] [::theme button_text_light] {iconik_toggle_profile 3} {[iconik_profile_title 3]}
+create_button "default_off" 1080 1140 1480 1380 $::font_tiny [::theme button_coffee] [::theme button_text_light] {iconik_toggle_profile 3} {[iconik_profile_label 3]}
 create_active_marker "default_off" 1080 1140 1480 1380 {[iconik_is_coffee_chosen 3]}
-
 
 if {$::iconik_settings(steam_presets_enabled) == 1} {
 	## Steam Presets
@@ -203,9 +198,9 @@ if {$::iconik_settings(steam_presets_enabled) == 1} {
 	create_active_marker "default_off" 2080 1140 2480 1380 {[iconik_is_steam_chosen 2]}
 } else {
 	# Two more coffee presets
-	create_button "default_off"  1580 1140 1980 1380 $::font_tiny [::theme button_coffee] [::theme button_text_light] {iconik_toggle_profile 4} {[iconik_profile_title 4]}
+	create_button "default_off"  1580 1140 1980 1380 $::font_tiny [::theme button_coffee] [::theme button_text_light] {iconik_toggle_profile 4} {[iconik_profile_label 4]}
 	create_active_marker "default_off" 1580 1140 1980 1380 {[iconik_is_coffee_chosen 4]}
-	create_button "default_off" 2080 1140 2480 1380 $::font_tiny [::theme button_coffee] [::theme button_text_light] {iconik_toggle_profile 5} {[iconik_profile_title 5]}
+	create_button "default_off" 2080 1140 2480 1380 $::font_tiny [::theme button_coffee] [::theme button_text_light] {iconik_toggle_profile 5} {[iconik_profile_label 5]}
 	create_active_marker "default_off" 2080 1140 2480 1380 {[iconik_is_coffee_chosen 5]}
 }
 
@@ -218,12 +213,12 @@ create_button "default_off" 80 1440 480 1560    $::font_tiny [::theme button_ter
 create_button "default_off" 580 1440 980 1560   $::font_tiny [::theme button_tertiary] [::theme button_text_light] { say [translate "settings"] $::settings(sound_button_in); show_DYE_page} {[translate "Describe"]}
 
 create_button "default_off" 1080 1440 1480 1560 $::font_tiny [::theme button_tertiary] [::theme button_text_light] { say [translate "settings"] $::settings(sound_button_in); iconik_toggle_cleaning } { [translate "Clean"]} 
-create_button "default_off" 1580 1440 1980 1560 $::font_tiny [::theme button_tertiary] [::theme button_text_light] { say [translate "settings"] $::settings(sound_button_in); iconik_select_profile } {[translate "Settings"]}
+create_button "default_off" 1580 1440 1980 1560 $::font_tiny [::theme button_tertiary] [::theme button_text_light] { say [translate "settings"] $::settings(sound_button_in); iconik_open_profile_settings } {[translate "Settings"]}
 create_button "default_off" 2080 1440 2480 1560 $::font_tiny [::theme button_tertiary] [::theme button_text_light] { say [translate "settings"] $::settings(sound_button_in); start_sleep } { [translate "Sleep"]}
 
 
 ## GHC buttons
-if {$::iconik_settings(show_ghc_buttons) == 1} {
+if {![ghc_required]} {
 	create_button "default_off" 2180 210 2480 390  $::font_tiny [::theme button_tertiary] [::theme button_text_light] { ghc_action_or_stop start_espresso } {[ghc_text_or_stop "Espresso"]}
 	create_button "default_off" 2180 450 2480 630  $::font_tiny [::theme button_tertiary] [::theme button_text_light] { ghc_action_or_stop start_water}     {[ghc_text_or_stop "Water"]}
 	create_button "default_off" 2180 690 2480 870  $::font_tiny [::theme button_tertiary] [::theme button_text_light] { ghc_action_or_stop start_steam}     {[ghc_text_or_stop "Steam"]}
@@ -237,7 +232,7 @@ if {$::iconik_settings(show_ghc_buttons) == 1} {
 set espresso_graph_height 900
 set espresso_graph_width 1880
 
-if {$::iconik_settings(show_ghc_buttons) == 1} {
+if {![ghc_required]} {
 	set espresso_graph_width 1540
 }
 

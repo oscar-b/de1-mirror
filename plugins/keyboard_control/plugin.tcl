@@ -5,7 +5,7 @@ set plugin_name "keyboard_control"
 namespace eval ::plugins::${plugin_name} {
 	variable author "Vincent Politzer"
 	variable contact "redfoxdude@gmail.com"
-	variable version 1.4.0
+	variable version 1.4.1
 	variable description "Control your non-GHC DE1 with a keyboard"
 
 	# last_keypress_time is used to filter repeated keypresses,
@@ -94,28 +94,28 @@ namespace eval ::plugins::${plugin_name} {
 			if {($curr_state == "Idle") && ($curr_substate == "ready")} {
 				if {$kbc_cmd == "Espresso"} {
 					borg toast [translate "Starting espresso"]
-					if { $::settings(skin) eq "metric" } {
+					if { [string tolower $::settings(skin)] eq "metric" } {
 						do_start_espresso
 					} else {
 						start_espresso
 					}
 				} elseif {$kbc_cmd == "Steam"} {
 					borg toast [translate "Starting steam"]
-					if { $::settings(skin) eq "metric" } {
+					if { [string tolower $::settings(skin)] eq "metric" } {
 						do_start_steam
 					} else {
 						start_steam
 					}
 				} elseif {$kbc_cmd == "HotWater"} {
 					borg toast [translate "Starting hot water"]
-					if { $::settings(skin) eq "metric" } {
+					if { [string tolower $::settings(skin)] eq "metric" } {
 						do_start_water
 					} else {
 						start_water
 					}
 				} elseif {$kbc_cmd == "HotWaterRinse"} {
 					borg toast [translate "Starting flush"]
-					if { $::settings(skin) eq "metric" } {
+					if { [string tolower $::settings(skin)] eq "metric" } {
 						do_start_flush
 					} else {
 						start_flush

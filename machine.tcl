@@ -231,7 +231,6 @@ array set ::settings {
 	steam_over_temp_threshold 180
 	disable_long_press 0
 	steam_over_pressure_threshold 8
-	automatically_ble_reconnect_forever_to_scale 0
 	chart_total_shot_flow 1
 	steam_over_pressure_count_trigger 10
 	do_async_update_check 0
@@ -403,7 +402,7 @@ array set ::settings {
 	water_speed_type "flow"
 	speaking_pitch 1.0
 	show_only_most_popular_skins 1
-	most_popular_skins {Insight MimojaCafe metric DSx SWDark4}
+	most_popular_skins {Insight MimojaCafe Metric DSx SWDark4}
 	sound_button_in 8
 	sound_button_out 11
 	profile_notes {}

@@ -3744,7 +3744,6 @@ namespace eval ::dui {
 				if { [string is integer $main_tag] || ![regexp {^([A-Za-z0-9_\-])+$} $main_tag] } {
 					set msg "process_tags_and_var: main tag '$main_tag' can only have letters, numbers, underscores and hyphens, and cannot be a number" 
 					msg -ERROR [namespace current] $msg
-					info_page $msg
 					return 0
 				}
 			}
@@ -3753,7 +3752,6 @@ namespace eval ::dui {
 				if { [dui page has_item $page $main_tag] } {
 					set msg "process_tags_and_var: main tag '$main_tag' already exists in page '$page', duplicates are not allowed"
 					msg -ERROR [namespace current] $msg
-					info_page $msg
 					return 0
 				}
 			}			
@@ -5986,7 +5984,7 @@ namespace eval ::dui {
 			return [list $newx $newy]
 		}
 		
-		proc relocate_dropdown_arrow { page tag  } {
+		proc relocate_dropdown_arrow { page tag } {
 			set can [dui canvas]
 			set page [lindex $page 0]
 			set tag [lindex $tag 0]
@@ -5996,11 +5994,11 @@ namespace eval ::dui {
 			}
 			
 			lassign [$can bbox [get $page $tag]] x0 y0 x1 y1 
-						
-			set dda_box_id [get $page "${tag}-dda"]
-			lassign [$can coords $dda_box_id] ax0 ay0
 			
-			foreach id [get $page "${tag}-dda-btn"] { 
+			set dda_box_ids [get $page "${tag}-dda-btn"]
+			lassign [$can coords [lindex $dda_box_ids 0]] ax0 ay0
+			
+			foreach id [concat $dda_box_ids [get $page "${tag}-dda"]] { 
 				lassign [$can coords $id] ix0 iy0
 				$can moveto $id [expr {$x1+($ix0-$ax0)}] [expr {$y0+($iy0-$ay0)}]
 			}
@@ -6010,7 +6008,11 @@ namespace eval ::dui {
 			lassign [$can bbox $dda_sym_id] ix0 iy0
 			$can moveto $dda_sym_id [expr {$x1+($ix0-$ax0)}] [expr {$y0+($iy0-$ay0)}]
 			
-			$can moveto $dda_box_id $x1 $y0
+			set debug_outline_id [get $page "${tag}-dda-dout"]
+			if { $debug_outline_id ne "" } {
+				lassign [$can coords $debug_outline_id] ix0 iy0
+				$can moveto $debug_outline_id [expr {$x1+($ix0-$ax0)}] [expr {$y0+($iy0-$ay0)}]
+			}
 		}
 		
 		# Ensures a minimum or maximum size of a widget in pixels. This is normally useful for text base entries like 
@@ -7347,6 +7349,7 @@ namespace eval ::dui {
 		#	-symbol to add a Fontawesome symbol/icon to the button, on position -symbol_pos, and using option values
 		#		given in -symbol_* that are passed through to 'dui add symbol'
 		#	-radius for rounded rectangles, and -arc_offset for rounded outline rectangles
+		#	-tap_pad A list with up to 4 elements, specifying an increase in tapping area in each of the 4 directions.
 		#	All others passed through to the respective visible button creation command.
 		proc dbutton { pages x y args } { 			
 			set debug_buttons [dui cget debug_buttons]
@@ -7403,7 +7406,12 @@ namespace eval ::dui {
 			set tags [dui::args::process_tags_and_var $pages dbutton {} 1 args 1]
 			set main_tag [lindex $tags 0]
 			set button_tags [list ${main_tag}-btn {*}[lrange $tags 1 end]]
-			
+			lassign [lreplicate 4 [dui::args::get_option -tap_pad 0 1]] tp0 tp1 tp2 tp3
+			set tp0 [dui::platform::rescale_x $tp0]
+			set tp1 [dui::platform::rescale_y $tp1]
+			set tp2 [dui::platform::rescale_x $tp2]
+			set tp3 [dui::platform::rescale_y $tp3]
+									
 			set rx [dui::platform::rescale_x $x]
 			set rx1 [dui::platform::rescale_x $x1]
 			set ry [dui::platform::rescale_y $y]
@@ -7480,19 +7488,26 @@ namespace eval ::dui {
 			# As soon as the rect has a non-zero width (or maybe an outline or fill?), its "clickable" area becomes only
 			#	the border, so if a visible rectangular button is needed, we have to add an invisible clickable rect on 
 			#	top of it.
-			set ids {}
-			if { $style eq "" && ![dui::args::has_option -shape]} {
-				if { $debug_buttons == 1 } {
-					set width 1
+			
+			#if { $style eq "" && ![dui::args::has_option -shape]} {
+				if { $debug_buttons } {
 					set outline [dui aspect get dbutton debug_outline -style $style -default "black"]
-				} else {
-					set width 0
+					$can create rect [expr {$rx-$tp0}] [expr {$ry-$tp1}] [expr {$rx1+$tp2}] [expr {$ry1+$tp3}] \
+						-outline $outline -width 1 -tags [list ${main_tag}-dout {*}[lrange $tags 1 end]] -state hidden
 				}
-	
-				if { $width > 0 } {
-					set ids [$can create rect $rx $ry $rx1 $ry1 -outline $outline -width $width -tags $button_tags \
-						-state hidden]
-				}
+#				else {
+#					set width 0
+#				}
+#	
+#				if { $width > 0 } {
+#					set ids [$can create rect [expr {$rx+$tp0}] [expr {$ry+$tp1}] [expr {$rx1+$tp2}] [expr {$ry1+$tp3}] \
+#						-outline $outline -width $width -tags $button_tags -state hidden]
+#				}
+			#} else {}
+			
+			set ids {}
+			if { ![dui::args::has_option -shape] } {
+				set ids [$can create rect $rx $ry $rx1 $ry1 -fill {} -outline black -width 0 -tags $button_tags -state hidden]	
 			} else {
 				dui::args::remove_options -debug_outline
 				set shape [dui::args::get_option -shape [dui aspect get dbutton shape -style $style -default rect] 1]
@@ -7530,6 +7545,7 @@ namespace eval ::dui {
 					set ids [$can create rect $rx $ry $rx1 $ry1 -tags $button_tags -state hidden {*}$args]
 				}
 			}
+			
 			if { $ids ne "" && $ns ne "" } {
 				set ${ns}::widgets([lindex $button_tags 0]) $ids
 			}
@@ -7571,7 +7587,12 @@ namespace eval ::dui {
 				set suffix [incr i]
 			}
 			
-			# Clickable rect
+			# Clickable rect. Needs to have -width 0.
+			set rx [expr {$rx-$tp0}] 
+			set ry [expr {$ry-$tp1}] 
+			set rx1 [expr {$rx1+$tp2}] 
+			set ry1 [expr {$ry1+$tp3}]
+
 			set id [$can create rect $rx $ry $rx1 $ry1 -fill {} -outline black -width 0 -tags $tags -state hidden]
 			if { $longpress_cmd ne "" } {
 				if { $ns ne "" } { 
@@ -7752,7 +7773,9 @@ namespace eval ::dui {
 				set symbol_selectedfill [dui::args::get_option -symbol_selectedfill $fill 1]
 			}
 
-			lassign [dui::args::process_sizes $pages $x $y -bwidth 600 -bheight 100 0] x y x1 y1
+			# Don't pass the page here because the page top-left offset is already taken into the posterior call to dui::add::dbutton 
+			lassign [dui::args::process_sizes {} $x $y -bwidth 600 -bheight 100 0] x y x1 y1
+			
 			set lengths [dui::args::get_option -lengths {} 1]
 			if { $lengths eq {} } {
 				set lengths [lreplicate $n 0.1]
@@ -7826,7 +7849,7 @@ namespace eval ::dui {
 				}
 				
 				set cmd [::list ::dui::item::dselector_click $i1 $n $var [lindex $values $i] $multiple]
-				set id [dui::add::dbutton $pages $ix $iy $ix1 $iy1 -tags ${main_tag}_$i1 -command $cmd {*}$iargs]
+				set id [dui::add::dbutton $pages $ix $iy $ix1 $iy1 -tags [list ${main_tag}_$i1 ${main_tag}*] -command $cmd {*}$iargs]
 				lappend ids $id
 				
 				if { $user_cmd ne {} } {
@@ -7877,7 +7900,8 @@ namespace eval ::dui {
 				set $var 0
 			}
 			dui::args::process_aspects dtoggle $style
-
+			dui::args::process_label $pages $x $y dtoggle $style
+			
 			lassign [dui::args::process_sizes $pages $x $y -width 60 -height 35 1] x y x1 y1
 			set sliderwidth [dui::args::get_option -sliderwidth {} 1]
 			if { $sliderwidth eq {} } {
@@ -8325,7 +8349,8 @@ namespace eval ::dui {
 			set values [dui::args::get_option -values {} 1]
 			#set values_ids [dui::args::get_option -values_ids {} 1]
 			#set item_type [dui::args::get_option -item_type {} 1]
-
+			set tap_pad [dui::args::get_option -tap_pad {25 22 22 25} 1]
+			
 			set textvariable [dui::args::get_option -textvariable {} 0]
 			set callback_cmd [dui::args::get_option -callback_cmd {} 1]
 			if { $callback_cmd ne "" } {
@@ -8369,7 +8394,8 @@ namespace eval ::dui {
 			
 			# Dropdown selection arrow
 			set arrow_tags [list ${main_tag}-dda {*}[lrange $tags 1 end]]
-			dui add dbutton $pages [expr {$x+650}] $y -tags $arrow_tags -aspect_type dbutton_dda -command $cmd -symbol sort-down
+			dui add dbutton $pages [expr {$x+650}] $y -tags $arrow_tags -aspect_type dbutton_dda -command $cmd \
+				-symbol sort-down -tap_pad $tap_pad
 			bind $w <Configure> [list dui::item::relocate_dropdown_arrow [lindex $pages 0] $main_tag]
 			
 			return $w
@@ -9296,8 +9322,8 @@ namespace eval ::dui::pages::dui_number_editor {
 		}
 
 		# Ok and Cancel buttons
-		dui add dbutton $page 750 1460 -tags page_cancel -style insight_ok -label [translate Cancel]
-		dui add dbutton $page 1330 1460 -tags page_done -style insight_ok -label [translate Ok]
+		dui add dbutton $page 750 1460 -tags page_cancel -style insight_ok -label [translate Cancel] -tap_pad 20
+		dui add dbutton $page 1330 1460 -tags page_done -style insight_ok -label [translate Ok] -tap_pad 20
 	}
 	
 	# Accepts any of the named options -page_title, -callback_cmd, -min, -max, -n_decimals, -default, -smallincrement  
@@ -9560,8 +9586,8 @@ namespace eval ::dui::pages::dui_item_selector {
 		bind $widgets(items) <Double-Button-1> ::dui::pages::dui_item_selector::page_done
 				
 		# Ok and Cancel buttons
-		dui add dbutton $page 750 1460 -tags page_cancel -style insight_ok -label [translate Cancel]
-		dui add dbutton $page 1330 1460 -tags page_done -style insight_ok -label [translate Ok]
+		dui add dbutton $page 750 1460 -tags page_cancel -style insight_ok -label [translate Cancel] -tap_pad 20
+		dui add dbutton $page 1330 1460 -tags page_done -style insight_ok -label [translate Ok] -tap_pad 20
 	}
 	
 	# Named options:
@@ -9837,4 +9863,3 @@ namespace eval ::dui::pages::dui_confirm_dialog {
 	}
 
 }
-

@@ -223,6 +223,27 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 		text.highlightthickness 1
 		text.insertbackground orange
 		text.wrap word
+		
+		dselector.radius 40
+		dselector.fill $::DSx_settings(bg_colour)
+		dselector.selectedfill $::DSx_settings(font_colour)
+		dselector.outline $::DSx_settings(font_colour)
+		dselector.selectedoutline $::DSx_settings(font_colour)
+		dselector.label_fill $::DSx_settings(font_colour)
+		dselector.label_selectedfill $::DSx_settings(bg_colour)
+
+		dtoggle.width 120
+		dtoggle.height 68
+		dtoggle.outline_width 0
+		dtoggle.background "#c0c5e3"
+		dtoggle.foreground white
+		dtoggle.outline white
+		dtoggle.selectedbackground "light blue"
+		dtoggle.selectedforeground "#4e85f4"
+		dtoggle.selectedoutline "dark blue"
+		dtoggle.disabledbackground "#ccc"
+		dtoggle.disabledforeground white
+		dtoggle.disabledoutline white
 	}]
 	
 	# dui_number_editor page styles
@@ -434,6 +455,19 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 	dui aspect set -type dclicker_symbol -style dye_single {pos {0.1 0.5} font_size 24 anchor center fill "#7f879a"} 
 	dui aspect set -type dclicker_symbol1 -style dye_single {pos {0.9 0.5} font_size 24 anchor center fill "#7f879a"} 
 			
+	# Profile viewer
+	dui aspect set [subst {
+		shape.fill.dye_pv_icon_btn CadetBlue4 
+		dtext.fill.dye_pv_profile_title $::DSx_settings(heading_colour)
+		dtext.font_size.dye_pv_profile_title +8
+		dtext.font_family.dye_pv_profile_title notosansuibold
+		text_tag.spacing1.dye_pv_step [dui::platform::rescale_y 20] 
+		text_tag.foreground.dye_pv_step "#865a40" 
+		text_tag.lmargin1.dye_pv_step_line [dui::platform::rescale_x 35]
+		text_tag.lmargin2.dye_pv_step_line [dui::platform::rescale_x 55]
+		text_tag.foreground.dye_pv_value $::plugins::DYE::default_shot_desc_font_color
+	}]
+
 	### DYE V3 STYLES ####
 	set bg_color $::DSx_settings(bg_colour)
 	#[dui aspect get page bg_color]
@@ -552,7 +586,7 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 			-tags launch_dye_next -symbol $settings(describe_icon) -symbol_pos {0.01 0.5} -symbol_anchor w -symbol_justify left \
 			-symbol_font_size 28 -labelvariable {$::plugins::DYE::settings(next_shot_desc)} -label_pos {0.575 0.5} -label_anchor center \
 			-label_justify center -label_font_size -2 -label_fill $settings(shot_desc_font_color) -label_width 700 \
-			-command [::list ::plugins::DYE::open -which_shot next] \
+			-command [::list ::plugins::DYE::open -which_shot next] -tap_pad {100 0 0 0} \
 			-longpress_cmd [::list ::dui::page::open_dialog dye_which_shot_dlg -coords \[list [expr {$x-375}] [expr {$y-80}]\] -anchor sw]
 	}
 	
@@ -564,7 +598,7 @@ proc ::plugins::DYE::setup_ui_DSx {} {
 			-tags launch_dye_last -symbol $settings(describe_icon) -symbol_pos {0.99 0.5} -symbol_anchor e -symbol_justify right \
 			-symbol_font_size 28 -labelvariable {$::plugins::DYE::settings(last_shot_desc)} -label_pos {0.45 0.5} -label_anchor center \
 			-label_justify center -label_font_size -2 -label_fill $settings(shot_desc_font_color) -label_width 700 \
-			-command [list ::plugins::DYE::open -which_shot last] \
+			-command [list ::plugins::DYE::open -which_shot last] -tap_pad {0 0 80 0} \
 			-longpress_cmd [::list ::dui::page::open_dialog dye_which_shot_dlg -coords \[list [expr {$x+375}] [expr {$y-80}]\] -anchor se]
 	}
 		

@@ -242,6 +242,27 @@ proc ::plugins::DYE::setup_ui_Insight_Dark {} {
 		text.highlightthickness 1
 		text.insertbackground orange
 		text.wrap word
+		
+		dselector.radius 40
+		dselector.fill $button_bg
+		dselector.selectedfill "#4e85f4"
+		dselector.outline white
+		dselector.selectedoutline "#4e85f4"
+		dselector.label_fill "#c0c5e3"
+		dselector.label_selectedfill white
+
+		dtoggle.width 120
+		dtoggle.height 68
+		dtoggle.outline_width 0
+		dtoggle.background "#c0c5e3"
+		dtoggle.foreground white
+		dtoggle.outline white
+		dtoggle.selectedbackground "light blue"
+		dtoggle.selectedforeground "#4e85f4"
+		dtoggle.selectedoutline "dark blue"
+		dtoggle.disabledbackground "#ccc"
+		dtoggle.disabledforeground white
+		dtoggle.disabledoutline white		
 	}]
 	
 	# dui_number_editor page styles
@@ -455,7 +476,20 @@ proc ::plugins::DYE::setup_ui_Insight_Dark {} {
 	dui aspect set -type dclicker -style dye_single {orient horizontal use_biginc 0 symbol chevron-left symbol1 chevron-right}
 	dui aspect set -type dclicker_symbol -style dye_single {pos {0.1 0.5} font_size 24 anchor center fill "#7f879a"} 
 	dui aspect set -type dclicker_symbol1 -style dye_single {pos {0.9 0.5} font_size 24 anchor center fill "#7f879a"} 
-			
+
+	# Profile viewer
+	dui aspect set [subst {
+		shape.fill.dye_pv_icon_btn CadetBlue4 
+		dtext.fill.dye_pv_profile_title white
+		dtext.font_size.dye_pv_profile_title +8
+		dtext.font_family.dye_pv_profile_title notosansuibold
+		text_tag.spacing1.dye_pv_step [dui::platform::rescale_y 20] 
+		text_tag.foreground.dye_pv_step Brown2
+		text_tag.lmargin1.dye_pv_step_line [dui::platform::rescale_x 35]
+		text_tag.lmargin2.dye_pv_step_line [dui::platform::rescale_x 55]
+		text_tag.foreground.dye_pv_value $::plugins::DYE::default_shot_desc_font_color
+	}]
+	
 	### DYE V3 STYLES ####
 	set bg_color $background
 	#[dui aspect get page bg_color]

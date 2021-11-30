@@ -100,6 +100,7 @@ proc run_next_userdata_cmd {} {
 					? "$_comment: " : "" }] \
 			"$_readable"
 
+
 		# setting "wrote" to 1 before running the command, so that if the command is not a BLE operation, it can choose to unset "wrote" and cause the cmd stack to continue unspooling
 		set ::de1(wrote) 1
 
@@ -116,7 +117,8 @@ proc run_next_userdata_cmd {} {
 
 		if {$result != 1} {
 			set ::de1(wrote) 0
-	
+			msg -ERROR $::errorInfo
+
 			if {[string first "invalid handle" $::errorInfo] != -1 } {
 				::comms::msg -INFO "Not retrying this command because BLE handle for the device is now invalid"
 				#after 500 run_next_userdata_cmd
@@ -148,6 +150,9 @@ proc run_next_userdata_cmd {} {
 		set ::de1(previouscmd) [lindex $cmd 1]
 		if {[llength $::de1(cmdstack)] == 0} {
 			::comms::msg -INFO "command queue is now empty"
+		} else {
+			::comms::msg -INFO "HEAD ([llength $::de1(cmdstack)]) >>>" \
+			[lindex [lindex $::de1(cmdstack) 0] 0] 
 		}
 
 		# try the bluetooth stack in a second, in case there were no bluetooth commands succeeded
@@ -1194,6 +1199,8 @@ proc remove_matching_ble_queue_entries {comment_regexp} {
 
 	set old_stack $::de1(cmdstack)
 	set old_length [llength $old_stack]
+	set needs_poke 0
+	set index 0 
 
 	set new_stack {}
 	foreach cmd $old_stack {
@@ -1203,7 +1210,11 @@ proc remove_matching_ble_queue_entries {comment_regexp} {
 			::comms::msg -DEBUG "ble_queue: Removing" \
 				[string range [lindex $cmd 0] 0 30] \
 				"... for '$comment_regexp'"
+			if {$index == 0} {
+				set needs_poke 1
+			}
 		}
+		incr index
 	}
 	set new_length [llength $new_stack]
 
@@ -1215,6 +1226,10 @@ proc remove_matching_ble_queue_entries {comment_regexp} {
 	}
 
 	set ::de1(cmdstack) $new_stack
+
+	if {$needs_poke} {
+		run_next_userdata_cmd
+	}
 }
 
 proc de1_send_shot_frames {} {

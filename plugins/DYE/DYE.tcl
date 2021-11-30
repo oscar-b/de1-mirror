@@ -11,7 +11,7 @@
 #plugins enable SDB
 #plugins enable DYE
 #fconfigure $::logging::_log_fh -buffering line
-#dui config debug_buttons 0
+#dui config debug_buttons 1
 
 package require http
 package require tls
@@ -26,7 +26,7 @@ try {
 namespace eval ::plugins::DYE {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 2.16
+	variable version 2.19
 	variable github_repo ebengoechea/de1app_plugin_DYE
 	variable name [translate "Describe Your Espresso"]
 	variable description [translate "Describe any shot from your history and plan the next one: beans, grinder, extraction parameters and people."]
@@ -44,6 +44,8 @@ namespace eval ::plugins::DYE {
 	variable desc_numeric_fields {grinder_dose_weight drink_weight drink_tds drink_ey espresso_enjoyment}
 	variable propagated_fields {bean_brand bean_type roast_date roast_level bean_notes grinder_model grinder_setting \
 		my_name drinker_name}
+
+	variable profile_shot_extra_vars {profile profile_filename profile_to_save original_profile_title}
 	
 	variable default_shot_desc_font_color {#206ad4}
 	variable past_shot_desc {}
@@ -56,9 +58,11 @@ namespace eval ::plugins::DYE {
 
 # Startup the Describe Your Espresso plugin.
 proc ::plugins::DYE::main {} {
+	variable settings
 	msg "Starting the 'Describe Your Espresso' plugin"
 	check_versions
-		
+	
+	# Load skin-specific integration code
 	regsub -all { } $::settings(skin) "_" skin
 	set skin_src_fn "[plugin_directory]/DYE/setup_${skin}.tcl"
 	if { [file exists $skin_src_fn] } { 
@@ -75,13 +79,39 @@ proc ::plugins::DYE::main {} {
 		::plugins::DYE::setup_ui_Insight
 	}
 	
+	# Buttons in the "default" skin (profile setting pages)
+	if { [string is true $settings(button_in_settings_presets)] } {
+		set widgets(launch_dye_profile_selector) [dui add dbutton settings_1 1140 1085 -bwidth 130 -bheight 120 -shape round -radius 30 \
+			-tags launch_dye_ps -fill "#c1c5e4" -symbol exchange -symbol_pos {0.5 0.4} -symbol_fill white \
+			-tap_pad {20 40 40 80} -label [translate {DYE PS}] -label_font_size 12 -label_pos {0.5 0.8} -label_anchor center -label_justify center \
+			-label_fill "#8991cc" -label_font_family notosansuibold -label_width 130 -command [list [namespace current]::open_profile_tools select]]
+	}
+	if { [string is true $settings(button_in_settings_preview)] } {
+		set widgets(launch_dye_pv_basic) [dui add dbutton {settings_2a settings_2b} 915 1460 -bwidth 130 -bheight 120 \
+			-shape round -radius 30 -fill "#c1c5e4" -tags launch_dye_pv_basic \
+			-symbol signature -symbol_pos {0.5 0.4} -symbol_fill white -label [translate {DYE PV}] -label_font_size 12 \
+			-tap_pad {40 40 20 40} -label_pos {0.5 0.8} -label_anchor center -label_justify center -label_fill "#8991cc" -label_width 130 \
+			-label_font_family notosansuibold -command [list [namespace current]::open_profile_tools viewer]]
+		
+		set widgets(launch_dye_pv_advanced) [dui add dbutton settings_2c 768 542 -bwidth 130 -bheight 120 -shape round \
+			-radius 30 -fill "#c1c5e4" -tags launch_dye_pv_advanced \
+			-symbol signature -symbol_pos {0.5 0.4} -symbol_fill white -label [translate {DYE PV}] -label_font_size 12 \
+			-tap_pad {40 40 30 60} -label_pos {0.5 0.8} -label_anchor center -label_justify center -label_fill "#8991cc" -label_width 130 \
+			-label_font_family notosansuibold -command [list [namespace current]::open_profile_tools viewer]]
+		
+	}
+
+	# Declare DYE pages
 	foreach page {DYE DYE_fsh} {
 		dui page add $page -namespace true -type fpdialog
 	}
 	# Default slice/button height in menu dialogs: 120
 	dui page add dye_edit_dlg -namespace true -type dialog -bbox {0 0 1150 840}
+	dui page add dye_manage_dlg -namespace true -type dialog -bbox {0 0 800 720}
 	dui page add dye_visualizer_dlg -namespace true -type dialog -bbox {0 0 900 960}
 	dui page add dye_which_shot_dlg -namespace true -type dialog -bbox {0 0 1100 820}
+	dui page add dye_profile_viewer_dlg -namespace true -type dialog -bbox {100 160 2460 1550}
+	dui page add dye_profile_select_dlg -namespace true -type dialog -bbox {100 160 2460 1550}
 	
 	foreach page $::dui::pages::DYE_v3::pages {
 		dui page add $page -namespace ::dui::pages::DYE_v3 -type fpdialog
@@ -212,6 +242,8 @@ proc ::plugins::DYE::check_settings {} {
 	ifexists settings(time_output_format) "%H:%M"
 	ifexists settings(time_output_format_ampm) "%I:%M %p"
 	ifexists settings(default_launch_action) last
+	ifexists settings(button_in_settings_presets) 1
+	ifexists settings(button_in_settings_preview) 1
 	
 	ifexists settings(apply_action_to_beans) 1
 	ifexists settings(apply_action_to_equipment) 1
@@ -333,6 +365,19 @@ proc ::plugins::DYE::setup_default_aspects { args } {
 	dui aspect set -theme $theme -type dclicker -style dye_single {orient horizontal use_biginc 0 symbol chevron-left symbol1 chevron-right}
 	dui aspect set -theme $theme -type dclicker_symbol -style dye_single {pos {0.1 0.5} font_size 24 anchor center fill "#7f879a"} 
 	dui aspect set -theme $theme -type dclicker_symbol1 -style dye_single {pos {0.9 0.5} font_size 24 anchor center fill "#7f879a"} 
+	
+	# Profile viewer
+	dui aspect set -theme $theme [subst {
+		shape.fill.dye_pv_icon_btn CadetBlue2 
+		dtext.fill.dye_pv_profile_title black
+		dtext.font_size.dye_pv_profile_title +8
+		dtext.font_family.dye_pv_profile_title notosansuibold
+		text_tag.spacing1.dye_pv_step [dui::platform::rescale_y 20] 
+		text_tag.foreground.dye_pv_step brown 
+		text_tag.lmargin1.dye_pv_step_line [dui::platform::rescale_x 35]
+		text_tag.lmargin2.dye_pv_step_line [dui::platform::rescale_x 55]
+		text_tag.foreground.dye_pv_value blue4
+	}]
 	
 	# DYE v3
 	set bg_color [dui aspect get page bg_color -theme default]
@@ -830,33 +875,17 @@ proc ::plugins::DYE::page_skeleton { page {title {}} {titlevar {}} {done_button 
 		set y 1425
 	}
 	if { $cancel_button } {
-		dui add dbutton $page $x_cancel $y -label [translate Cancel] -tags page_cancel -style $buttons_style
+		dui add dbutton $page $x_cancel $y -label [translate Cancel] -tags page_cancel -style $buttons_style -tap_pad 20
 	}
 	if { $done_button } {
-		dui add dbutton $page $x_done $y -label [translate Ok] -tags page_done -style $buttons_style
+		dui add dbutton $page $x_done $y -label [translate Ok] -tags page_done -style $buttons_style -tap_pad 20
 	}
 }
 
 proc ::plugins::DYE::import_profile_from_shot { shot_clock } {
-	array set shot [::plugins::SDB::load_shot $shot_clock 0 0 1]
-	if { [array size shot] == 0 } {
-		msg -WARNING [namespace current] import_profile_from_shot: "shot file for '$shot_clock' not found"
-		return 0
-	}
-
-	foreach fn [concat profile profile_filename profile_to_save original_profile_title [::profile_vars]] { 
-		set ::settings($fn) $shot($fn)
-	}
-	set ::settings(profile_has_changed) 1
-	set ::settings(profile_hide) 0
-	
-	fill_profiles_listbox
-	update_de1_explanation_chart
-	profile_has_changed_set_colors
-	
-	::save_settings	
-	return 1
+	::profile::import_legacy [::plugins::SDB::load_shot $shot_clock 0 0 1]
 }
+
 
 proc ::plugins::DYE::import_profile_from_visualizer { vis_shot } {
 	if { ![dict exists $vis_shot profile] } {
@@ -866,29 +895,16 @@ proc ::plugins::DYE::import_profile_from_visualizer { vis_shot } {
 	
 	array set profile [dict get $vis_shot profile]
 	
-	foreach fn [::profile_vars] {
-		if { [info exists profile($fn)] } {
-			#msg -INFO "SETTINGS($fn)=$profile($fn)"
-			set ::settings($fn) $profile($fn)
-		} else {
-			msg -WARNING [namespace current] import_profile_from_visualizer: "field '$fn' not found on downloaded profile"
-		}
+	set pparts [split $profile(profile_title) "/"]
+	if { [llength $pparts] == 1 } {
+		set profile(profile_title) "Visualizer/$profile(profile_title)"
+	} elseif { [lindex $pparts 1] ne "Visualizer" } {
+		set profile(profile_title) "Visualizer/[lindex $pparts 1]"
 	}
 	
-	# ensure the profile is saved under the new name and not duplicated if saved several times
-	set ::settings(profile_filename) "Visualizer__$profile(profile_filename)"
-	set ::settings(original_profile_title) $profile(profile_title)
-	set ::settings(profile_to_save) $profile(profile_title)
+	set profile(profile_filename) [profile::filename_from_title $profile(profile_title)]
 	
-	set ::settings(profile_has_changed) 1
-	set ::settings(profile_hide) 0
-	
-	fill_profiles_listbox
-	update_de1_explanation_chart
-	profile_has_changed_set_colors
-	
-	::save_settings	
-	return 1
+	return [::profile::import_legacy [array get profile]]
 }
 
 proc ::plugins::DYE::singular_or_plural { value singular plural } {
@@ -996,6 +1012,227 @@ proc ::plugins::DYE::format_date { aclock {relative {}} {ampm {}} } {
 	}
 }
 
+# Inserts the text description of a profile textual dictionary in a Tk Text widget. 
+# Allows comparing to another profile, and optionally to only output the differences.
+#
+# If a comparison profile is given, counts and returns the number of differences between the profiles.
+# A profile is considered different from another if:
+#	1. It has a different settings_profile_type (flow / pressure / advanced); or
+#	2. It has a different number of steps; or
+#	3. Any user-definable value is different
+# Changes in text-only descriptive fields such as profile_title, beverage_type, profile_notes or step names are 
+#	not taken into account for difference considerations.
+proc ::plugins::DYE::insert_profile_in_tk_text { tw pdict {cdict {}} {show_diff_only 0} } {
+	set n_diffs 0
+	if { $cdict eq {} } {
+		set show_diff_only 0
+	} else {
+		set show_diff_only [string is true $show_diff_only]
+		if { [dict get $pdict 0 nsteps] != [dict get $cdict 0 nsteps] } {
+			incr n_diffs
+		}
+		if { [dict get $pdict 0 type] ne [dict get $cdict 0 type] } {
+			incr n_diffs
+		}
+	}
+	
+	set start_state [$tw cget -state]
+	if { $start_state ne "normal" } {
+		$tw configure -state normal
+	}
+	
+	# Output the textual description of the profile
+	incr n_diffs [insert_profile_item_in_tk_text $tw $pdict {0 preheat} {} value "" "" $cdict compvalue $show_diff_only]
+	incr n_diffs [insert_profile_item_in_tk_text $tw $pdict {0 limiter} {} value "" "" $cdict compvalue $show_diff_only]
+	incr n_diffs [insert_profile_item_in_tk_text $tw $pdict {0 temp_steps} {} value "" "" $cdict compvalue $show_diff_only]
+	
+	for { set stepn 1 } { $stepn <= [dict get $pdict 0 nsteps] } { incr stepn } {
+		if { $show_diff_only && [is_profile_step_equal $pdict $cdict $stepn] } {
+			continue
+		} 
+		incr n_diffs [insert_profile_item_in_tk_text $tw $pdict [list $stepn name] step value "[translate STEP] $stepn: " "" $cdict compvalue $show_diff_only 0]
+		incr n_diffs [insert_profile_item_in_tk_text $tw $pdict [list $stepn track] step_line value "- " "" $cdict compvalue $show_diff_only]
+		incr n_diffs [insert_profile_item_in_tk_text $tw $pdict [list $stepn temp] step_line value "- " "" $cdict compvalue $show_diff_only]
+		incr n_diffs [insert_profile_item_in_tk_text $tw $pdict [list $stepn flow_or_pressure] step_line value "- " "" $cdict compvalue $show_diff_only]
+		incr n_diffs [insert_profile_item_in_tk_text $tw $pdict [list $stepn max] step_line value "- " "" $cdict compvalue $show_diff_only]
+		incr n_diffs [insert_profile_item_in_tk_text $tw $pdict [list $stepn exit_if] step_line value "- " "" $cdict compvalue $show_diff_only]
+	}
+	
+	# Extra steps in reference profile
+	if { $cdict ne {} && [dict get $cdict 0 nsteps] > [dict get $pdict 0 nsteps] } {
+		for { set stepn $stepn } { $stepn <= [dict get $cdict 0 nsteps] } { incr stepn } {
+			incr n_diffs [insert_profile_item_in_tk_text $tw $cdict [list $stepn name] [list step compvalue] compvalue "\[[translate STEP] ${stepn}\]: " "" "" "" $show_diff_only]
+			incr n_diffs [insert_profile_item_in_tk_text $tw $cdict [list $stepn track] [list step_line compvalue] compvalue "- " "" "" "" $show_diff_only]
+			incr n_diffs [insert_profile_item_in_tk_text $tw $cdict [list $stepn temp] [list step_line compvalue] compvalue "- " "" "" "" $show_diff_only]
+			incr n_diffs [insert_profile_item_in_tk_text $tw $cdict [list $stepn flow_or_pressure] [list step_line compvalue] compvalue "- " "" "" "" $show_diff_only]
+			incr n_diffs [insert_profile_item_in_tk_text $tw $cdict [list $stepn max] [list step_line compvalue] compvalue "- " "" "" "" $show_diff_only]
+			incr n_diffs [insert_profile_item_in_tk_text $tw $cdict [list $stepn exit_if] [list step_line compvalue] compvalue "- " "" "" "" $show_diff_only]
+		}
+	}
+	
+	if { [dict exists $pdict 0 stop_at] } {
+		if { !$show_diff_only  || ($show_diff_only && ![is_profile_step_line_equal $pdict $cdict 0 stop_at] ) } {
+			$tw insert insert "[translate {ENDING CRITERIA}]:" step "\n"
+			incr n_diffs [insert_profile_item_in_tk_text $tw $pdict {0 stop_at} step_line value "" "" $cdict compvalue $show_diff_only]
+		}
+	} elseif { $cdict ne {} && [dict exists $cdict 0 stop_at] } {
+		incr n_diffs
+		$tw insert insert "\[[translate {ENDING CRITERIA}]\]:" [list step compvalue] "\n"
+		incr n_diffs [insert_profile_item_in_tk_text $tw $cdict [list 0 stop_at] [list step_line compvalue] compvalue "" "" "" $show_diff_only] 
+	}
+	
+	if { [dict exists $pdict 0 notes] } {
+		if { !$show_diff_only || ($show_diff_only && ![is_profile_step_line_equal $pdict $cdict 0 notes]) } {
+			$tw insert insert "[translate {PROFILE NOTES}]:" step "\n"
+			insert_profile_item_in_tk_text $tw $pdict {0 notes} {} {} "" ""
+		}
+	}
+	if { $cdict ne {} && [dict exists $cdict 0 notes] && [dict get $cdict 0 notes] ne [dict get $pdict 0 notes] } {
+		$tw insert insert "\[[translate {PROFILE NOTES}]\]:" [list step compvalue] "\n"
+		insert_profile_item_in_tk_text $tw $cdict {0 notes} compvalue {} "" ""
+	}
+	
+	if { $show_diff_only && $n_diffs == 0 } {
+		$tw insert insert "No differences between the compared profiles\n"
+	}
+	
+	if { $start_state ne "normal" } {
+		$tw configure -state $start_state
+	}
+	
+	if { $cdict eq {} } {
+		set n_diffs 0
+	}
+	return $n_diffs
+}
+
+proc ::plugins::DYE::insert_profile_item_in_tk_text { tw pdict keys {line_tags {}} {var_tags {}} {prefix {}} {suffix {}}
+		{cdict {}} {comp_var_tags {}} {show_diff_only 0} {check_diff_only 1} } {
+	set n_diffs 0
+	set line {}
+	if { [dict exists $pdict {*}$keys] } {
+		set line [dict get $pdict {*}$keys]
+	}
+	
+	if { [llength $line] == 0 || [lindex $line 0] eq "" } {
+		if { $cdict ne {} && [dict exists $cdict {*}$keys] } {
+			incr n_diffs
+			insert_profile_item_in_tk_text $tw $cdict $keys [list $line_tags $comp_var_tags] "" "${prefix}\[" "\]" 
+		}
+		return $n_diffs
+	}
+			
+	set compline ""
+	set ncompvars 0
+	
+	if { $cdict eq {} } {
+		set show_diff_only 0
+	} elseif { [dict exists $cdict {*}$keys] } {
+		set compline [dict get $cdict {*}$keys]
+		set ncompvars [llength $compline]
+		if { [string is true $check_diff_only] && [string is true $show_diff_only] && $line == $compline } {
+			return $n_diffs
+		}
+	}
+	
+	if { $prefix ne "" } {
+		$tw insert insert $prefix $line_tags
+	}
+	
+	set nvars [llength $line]
+	set char 0
+	set txt [translate [lindex $line 0]]
+	while { [regexp -indices {\\[0-9]+} $txt match_idx] } {
+		if { [lindex $match_idx 0] > 0 } {
+			$tw insert insert [string range $txt 0 [lindex $match_idx 0]-1] $line_tags
+		}
+		set varn [string range $txt [lindex $match_idx 0]+1 [lindex $match_idx 1]]
+		if { $varn <= $nvars } {
+			set var [lindex $line $varn]
+			if { ![string is double $var] } {
+				set var [translate $var]
+			}
+			$tw insert insert $var [list $line_tags $var_tags]
+			
+			if { $compline ne "" && $varn <= $ncompvars } {
+				set compvar [lindex $compline $varn]
+				if { $var ne $compvar } {
+					$tw insert insert " \[$compvar\]" [list $line_tags $comp_var_tags]
+					incr n_diffs
+				}
+			}
+		} else {
+			msg -NOTICE [namespace current] insert_profile_item_in_tk_text: "no variable $varn in line $txt"
+		}
+	
+		set txt [string range $txt [lindex $match_idx 1]+1 end]
+	}
+	
+	$tw insert insert $txt $line_tags
+	
+	if { $cdict ne {} && ![dict exists $cdict {*}$keys] } {
+		$tw insert insert " \[NONE\]" $comp_var_tags
+		incr n_diffs
+	}
+	
+	if { $suffix ne "" } {
+		$tw insert insert $suffix $line_tags
+	} 
+	
+	$tw insert insert "\n"
+
+	return $n_diffs
+}
+
+proc ::plugins::DYE::is_profile_step_equal { pdict cdict stepn } {
+	if { [dict exists $pdict $stepn] && [dict exists $cdict $stepn] } {
+		foreach k {track temp flow_or_pressure max exit_if} {
+			if { ![is_profile_step_line_equal $pdict $cdict $stepn $k] } {
+				return 0
+			}
+		}
+
+		return 1
+	} else {
+		return 0
+	}
+}
+
+# Only compares the variables values, not the main text string 
+proc ::plugins::DYE::is_profile_step_line_equal { pdict cdict args } {
+	if { [dict exists $pdict {*}$args] ^ [dict exists $cdict {*}$args] } {
+		return 0
+	} elseif { [dict exists $pdict {*}$args] && [dict exists $cdict {*}$args] } {
+		# Compare only the variables values, not the text
+		set pdict_k [dict get $pdict {*}$args]
+		set cdict_k [dict get $cdict {*}$args]
+		if { [llength $pdict_k] != [llength $cdict_k] } {
+			return 0
+		}
+		for { set i 1 } { $i < [llength $pdict_k] } { incr i } {
+			if { [lindex $pdict_k $i] ne [lindex $cdict_k $i] } {
+				return 0
+			}
+		}
+	}
+	
+	return 1
+}
+
+proc ::plugins::DYE::load_profile_from { target_array_name source_array_name } {
+	upvar target $target_array_name
+	upvar src $source_array_name
+	
+	foreach var [concat $plugins::DYE::profile_shot_extra_vars [::profile_vars]] {
+		if { [info exists $src($var)] } {
+			set $target($var) $::dui::pages::DYE::src_data($var)
+		} else {
+			set $target($var) {} 
+		}
+	}
+
+	
+}
 
 proc ::plugins::DYE::open { args } {
 	variable settings
@@ -1030,6 +1267,17 @@ proc ::plugins::DYE::open { args } {
 	}
 }
 
+proc ::plugins::DYE::open_profile_tools { args } {
+	variable settings
+	
+	if { [llength $args] > 0 && [lindex $args 0] eq "viewer" } {
+		dui page open_dialog dye_profile_viewer_dlg "next" ""
+	} else {
+		dui page open_dialog dye_profile_select_dlg -selected $::settings(profile_filename) -change_settings_on_exit 1 \
+			-bean_brand $::settings(bean_brand) -bean_type $::settings(bean_type) -grinder_model $::settings(grinder_model)
+	}
+}
+
 ### "DESCRIBE YOUR ESPRESSO" PAGE #####################################################################################
 
 namespace eval ::dui::pages::DYE {
@@ -1041,7 +1289,7 @@ namespace eval ::dui::pages::DYE {
 	# right of the history viewer). Values are actually saved only when tapping the "Done" button.
 	# describe_which_shot: next / current / past / DSx_past / DSx_past2	
 	variable data
-	array set data {		
+	array set data {
 		page_title {Describe your last espresso}
 		describe_which_shot {current}
 		shot_file {}
@@ -1191,7 +1439,7 @@ proc ::dui::pages::DYE::setup {} {
 	# Calc EY from TDS button
 	dui add dbutton $page 2050 175 -tags calc_ey_from_tds -style dsx_settings -label [translate "Calc EY from TDS"] \
 		-label_pos {0.5 0.3} -label1variable {$::plugins::DYE::settings(calc_ey_from_tds)} -label1_pos {0.5 0.7} \
-		-command calc_ey_from_tds_click -bheight 140
+		-command calc_ey_from_tds_click -bheight 140 -tap_pad {20 0 20 20}
 	
 	# Grinder Dose weight
 	set y 350
@@ -1277,14 +1525,18 @@ proc ::dui::pages::DYE::setup {} {
 		-listbox_width 800
 	
 	# BOTTOM BUTTONS
-	dui add dbutton $page 1280 1460 -label [translate Done] -tags page_done -style insight_ok -anchor n
+	dui add dbutton $page 1280 1460 -label [translate Done] -tags page_done -style insight_ok -anchor n -tap_pad 20
 	
 	set y 1415 	
-	dui add dbutton $page 100 $y -tags edit_dialog -style dsx_settings -symbol chevron-up -label [translate "Edit data"] -bheight 160
+	dui add dbutton $page 100 $y -tags edit_dialog -style dsx_settings -symbol chevron-up -label [translate "Edit data"] \
+		-bheight 160 -tap_pad 20
+
+	dui add dbutton $page [expr {150+[dui aspect get dbutton bwidth -style dsx_settings]}] $y -tags manage_dialog \
+		-style dsx_settings -symbol chevron-up -label [translate "Manage"] -bheight 160 -tap_pad 20
 	
 	dui add dbutton $page 2440 $y -anchor ne -tags visualizer_dialog -style dsx_settings -symbol chevron-up -symbol_pos {0.8 0.45} \
 		-label [translate "Visualizer"] -label_pos {0.35 0.45} -label1variable visualizer_status_label -label1_pos {0.5 0.8} \
-		-label1_anchor center -label1_justify center -label1_font_size -3 -bheight 160
+		-label1_anchor center -label1_justify center -label1_font_size -3 -bheight 160 -tap_pad 20
 	
 	dui add variable $page 2420 1390 -tags warning_msg -style remark -anchor e -justify right -initial_state hidden
 }
@@ -1469,13 +1721,17 @@ proc ::dui::pages::DYE::move_backward {} {
 	save_description
 
 	if { $data(describe_which_shot) eq "next" } {
-		dui page load DYE current -reload yes		
+		dui page load DYE current -reload yes
 	} else {
 		set previous_clock [::plugins::SDB::previous_shot $data(clock)]
 		if { $previous_clock ne "" && $previous_clock > 0 } {
 			dui page load DYE $previous_clock -reload yes
+		} else {
+			return 0
 		}
 	}
+	
+	return 1
 }
 
 proc ::dui::pages::DYE::move_forward {} {
@@ -1719,6 +1975,7 @@ proc ::dui::pages::DYE::read_from { {what previous} {apply_to {}} } {
 			
 			if { $data(describe_which_shot) eq "next" && "profile" in $apply_to } {
 				::plugins::DYE::import_profile_from_shot $last_shot(clock)
+				load_next_profile
 			}
 		}
 	}
@@ -1745,6 +2002,7 @@ proc ::dui::pages::DYE::select_read_from_shot_callback { shot_desc shot_clock it
 		
 		if { $data(describe_which_shot) eq "next" && "profile" in $data(apply_action_to) } {
 			::plugins::DYE::import_profile_from_shot $shot_clock
+			load_next_profile
 		}
 	}
 }
@@ -1798,6 +2056,8 @@ proc ::dui::pages::DYE::load_description {} {
 			}
 		}
 		
+		load_next_profile
+		
 		# MimojaCafe and DSx allow you to define some variables of next shot, so we ensure they are coordinated
 		# with DYE next shot description.
 		if { $::settings(skin) eq "MimojaCafe" } {
@@ -1832,7 +2092,7 @@ proc ::dui::pages::DYE::load_description {} {
 	} else {
 		set src_next_modified {}
 		
-		array set shot [::plugins::SDB::load_shot $data(clock)]	
+		array set shot [::plugins::SDB::load_shot $data(clock) 0 1 1]	
 		if { [array size shot] == 0 } {
 			foreach fn [metadata fields -domain shot -category description] {
 				set src_data($fn) {}
@@ -1840,6 +2100,9 @@ proc ::dui::pages::DYE::load_description {} {
 			}
 			set data(path) {}
 			set data(days_offroast_msg) ""
+			foreach fn [concat $plugins::DYE::profile_shot_extra_vars [::profile_vars]] {
+				set src_data($fn) {}
+			}
 			return 0 
 		} else {			
 			foreach fn [metadata fields -domain shot -category description] {
@@ -1847,11 +2110,43 @@ proc ::dui::pages::DYE::load_description {} {
 				set data($fn) $shot($fn)
 			}
 			set data(path) $shot(path)
+			
+			foreach fn [concat $plugins::DYE::profile_shot_extra_vars [::profile_vars]] {
+				if { [info exists shot($fn)] } {
+					set src_data($fn) $shot($fn)
+				}
+			}
 		}
 	}
-	
+
+	# Ensure the profile's advanced_shot variable is always defined
+	switch $src_data(settings_profile_type) \
+		settings_2a {
+			array set temp_profile [::profile::pressure_to_advanced_list ::dui::pages::DYE::src_data]
+			#msg -INFO "PRESSURE_ADVANCED_LIST: $temp_profile"
+			set src_data(advanced_shot) $temp_profile(advanced_shot)
+		} settings_2b {
+			array set temp_profile [::profile::flow_to_advanced_list ::dui::pages::DYE::src_data]
+			#msg -INFO "FLOW_ADVANCED_LIST: $temp_profile"
+			set src_data(advanced_shot) $temp_profile(advanced_shot)
+		}
+
 	compute_days_offroast
 	return 1
+}
+
+proc ::dui::pages::DYE::load_next_profile {} {
+	variable data
+	variable src_data
+	if { $data(describe_which_shot) ne "next" } {
+		return
+	}
+	
+	foreach fn [concat $plugins::DYE::profile_shot_extra_vars [::profile_vars]] {
+		if { [info exists ::settings($fn)] } {
+			set src_data($fn) $::settings($fn)
+		}
+	}
 }
 
 proc ::dui::pages::DYE::save_description { {force_save_all 0} } {
@@ -2073,6 +2368,133 @@ proc ::dui::pages::DYE::undo_changes { {apply_to {}} } {
 	}
 }
 
+proc ::dui::pages::DYE::delete_shot { } {
+	variable data
+	if { $data(describe_which_shot) eq "next" || $data(path) eq "" } {
+		msg -WARNING [namespace current] "can't delete shot '$data(describe_which_shot)' with path '$data(path)'"
+		return 0
+	}
+
+	# Save now to avoid later saving a shot that has been removed (in [move_backward])
+	save_description
+	
+	set backup_path "[homedir]/bin/"
+	if { ![file exists $backup_path] } {
+		try {
+			file mkdir $backup_path
+		} on error err {
+			msg -ERROR [namespace current] "can't create folder '$backup_path': $err"
+			return 0
+		}
+	}
+	
+	dui say [translate "Deleting shot"]
+	
+	set target_file "${backup_path}[file tail $data(path)]"
+	if { [file exists $data(path)] } {
+		try {
+			file copy -force -- "$data(path)" "$target_file"
+		} on error err {
+			msg -ERROR [namespace current] "can't copy file '$data(path)' to '$target_file': $err"
+			dui say [translate "Deletion failed"]
+			return 0			
+		}
+		if { [file exists $target_file] } {
+			try {
+				file delete -force -- "$data(path)"
+			} on error err {
+				msg -ERROR [namespace current] "can't delete file '$data(path)': $err"
+				dui say [translate "Deletion failed"]
+				return 0
+			}
+			
+			try {
+				set db [::plugins::SDB::get_db]
+				db eval {UPDATE shot SET removed=1 WHERE clock=$data(clock)}
+			} on error err {
+				msg -ERROR [namespace current] "can't flag shot '$data(clock)' in DB as removed: $err"
+				dui say [translate "Deletion failed in database"]
+				return 0
+			}
+		}
+		dui say [translate "Shot deleted"]
+	}
+	
+	
+	if { ![move_backward] } {
+		move_forward
+	}
+	
+	dui page open_dialog dui_confirm_dialog -size {800 500} -disable_items 1 -coords {0.5 0.5} -anchor center \
+		"Shot file has been moved to the 'bin' folder. Move it back to 'history' folder to undelete" "Ok" 
+	
+	return 1
+}
+
+proc ::dui::pages::DYE::export_shot {} {
+	variable data
+	if { $data(describe_which_shot) eq "next" || $data(path) eq "" } {
+		msg -WARNING [namespace current] "can't delete shot '$data(describe_which_shot)' with path '$data(path)'"
+		return
+	} elseif { ![file exists $data(path)] } {
+		msg -WARNING [namespace current] "can't find shot file '$data(path)'"
+		return
+	}
+
+	# Ensure latest editions are saved before exporting
+	save_description
+	
+	dui page open_dialog dui_confirm_dialog "Please choose the export format:" {"Tcl .shot" "CSV" "JSON v2" "Cancel"} \
+		-coords {0.5 0.5} -anchor center -size {1500 400} -disable_items 1 -return_callback [namespace current]::process_export_shot_confirm
+}
+
+proc  ::dui::pages::DYE::process_export_shot_confirm { {choice {}} } {
+	variable data
+	if { $choice eq "" || $choice == 4 } {
+		return
+	}
+	
+	if { $choice == 3 } {
+		set ext "json"
+	} elseif { $choice == 2 } {
+		set ext "csv"
+	} else {
+		set ext "shot"
+	}
+	
+	set target_file [tk_getSaveFile -title [translate {Choose the export path}] -initialdir "[homedir]/history/export/" \
+		-initialfile "[file rootname [file tail $data(path)]].$ext" -defaultextension ".$ext"]
+	
+	dui say [translate "Exporting shot"]
+	
+	if { $choice == 2 } {
+		array set arr {}
+		catch {
+			array set arr [read_file $data(path)]
+		}
+		if { [array size arr] == 0 } {
+			msg -ERROR [namespace current] "corrupted shot history item: 'history/$d'"
+			dui say [translate "Export failed"]
+			return
+		}
+		
+		export_csv arr $target_file
+	} elseif { $choice == 3 } {
+		::shot::convert_legacy_to_v2 $data(path) [file dirname $target_file] [file tail $target_file]
+	} else {
+		try {
+			file copy -force -- "$data(path)" "$target_file"
+		} on error err {
+			msg -ERROR [namespace current] "can't copy shot file to '$target_file': $err"
+			dui say [translate "Export failed"]
+			return
+		}
+	}
+	
+	msg -INFO [namespace current] "shot file '$data(path)' exported to '$target_file'"
+	dui say [translate "Shot exported"]	
+}
+
 # A clone of DSx last_shot_date, but uses settings(espresso_clock) if DSx_settings(live_graph_time) is not
 # available (e.g. if DSx_settings.tdb were manually removed). Also will allow future skin-independence.
 proc ::dui::pages::DYE::last_shot_date {} {
@@ -2203,6 +2625,46 @@ proc ::dui::pages::DYE::process_edit_dialog { {action {}} {apply_to {}} } {
 	}
 }
 
+proc ::dui::pages::DYE::manage_dialog {} {
+	variable data
+	dui sound make sound_button_in
+	set is_next [expr {$data(describe_which_shot) eq "next"}]
+	save_description 
+	
+	dui page open_dialog dye_manage_dlg $is_next $data(path) -anchor sw -disable_items 1 \
+		-coords [list [expr {150+[dui aspect get dbutton bwidth -style dsx_settings]}] 1390] \
+		-return_callback [namespace current]::process_manage_dialog
+}
+
+proc ::dui::pages::DYE::process_manage_dialog { {action {}} } {
+	variable data
+	
+	if { $action eq "delete" } {
+		delete_shot 
+	} elseif { $action eq "export" } {
+		export_shot
+	} elseif { $action eq "profile" } {
+		if { $data(describe_which_shot) eq "next" } {
+			dui page open_dialog dye_profile_viewer_dlg "next"
+		} elseif { $data(path) ne "" } {
+			dui page open_dialog dye_profile_viewer_dlg "array_name" ::dui::pages::DYE::src_data
+		}
+	} elseif { $action eq "select_profile" && $data(describe_which_shot) eq "next" } {
+		dui page open_dialog dye_profile_select_dlg -selected $::settings(profile_filename) -change_settings_on_exit 1 \
+			-bean_brand $::settings(bean_brand) -bean_type $::settings(bean_type) -grinder_model $::settings(grinder_model) \
+			-return_callback [namespace current]::process_profile_select_dialog
+	} elseif { $action eq "settings" } {
+		dui page open_dialog DYE_settings
+	}
+}
+
+proc ::dui::pages::DYE::process_profile_select_dialog { {filename {}} {title {}} } {
+	variable src_data
+	if { $filename ne "" && $filename ne $src_data(profile_filename) } {
+		load_next_profile
+	}
+}
+
 proc ::dui::pages::DYE::visualizer_dialog {} {
 	variable data
 	dui sound make sound_button_in
@@ -2288,6 +2750,7 @@ proc ::dui::pages::DYE::process_visualizer_dlg { {repo_link {}} {downloaded_shot
 		
 		if { $data(describe_which_shot) eq "next" && "profile" in $apply_download_to } {
 			::plugins::DYE::import_profile_from_visualizer $downloaded_shot
+			load_next_profile
 		}
 	}
 	
@@ -2466,6 +2929,99 @@ namespace eval ::dui::pages::dye_edit_dlg {
 		
 		dui::page::close_dialog $action $apply_to
 	}
+}
+
+### DYE MANAGE DIALOG PAGE ###########################################################################################
+
+namespace eval ::dui::pages::dye_manage_dlg {
+	variable widgets
+	array set widgets {}
+		
+	variable data
+	array set data {
+		is_next 0
+		shot_path ""
+	}
+
+	# Actions: Delete shot, Export shot, View profile, DYE settings
+	proc setup {} {
+		variable data
+		set page [namespace tail [namespace current]]
+		
+		set page_width [dui page width $page 0]
+		set page_height [dui page height $page 0]
+		set splits [dui page split_space 0 $page_height 0.1 0.1 0.1 0.1 0.1 0.1]
+		
+		set i 0		
+		set y0 [lindex $splits $i]
+		set y1 [lindex $splits [incr i]]
+
+		dui add dtext $page 0.45 [expr {int(($y1-$y0)/2)}] -tags title -style menu_dlg_title -text [translate "Choose a management action:"]
+		dui add dbutton $page [expr {$page_width-120}] 0 $page_width 120 -tags close_dialog -style menu_dlg_close \
+			-command dui::page::close_dialog
+		dui add canvas_item line $page 0.01 $y1 0.99 $y1 -style menu_dlg_sepline
+				
+		set y0 $y1
+		set y1 [lindex $splits [incr i]]
+		dui add dbutton $page 0.01 $y0 0.99 $y1 -tags delete_shot -style menu_dlg_btn -label [translate "Delete shot"] \
+			-symbol trash -command [list dui::page::close_dialog delete] -label1variable shot_path
+		dui add canvas_item line $page 0.01 $y1 0.99 $y1 -style menu_dlg_sepline
+
+		dui add variable $page 0.5 $y1 -anchor center -justify center -width 0.8 -tags warning_msg -fill red -font_size +3 
+		
+		set y0 $y1
+		set y1 [lindex $splits [incr i]]
+		dui add dbutton $page 0.01 $y0 0.99 $y1 -tags export_shot -style menu_dlg_btn -label "[translate {Export shot}]..." \
+			-symbol file-export -command [list dui::page::close_dialog export] -label1variable shot_path
+		dui add canvas_item line $page 0.01 $y1 0.99 $y1 -style menu_dlg_sepline
+
+		set y0 $y1
+		set y1 [lindex $splits [incr i]]
+		dui add dbutton $page 0.01 $y0 0.99 $y1 -tags view_profile -style menu_dlg_btn -label "[translate {View text profile}]..." \
+			-symbol signature -command [list dui::page::close_dialog profile] -label1variable {$::dui::pages::DYE::src_data(profile_title)}
+		dui add canvas_item line $page 0.01 $y1 0.99 $y1 -style menu_dlg_sepline
+
+		set y0 $y1
+		set y1 [lindex $splits [incr i]]
+		dui add dbutton $page 0.01 $y0 0.99 $y1 -tags select_profile -style menu_dlg_btn -label "[translate {Change profile}]..." \
+			-symbol exchange -command [list dui::page::close_dialog select_profile]
+		dui add canvas_item line $page 0.01 $y1 0.99 $y1 -style menu_dlg_sepline
+		
+		set y0 $y1
+		set y1 [lindex $splits [incr i]]
+		dui add dbutton $page 0.01 $y0 0.99 $y1 -tags dye_settings -style menu_dlg_btn -label [translate "DYE settings"] \
+			-symbol cogs -command [list dui::page::close_dialog settings] 
+	}
+
+	proc load { page_to_hide page_to_show {is_next 0} {shot_path {}} args } {
+		variable data
+		
+		set data(is_next) [string is true $is_next]
+		if { $data(is_next) || $shot_path eq "" } {
+			set data(shot_path) {}
+		} else {
+			set data(shot_path) [string range $shot_path [string length [homedir]] end]
+		}
+		
+		return 1
+	}
+	
+	proc show { page_to_hide page_to_show } {
+		variable data
+		
+		if { $data(shot_path) eq {} } {
+			dui item disable dye_manage_dlg {delete_shot* export_shot*}
+			
+			if { !$data(is_next) } {
+				dui item disable dye_manage_dlg view_profile*
+			}
+		}
+		
+		if { !$data(is_next) } {
+			dui item disable dye_manage_dlg select_profile*
+		}
+	}
+	
 }
 
 ### VISUALIZER DIALOG PAGE #########################################################################################
@@ -2954,6 +3510,929 @@ namespace eval ::dui::pages::dye_which_shot_dlg {
 	}
 }
 
+### PROFILE VIEWER DIALOG ##############################################################################################
+
+namespace eval ::dui::pages::dye_profile_viewer_dlg {
+	variable widgets
+	array set widgets {}
+		
+	# This page looks up its data directly in the DYE page, instead of storing its own.
+	variable data
+	array set data {
+		src_type {}
+		profile_title {}
+		profile_type {}
+		apply_profile_label "Use profile in next shot"
+		compare_to "saved"
+		compare_to_title ""
+		show_diff_only 0
+		enable_open_ps 0
+	}
+	
+	variable profile
+	array set profile {}
+	
+	variable ref_profile
+	array set ref_profile {}
+	
+	proc setup {} {
+		variable data
+		variable widgets
+		set page [namespace tail [namespace current]]
+		set page_width [dui page width $page 0]
+		#set profile_dialogs [list $page dye_profile_select_dlg]
+		
+		dui add shape round $page 0 0 -bwidth 210 -bheight 210 -radius {40 20 20 20} -style dye_pv_icon_btn
+		dui add symbol $page 105 65 -anchor center -symbol signature -font_size 40 -fill white 
+		dui add dtext $page 105 160 -anchor center -justify center -text [translate "PROFILE VIEWER"] \
+			-font_size 14 -fill white -width 200
+		
+		dui add dbutton $page [expr {$page_width-120}] 0 $page_width 120 -tags close_dialog -style menu_dlg_close \
+			-command dui::page::close_dialog
+
+		dui add variable $page 275 30 -anchor nw -justify left -tags profile_title -width 1900 -style dye_pv_profile_title 
+		
+		dui add variable $page 265 210 -anchor sw -justify left -tags profile_type -width 1200 -font_size +1 \
+			-fill [dui aspect get text_tag foreground -style dye_pv_step]
+			
+		set tw [dui add text $page 275 225 -tags profile_desc -canvas_width 1200 -canvas_height 1075 -yscrollbar yes \
+			-highlightthickness 0]
+		
+		# Right side
+		dui add dtext $page 1700 210 -anchor sw -tags compare_lbl -width 650 -text [translate {Compare to:}] 
+		
+		dui add dselector $page 1700 225 -bwidth 550 -bheight 330 -anchor nw -tags compare_to -orient vertical \
+			-values {none saved other} -labels [list [translate Nothing] [translate {Saved profile}] [translate {Another profile}]] \
+			-command compare_to_change
+		dui add variable $page 1975 565 -width 560 -tags compare_to_title -anchor n -justify center -font_size -3
+		
+		dui add dtoggle $page 2250 670 -anchor ne -tags show_diff_only -label [translate {Show differences only}] \
+			-label_pos {1700 674} -label_anchor nw -command insert_profile_in_tk_text
+		
+		# Right side, bottom buttons, start by the bottom
+		set y 1300; set bheight 170; set vsep 200
+		
+		dui add dbutton $page 1700 $y -bwidth 550 -bheight $bheight -anchor sw -style dsx_settings -tags apply_profile -symbol file-export \
+			-labelvariable apply_profile_label -label_width 375
+
+		dui add dbutton $page 1700 [incr y -$vsep] -bwidth 550 -bheight $bheight -anchor sw -style dsx_settings -tags change_profile \
+			-symbol exchange -label [translate "Change profile"] -label_width 375
+		
+		# Define Tk Text tag styles
+		$tw tag configure profile_type {*}[dui aspect list -type text_tag -style dye_pv_step -as_options yes]
+		$tw tag configure step {*}[dui aspect list -type text_tag -style dye_pv_step -as_options yes]
+		$tw tag configure step_line {*}[dui aspect list -type text_tag -style dye_pv_step_line -as_options yes]
+		$tw tag configure value {*}[dui aspect list -type text_tag -style dye_pv_value -as_options yes]
+		$tw tag configure compvalue -foreground green
+		#{*}[dui aspect list -type text_tag -style dye_pv_compvalue -as_options yes]
+	
+	}
+	
+	# source_type = Those acepted by ::profile::read_legacy (settings/next, shot_file, profile_file, or list)
+	# list_profile is a list with a legacy profile data structure (or a shot one). Only the profile-specific variables
+	#	will be extracted and stored.
+	# Optional args:
+	# -enable_open_ps <boolean> (if undefined, only enables the profile selector button if src_type=next/settings)
+	proc load { page_to_hide page_to_show {src_type "next"} {src {}} args } {
+		variable data
+		variable profile
+		variable ref_profile
+		
+		if { $src_type eq "settings" } {
+			set src_type "next"
+		}
+		set data(src_type) $src_type
+		
+		array set profile [::profile::read_legacy $src_type $src]
+		if { [array size profile] == 0 } {
+			return 0
+		}
+		set data(profile_title) $profile(profile_title)
+		
+		if { $src_type eq "next"  && [string is true $::settings(profile_has_changed)] } {
+			append  data(profile_title) " *"
+		}
+		
+		set data(enable_open_ps) [string is true [dui::args::get_option -enable_open_ps [expr {$src_type eq "next"}]]]
+				
+		set data(apply_profile_label) [translate {Use profile in next shot}]
+		array set ref_profile {}
+
+		if { ![file exists "[homedir]/profiles/$profile(profile_filename).tcl"] } {
+			set data(compare_to) "none"
+			set data(show_diff_only) 0
+		}		
+		insert_profile_in_tk_text
+		
+		return 1
+	}
+	
+	proc show { page_to_hide page_to_show } {
+		variable data
+		variable profile
+		
+		if { $data(src_type) eq "next" } {
+			set data(apply_profile_label) [translate {Edit profile}]
+			dui item config $page_to_show apply_profile-sym -text [dui symbol get pencil]
+			#dui item enable $page_to_show change_profile*
+		} else {
+			set data(apply_profile_label) [translate {Use profile in next shot}]
+			dui item config $page_to_show apply_profile-sym -text [dui symbol get file-export]
+			#dui item disable $page_to_show change_profile*
+		}
+		dui item enable_or_disable $data(enable_open_ps) $page_to_show change_profile*
+		
+		if { ![file exists "[homedir]/profiles/$profile(profile_filename).tcl"] } {
+			dui item disable $page_to_show {compare_to_2* show_diff_only*}
+		}
+		
+		# The preview graph sometimes is not hidden by the default page swapping mechanism (!?!), so we force it
+		set can [dui canvas]
+		.can itemconfig $::preview_graph_pressure -state hidden
+		.can itemconfig $::preview_graph_flow -state hidden
+		.can itemconfig $::preview_graph_advanced -state hidden
+	}
+
+	proc compare_to_change {} {
+		variable data
+		variable profile
+		variable ref_profile
+		set page [namespace tail [namespace current]]
+		
+		set data(compare_to_title) ""
+		dui item enable_or_disable [expr {$data(compare_to) ne "none"}] $page show_diff_only*
+		
+		if { $data(compare_to) eq "saved" } {
+			if { $profile(profile_filename) ne "" } {
+				msg -INFO [namespace current] compare_to_change: "loading reference profile"
+				array set ref_profile [profile::read_legacy profile_file $profile(profile_filename)]
+			}
+		} elseif { $data(compare_to) eq "other" } {
+			dui page close_dialog
+			dui page open_dialog dye_profile_select_dlg -page_title [translate "Select a profile to compare to"] \
+				-change_settings_on_exit 0 -filter_visible all -filter_type $profile(settings_profile_type) \
+				-filter_bev_type $profile(beverage_type) -return_callback [namespace current]::process_select_comp_profile \
+				-enable_open_pv 0
+		} else {
+			array set ref_profile {}
+		}
+		
+		insert_profile_in_tk_text
+	}
+
+	# -selected <profile_filename>: Starting selected profile filename rootname (without extensions).
+	# -change_settings_on_exit <boolean>: if 1, when a profile is selected and the "Select" button is tapped, the profile for
+	#	the next shot is changed in the app settings & GUI.
+	# -page_title <title>
+	# -filter_visible {?visible? ?hidden?}
+	# -filter_type {?flow? ?pressure? ?advanced?}
+	# -filter_bev_type {?espresso? ?pourover? ?tea? ?others?}
+	# -filter_matching {?beans? ?grinder?}
+	# -bean_brand <bean_brand>: Value to use in the "Match current" dselector filter.
+	# -bean_type <bean_type>: Value to use in the "Match current" dselector filter.
+	# -grinder_model <grinder_model>: Value to use in the "Match current" dselector filter.
+	
+	proc process_select_comp_profile { {title {}} {filename {}} } {
+		variable data
+		variable ref_profile
+		
+		dui page show [namespace tail [namespace current]]
+		
+		if { $filename eq {} } {
+			set data(compare_to) "none"
+			compare_to_change
+		} else {
+			set data(compare_to_title) "[translate {Comparing to}] $title"
+			array set ref_profile [profile::read_legacy profile_file $filename]
+			insert_profile_in_tk_text
+		}
+	}
+	
+	proc change_profile {} {
+		variable data
+		variable profile
+		
+		if { ![string is true $data(enable_open_ps)] } {
+			return
+		}
+		
+		dui page close_dialog
+		dui page open_dialog dye_profile_select_dlg -selected $profile(profile_filename) -change_settings_on_exit 1 \
+			-bean_brand $::settings(bean_brand) -bean_type $::settings(bean_type) -grinder_model $::settings(grinder_model) \
+			-return_callback [namespace current]::process_profile_select_dialog
+	}
+	
+	proc process_profile_select_dialog { {title {}} {filename {}} } {
+		variable data
+		variable profile
+		
+		if { $data(src_type) eq "next" && $filename ne "" && $filename ne $profile(profile_filename) } {
+			::dui::pages::DYE::load_next_profile
+		}
+		
+		dui page open_dialog [namespace tail [namespace current]] "next" ""
+	}
+	
+	# Fill the text description of the profile in the Tk Text widget.
+	proc insert_profile_in_tk_text { } {
+		variable widgets
+		variable data
+		variable profile
+		variable ref_profile
+		
+		set ns [namespace current]
+		set page [namespace tail $ns]
+		
+		set pdict [::profile::legacy_to_textual [array get profile]]
+		
+		set show_diff_only 0
+		set cdict {}
+		if { [array size ref_profile] > 0 } {
+			set cdict [::profile::legacy_to_textual [array get ref_profile]]
+			set show_diff_only $data(show_diff_only)
+		}
+		
+		set data(profile_type) [string toupper [translate [lindex [dict get $pdict 0 type] 0]]]
+		
+		set tw $widgets(profile_desc)
+		$tw configure -state normal
+		$tw delete 1.0 end
+		
+		set n_diffs [::plugins::DYE::insert_profile_in_tk_text $tw $pdict $cdict $show_diff_only]
+		
+		$tw configure -state disabled
+	}
+	
+	proc apply_profile {} {
+		variable data
+		variable profile
+		set page [namespace tail [namespace current]]
+		
+		if { $data(src_type) eq "next" || [dui item cget $page apply_profile-sym -text] eq [dui symbol get pencil] } {
+			::backup_settings
+			dui page load $profile(settings_profile_type)
+			return
+		}
+		
+		set imported [::profile::import_legacy [array get profile]]
+		
+		if { $imported } {
+			set data(apply_profile_label) [translate {Edit profile}]
+			dui item config $page apply_profile-sym -text [dui symbol get pencil]
+		} else {
+			set data(apply_profile_label) [translate "Failed to apply"]
+			after 2000 [list set [namespace current]::data(apply_profile_label) [translate {Use profile in next shot}]]
+		}
+		 
+	}
+}
+
+### PROFILE SELECT DIALOG ##############################################################################################
+
+namespace eval ::dui::pages::dye_profile_select_dlg {
+	variable widgets
+	array set widgets {}
+		
+	# This page looks up its data directly in the DYE page, instead of storing its own.
+	variable data
+	array set data {
+		change_settings_on_exit 0
+		bean_brand ""
+		bean_type ""
+		grinder_model ""
+		selected ""
+		selected_bev_type ""
+		shown_indexes {}
+		filter_visible {visible hidden}
+		filter_type {settings_2a settings_2b settings_2c}
+		filter_bev_type "espresso"
+		filter_matching ""
+		sort_by "last_use"
+		info_expanded 0
+		enable_open_pv 1
+	}
+	
+	variable profiles
+	array set profiles {}
+	
+	variable stored_dims
+	set stored_dims {}
+	
+	proc setup {} {
+		variable data
+		variable widgets
+		set page [namespace tail [namespace current]]
+		set page_width [dui page width $page 0]
+		set page_height [dui page height $page 0]
+		set font_size +1
+
+		dui add shape round $page 0 0 -bwidth 210 -bheight 210 -radius {40 20 20 20} -style dye_pv_icon_btn
+		dui add symbol $page 105 65 -anchor center -symbol exchange -font_size 40 -fill white 
+		dui add dtext $page 105 160 -anchor center -justify center -text [translate "PROFILE SELECTOR"] \
+			-font_size 14 -fill white -width 200
+		
+		dui add dbutton $page [expr {$page_width-120}] 0 $page_width 120 -tags close_dialog -style menu_dlg_close \
+			-command dui::page::close_dialog
+
+		# LEFT SIDE, main panel (profile selection)
+		set x 300
+		dui add dtext $page $x 25 -anchor nw -justify left -tags page_title -width 1900 -font_size 28 \
+			-text [translate "Select a saved profile"]
+
+		dui add symbol $page [expr {$x-10}] 200 -tags filter_string_icon -anchor se -symbol search -font_size 20
+		dui add entry $page $x 210 -tags filter_string -canvas_width 950 -canvas_anchor sw -font_size $font_size
+		bind $widgets(filter_string) <KeyRelease> [namespace current]::fill_profiles 
+		
+		# Empty category message
+		dui add variable $page $x 300 -tags empty_items_msg -style remark -font_size +2 -anchor e \
+			-justify "center" -initial_state hidden
+	
+		dui add listbox $page $x 210 -tags profiles -canvas_width 950 -canvas_height 1000 \
+			-canvas_anchor nw -font_size $font_size -yscrollbar 1 -exportselection 1
+		bind $widgets(profiles) <<ListboxSelect>> [namespace current]::profile_select
+		bind $widgets(profiles) <Double-Button-1> [namespace current]::page_done
+
+		# Hidden beverage type selector
+		dui add dselector $page 240 400 -bwidth 600 -bheight 600 -tags selected_bev_type -initial_state hidden -orient vertical \
+			-values {espresso pourover tea_portafilter manual cleaning calibrate} -command selected_bev_type_change \
+			-labels [list [translate "Espresso"] [translate "Pour over"] [translate "Tea portafilter"] \
+				[translate "GHC manual control"] [translate "Cleaning"] [translate "Calibration"]]
+		
+		# LEFT SIDE, utility buttons, starting by bottom
+		set x 70; set y 600; set bheight 130; set vsep 155;
+
+		dui add dbutton $page $x $y -bwidth 130 -bheight $bheight -anchor sw -shape round -radius 30 \
+			-tags change_visibility -fill "#c1c5e4" -symbol eye -symbol_pos {0.5 0.4} -symbol_fill white \
+			-label [translate Show] -label_font_size 11 -label_pos {0.5 0.8} -label_anchor center -label_justify center \
+			-label_fill "#8991cc"
+		
+		dui add dbutton $page $x [incr y $vsep] -bwidth 130 -bheight $bheight -anchor sw -shape round -radius 30 \
+			-tags change_bev_type -fill "#c1c5e4" -symbol mug -symbol_pos {0.5 0.4} -symbol_fill white \
+			-label [translate {Bev.type}] -label_font_size 11 -label_pos {0.5 0.8} -label_anchor center -label_justify center \
+			-label_fill "#8991cc"
+
+		# Aligned to bottom
+		set y 1210
+		dui add dbutton $page $x $y -bwidth 130 -bheight $bheight -anchor sw -shape round -radius 30 \
+			-tags open_profile_importer -fill "#c1c5e4" -symbol file-import -symbol_pos {0.5 0.4} -symbol_fill white \
+			-label [translate {Import}] -label_font_size 11 -label_pos {0.5 0.8} -label_anchor center -label_justify center \
+			-label_fill "#8991cc" -initial_state disabled
+
+		dui add dbutton $page $x [incr y -$vsep] -bwidth 130 -bheight $bheight -anchor sw -shape round -radius 30 \
+			-tags open_profile_viewer -fill "#c1c5e4" -symbol signature -symbol_pos {0.5 0.4} -symbol_fill white \
+			-label [translate {DYE PV}] -label_font_size 11 -label_pos {0.5 0.8} -label_anchor center -label_justify center \
+			-label_fill "#8991cc"		
+
+		# RIGHT SIDE, filters
+		set x 1500
+		dui add symbol $page $x 35 -tags filter_icon -symbol filter -font_size 28 -anchor nw -justify left
+		dui add dtext $page [expr {$x+100}] 25 -tags filter_lbl -text [translate Filters] -font_size 28 -anchor nw
+		
+		set y 140; set bheight 90; set vsep 125	
+		
+		dui add dselector $page $x $y -bwidth 800 -bheight $bheight -tags filter_visible -values {visible hidden} \
+			-multiple yes -labels [list [translate "Visible"] [translate "Hidden"]] \
+			-label_font_size -1 -command fill_profiles
+
+		dui add dselector $page $x [incr y $vsep] -bwidth 800 -bheight $bheight -tags filter_type -multiple yes \
+			-label_font_size -1 -command fill_profiles -values {settings_2a settings_2b settings_2c} \
+			-labels [list [translate "Pressure"] [translate "Flow"] [translate "Advanced"]] \
+		
+		dui add dselector $page $x [incr y $vsep] -bwidth 800 -bheight $bheight -tags filter_bev_type -multiple yes \
+			-values {espresso pourover tea_portafilter others} \
+			-labels [list [translate "Espresso"] [translate "Pour over"] [translate "Tea"] [translate "Others"]] \
+			-label_font_size -1 -command fill_profiles
+
+		dui add dtext $page $x [expr {int([incr y $vsep]+$bheight/2)}] -anchor w -justify right -tags filter_matching_lbl \
+			-text [translate "Match shot"] -width 300
+		dui add dselector $page [expr {$x+300}] $y -bwidth 500 -bheight $bheight -tags filter_matching -multiple yes \
+			-values {beans grinder} -labels [list [translate "Beans"] [translate "Grinder"]] \
+			-label_font_size -1 -command fill_profiles
+
+		# RIGHT SIDE, sort by
+		dui add symbol $page $x [incr y [expr {$vsep}]] -tags sort_by_icon -symbol sort-alpha-down -font_size 28 -anchor nw -justify left
+		dui add dtext $page [expr {$x+100}] [expr {$y-10}] -tags sort_by_lbl -text [translate {Sort by}] -font_size 28 -anchor nw	
+		
+		dui add dselector $page $x [incr y [expr {$vsep-30}]] -bwidth 800 -bheight $bheight -tags sort_by \
+			-values {last_use usage title mtime} -label_font_size -1 -command sort_profiles \
+			-labels [list [translate "Last use"] [translate "Most used"] [translate "Title"]  [translate "Last edit"]]
+		
+		# RIGHT SIDE, info panel
+		dui add shape outline $page 1500 [incr y [expr {$vsep+30}]] 2300 1275 -tags info_box -width 2 -outline grey
+		dui add symbol $page 1530 [expr {$y+15}] -anchor nw -symbol info -tags info_icon -font_size 30 -fill grey
+		
+		set tw [dui add text $page 1605 [expr {$y+10}] -tags profile_info -canvas_width 675 -canvas_height [expr {1190-$y}] \
+			-yscrollbar no -highlightthickness 0 -initial_state disabled -font_size -2 -foreground "#7f879a" -exportselection 0]
+		
+		dui add symbol $page 1515 1200 -anchor sw -justify left -symbol plus-circle -tags expand_or_contract_icon -font_size 30 
+		dui add dbutton $page 1400 [expr {$y+75}] 1604 1225 -tags expand_info -command expand_or_contract_info 
+		
+		# BOTTOM BUTTONS
+		dui add dbutton $page 1230 [expr {$page_height-140}] -anchor ne -tags page_cancel -style insight_ok -command page_cancel -label [translate Cancel]
+		dui add dbutton $page 1330 [expr {$page_height-140}] -anchor nw -tags page_done -style insight_ok -command page_done -label [translate Select]
+		
+		# Define Tk Text tag styles
+		$tw tag configure profile_type {*}[dui aspect list -type text_tag -style dye_pv_step -as_options yes]
+		$tw tag configure step {*}[dui aspect list -type text_tag -style dye_pv_step -as_options yes]
+		$tw tag configure step_line -lmargin2 [dui::platform::rescale_x 20]
+		$tw tag configure value {*}[dui aspect list -type text_tag -style dye_pv_value -as_options yes]
+		$tw tag configure compvalue -foreground green
+		#{*}[dui aspect list -type text_tag -style dye_pv_compvalue -as_options yes]
+	}
+	
+	# Page loading names options:
+	# -selected <profile_filename>: Starting selected profile filename rootname (without extensions).
+	# -change_settings_on_exit <boolean>: if 1, when a profile is selected and the "Select" button is tapped, the profile for
+	#	the next shot is changed in the app settings & GUI.
+	# -page_title <title>
+	# -filter_visible {?all? ?visible? ?hidden?}
+	# -filter_type {?all? ?flow? ?pressure? ?advanced?}
+	# -filter_bev_type {?all? ?espresso? ?pourover? ?tea? ?others?}
+	# -filter_matching {?beans? ?grinder?}
+	# -bean_brand <bean_brand>: Value to use in the "Match current" dselector filter.
+	# -bean_type <bean_type>: Value to use in the "Match current" dselector filter.
+	# -grinder_model <grinder_model>: Value to use in the "Match current" dselector filter.
+	# -enable_open_pv <boolean>
+	proc load { page_to_hide page_to_show args } {
+		variable profiles
+		variable data
+		variable widgets
+		variable stored_dims
+		
+		set stored_dims {}
+		set data(info_expanded) 0
+		
+		set data(selected) [::dui::args::get_option -selected ""]
+		set data(selected_bev_type) ""
+		set data(change_settings_on_exit) [string is true [::dui::args::get_option -change_settings_on_exit 0]]
+		set data(enable_open_pv) [string is true [::dui::args::get_option -enable_open_pv 1]]
+		set data(bean_brand) [::dui::args::get_option -bean_brand ""]
+		set data(bean_type) [::dui::args::get_option -bean_type ""]
+		set data(grinder_model) [::dui::args::get_option -grinder_model ""]
+		if { [dui::args::has_option -filter_visible] } {
+			set data(filter_visible) [::dui::args::get_option -filter_visible]
+			if { $data(filter_visible) eq "all" || $data(filter_visible) eq ""} {
+				set data(filter_visible) {visible hidden}
+			} 
+		}
+		if { [dui::args::has_option -filter_type] } {
+			set data(filter_type) [::dui::args::get_option -filter_type]
+			if { $data(filter_type) eq "all" || $data(filter_type) eq ""} {
+				set data(filter_type) {settings_2a settings_2b setting_2c}
+			} 
+#			elseif { $data(filter_type) ni {settings_2a settings_2b setting_2c} } {
+#				msg -WARNING [namespace current] load: "filter_type '$data(filter_type)' unknown"
+#				set data(filter_type) ""
+#			}
+		}
+		if { [dui::args::has_option -filter_bev_type] } {
+			set data(filter_bev_type) [::dui::args::get_option -filter_bev_type]
+			if { $data(filter_bev_type) eq "all" || $data(filter_bev_type) eq ""} {
+				set data(filter_bev_type) {espresso pourover tea_portafilter others}
+			} elseif { $data(filter_bev_type) in {cleaning manual calibrate {}} } {
+				set data(filter_bev_type) "others"
+			} 
+#			elseif { $data(filter_bev_type) ni {espresso pourover tea_portafilter all} } {
+#				msg -WARNING [namespace current] load: "filter_bev_type '$data(filter_bev_type)' unknown"
+#				set data(filter_bev_type) ""
+#			}
+		}
+		
+		dui item config $page_to_show page_title -text [translate [::dui::args::get_option -page_title "Select a saved profile"]]
+			
+		array set profiles [::profile::saved_profiles_list]
+		
+		# Add profile stats info from database
+		set default_list [lrepeat [llength $profiles(title)] 0]
+		set profiles(last_used_clock) $default_list
+		set profiles(n_shots) $default_list
+		
+		set db [plugins::SDB::get_db]
+		db eval {SELECT profile_title, MAX(clock) AS last_clock, COUNT(clock) AS n_shots
+				FROM shot s WHERE removed=0 GROUP BY profile_title} values {
+			set title_idx [lsearch -exact $profiles(title) $values(profile_title)]
+			if { $title_idx > -1 } {
+				lset profiles(last_used_clock) $title_idx $values(last_clock)
+				lset profiles(n_shots) $title_idx $values(n_shots)
+			}
+		}
+
+		$widgets(profile_info) configure -state normal
+		$widgets(profile_info) delete 1.0 end
+		$widgets(profile_info) configure -state disabled
+		
+		sort_profiles
+		
+		return 1
+	}
+	
+	proc show { page_to_hide page_to_show } {
+		variable data
+		variable widgets
+		
+		if { $data(bean_brand) eq "" && $data(bean_type) eq "" && $data(grinder_model) eq "" } {
+			dui item disable $page_to_show {filter_matching_1* filter_matching_2* filter_matching_lbl}
+		} elseif { $data(bean_brand) eq "" && $data(bean_type) eq "" } {
+			dui item disable $page_to_show filter_matching_1*
+		} elseif { $data(grinder_model) eq "" } {
+			dui item disable $page_to_show filter_matching_2*
+		}
+		
+		$widgets(profile_info) configure -state disabled
+		
+		# This shouldn't be necessary, but -initial_state hidden is not working for dselectors
+		dui item hide $page_to_show selected_bev_type*
+		if { !$data(enable_open_pv) } {
+			dui item disable $page_to_show open_profile_viewer*
+		}
+		
+		# The preview graph sometimes is not hidden by the default page swapping mechanism (!?!), so we force it
+		set can [dui canvas]
+		.can itemconfig $::preview_graph_pressure -state hidden
+		.can itemconfig $::preview_graph_flow -state hidden
+		.can itemconfig $::preview_graph_advanced -state hidden		
+	}
+
+	proc hide { page_to_hide page_to_show } {
+		variable data
+		if { $data(info_expanded) } {
+			expand_or_contract_info
+		}
+		
+		# This must be put here on the hide event, so that if the next page is the settings presets, the profile listbox 
+		# changed item is properly highlighted.
+		if { $data(change_settings_on_exit) && $page_to_show in {settings_1 settings_1b settings_1c} } {
+			fill_profiles_listbox
+		}
+	}
+	
+	proc sort_profiles {} {
+		variable data
+		variable profiles
+		
+		set indexes {}
+		if { $data(sort_by) eq "usage" } {
+			set indexes [lsort -indices -integer -decreasing $profiles(n_shots)]
+		} elseif { $data(sort_by) eq "last_use" } {
+			set indexes [lsort -indices -integer -decreasing $profiles(last_used_clock)]
+		} elseif { $data(sort_by) eq "mtime" } {
+			set indexes [lsort -indices -integer -decreasing $profiles(mtime)]
+		} else {
+			set indexes [lsort -indices -nocase -increasing $profiles(title)]
+		}
+
+		# Sort each of the lists in the profiles array using the same order 
+		set sorted_profiles {}
+		foreach k [array names profiles] {
+			lappend sorted_profiles $k [lmap i $indexes {lindex $profiles($k) $i}]
+		}
+		
+		array set profiles $sorted_profiles
+		fill_profiles
+	}
+	
+	proc fill_profiles {} {
+		variable widgets
+		variable data
+		variable profiles
+
+		set data(shown_indexes) {}
+		set w $widgets(profiles)
+		$w delete 0 end
+		
+		if { [string length $data(filter_string)] > 0 } {
+			set filter "*[regsub -all {[[:space:]]} $data(filter_string) *]*"
+			set shown_indexes [lsearch -all -nocase $profiles(title) $filter]
+			if { $shown_indexes eq {} } {
+				return
+			}
+		} else {
+			set shown_indexes [lsequence 0 [expr {[llength $profiles(filename)]-1}]]
+		}
+
+		set db_filter ""
+		set db_profiles {}
+		if { "beans" in $data(filter_matching) } {
+			if { $data(bean_brand) ne "" } {
+				append db_filter "bean_brand='$data(bean_brand)' AND "
+			} 
+			if { $data(bean_type) ne "" } { 
+				append db_filter "bean_type='$data(bean_type)' AND "
+			}
+		}
+		if { "grinder" in $data(filter_matching) && $data(grinder_model) ne "" } {
+			append db_filter "grinder_model='$data(grinder_model)' AND "
+		}
+		if { $db_filter ne "" } {
+			set db_filter [string range $db_filter 0 end-5]
+			set db_profiles [lunique [::plugins::SDB::shots profile_title 1 $db_filter]]
+			if { $db_profiles eq {} } {
+				return
+			}
+		}
+		
+		for { set i 0 } { $i < [llength $shown_indexes] } { incr i } {
+			set idx [lindex $shown_indexes $i]
+			set add_item 1
+			
+			if { $data(filter_visible) eq "visible" && [lindex $profiles(hide) $idx] == 1 } {
+				continue
+			} elseif { $data(filter_visible) eq "hidden" && [lindex $profiles(hide) $idx] == 0 } {
+				continue
+			}
+				
+			if { $data(filter_type) ne {} && $data(filter_type) ne "all" && [lindex $profiles(type) $idx] ni $data(filter_type) } {
+				continue
+			}
+
+			if { $data(filter_bev_type) ne {} && $data(filter_bev_type) ne "all" } {
+				if { !("others" in $data(filter_bev_type) && [lindex $profiles(bev_type) $idx] ni {espresso pourvover tea_portafilter}) &&
+						!([lindex $profiles(bev_type) $idx] in $data(filter_bev_type)) } {
+					continue
+				}
+			}
+
+			if { $db_profiles ne {} && [lindex $profiles(title) $idx] ni $db_profiles } {
+				continue
+			}
+			
+			$w insert end [lindex $profiles(title) $idx]
+			lappend data(shown_indexes) $idx
+		}
+		
+		if { $data(selected) ne {} } {
+			# Don't reset $data(selected) if not found, to preserve selection when filters are modified
+			set idx [lsearch -exact $profiles(filename) $data(selected)]
+			if { $idx > -1 } {
+				set idx [lsearch -exact $data(shown_indexes) $idx]
+				if { $idx > -1 } {
+					$w selection set $idx
+					$w see $idx
+				}
+			}
+			profile_select 1
+		}
+		
+	}
+	
+	# Returns the index of the selected profile on the namespace 'profiles' array, taking into account the active
+	# filter. Returns an empty string if either there's not a selected profile or there's no match.	
+	proc selected_profile_data_index { {use_data_selected 0} } {
+		variable widgets
+		variable data
+		
+		set idx ""
+		if { [string is true $use_data_selected] } {
+			variable profiles
+			if { $data(selected) ne "" } {
+				set idx [lsearch -exact $profiles(filename) $data(selected)]
+			}
+		} else {
+			set idx [$widgets(profiles) curselection]
+			if { $idx ne "" } {
+				set idx [lindex $data(shown_indexes) $idx]
+			}
+		}
+
+		if { [string is integer $idx] && $idx < 0 } {
+			set idx ""
+		}
+		return $idx
+	}
+	
+	proc profile_select { {use_data_selected 0} } {
+		variable widgets
+		variable data
+		variable profiles
+		set page [namespace tail [namespace current]]
+
+		set idx [selected_profile_data_index $use_data_selected]
+		
+		if { $idx eq {} || $idx < 0 } {
+			dui item disable $page {change_visibility* change_bev_type* open_profile_viewer* page_done*}
+		} else {
+			dui item enable $page {change_visibility* change_bev_type* page_done*}
+			
+			if { [string is true [lindex $profiles(hide) $idx]] } {
+				dui item config $page change_visibility-sym -text [dui symbol get eye]
+				dui item config $page change_visibility-lbl -text [translate Show]
+			} else {
+				dui item config $page change_visibility-sym -text [dui symbol get eye-slash]
+				dui item config $page change_visibility-lbl -text [translate Hide]
+			}
+			
+			set txt ""
+			set filename [lindex $profiles(filename) $idx]
+			if { ![string is true $use_data_selected] } {
+				set data(selected) $filename
+			}
+			set data(selected_bev_type) [lindex $profiles(bev_type) $idx]
+			
+			append txt "[translate File]: ${filename}.tcl\n"
+			append txt "[translate Type]: [translate [::profile::profile_type_text [lindex $profiles(type) $idx] [lindex $profiles(bev_type) $idx]]]\n"
+			append txt "[translate {Shot count}]: [lindex $profiles(n_shots) $idx]\n"
+			if { [lindex $profiles(n_shots) $idx] > 0 } {
+				append txt "[translate {Last shot}]: [::plugins::DYE::relative_date [lindex $profiles(last_used_clock) $idx]]\n"
+			}				
+			append txt "[translate Created]: [::plugins::DYE::relative_date [lindex $profiles(ctime) $idx]]\n"
+			append txt "[translate Modified]: [::plugins::DYE::relative_date [lindex $profiles(mtime) $idx]]\n"
+			
+			set tw $widgets(profile_info)
+			$tw configure -state normal
+			$tw delete 1.0 end		
+			$tw insert insert $txt
+			
+			if { $data(info_expanded) } {
+				set profile [profile::read_legacy profile_file $filename]
+				if { [llength profile] > 0 } {
+					set pdict [::profile::legacy_to_textual $profile]
+					::plugins::DYE::insert_profile_in_tk_text $widgets(profile_info) $pdict {} 0
+				} else {
+					msg -INFO [namespace current] profile_select: "empty profile file '$filename'" 
+				}
+			}
+			
+			$tw configure -state disabled
+		}
+		
+	}
+	
+	proc change_visibility {} {
+		variable profiles
+		set idx [selected_profile_data_index 1]
+		if { $idx eq {} } {
+			return
+		}
+		
+		if { [string is true [lindex $profiles(hide) $idx]] } {
+			if { [profile::modify_legacy [lindex $profiles(filename) $idx] {profile_hide 0}] } {
+				lset profiles(hide) $idx 0
+				dui say [translate "Profile is now visible"]
+				fill_profiles
+			}
+		} else {
+			if { [profile::modify_legacy [lindex $profiles(filename) $idx] {profile_hide 1}] } {
+				lset profiles(hide) $idx 1
+				dui say [translate "Profile is now hidden"]
+				fill_profiles
+			}
+		}
+	}
+	
+	proc change_bev_type {} {
+		variable widgets
+		set page [namespace tail [namespace current]]
+		
+		set idx [selected_profile_data_index 1]
+		if { $idx eq {} } {
+			return
+		}
+				
+		if { [dui item cget $page selected_bev_type_1 -state] eq "hidden" } {
+			dui item hide $page profiles*
+			dui item show $page selected_bev_type*
+		} else {
+			dui item show $page profiles*
+			dui item hide $page selected_bev_type*
+		}
+	}
+
+	proc selected_bev_type_change {} {
+		variable data
+		variable profiles
+		set page [namespace tail [namespace current]]
+		
+		if { $data(selected_bev_type) eq "" } {
+			return
+		}
+		set idx [selected_profile_data_index 1]
+		if { $idx eq {} } {
+			return
+		}
+		
+		if { [profile::modify_legacy [lindex $profiles(filename) $idx] [list beverage_type $data(selected_bev_type)]] } {
+			lset profiles(bev_type) $idx $data(selected_bev_type)
+			dui say [translate "Beverage type changed"]
+			fill_profiles
+
+			dui item show $page profiles*
+			dui item hide $page selected_bev_type*
+		}
+	}
+	
+	proc open_profile_importer {} {
+		# Yet to be implemented (button is disabled at the moment)
+	}
+	
+	proc open_profile_viewer {} {
+		variable profiles
+		
+		set idx [selected_profile_data_index 1]
+		if { $idx ne {} } {
+			dui page close_dialog
+			dui::page::open_dialog dye_profile_viewer_dlg profile_file [lindex $profiles(filename) $idx] -enable_open_ps 1
+		}
+	}
+	
+	proc expand_or_contract_info {} {
+		variable widgets
+		variable data
+		variable stored_dims
+		set can [dui canvas]
+		set page [namespace tail [namespace current]]
+		set show_or_hide_tags {filter_icon filter_lbl filter_visible* filter_type* filter_bev_type* filter_matching_lbl 
+			filter_matching* sort_by_icon sort_by_lbl sort_by*}
+		
+		lassign [$can bbox $widgets(profile_info)] x0 y0 x1 y1
+		lassign [$can coords $widgets(info_icon)] info_x0 info_y0
+		set box_nw [dui item get $page info_box-out-nw]
+		lassign [$can coords $box_nw] box_nw_x0 box_nw_y0 box_nw_x1 box_nw_y1
+		set box_n [dui item get $page info_box-out-n]
+		lassign [$can coords $box_n] box_n_x0 box_n_y0 box_n_x1 box_n_y1
+		set box_ne [dui item get $page info_box-out-ne]
+		lassign [$can coords $box_ne] box_ne_x0 box_ne_y0 box_ne_x1 box_ne_y1
+		set box_w [dui item get $page info_box-out-w]
+		lassign [$can coords $box_w] box_w_x0 box_w_y0 box_w_x1 box_w_y1
+		set box_e [dui item get $page info_box-out-e]
+		lassign [$can coords $box_e] box_e_x0 box_e_y0 box_e_x1 box_e_y1
+		
+		if { $data(info_expanded) } {
+			# Contract
+			dui item config $widgets(expand_or_contract_icon) -text [dui symbol get plus-circle]
+			dui item show $page $show_or_hide_tags
+			
+			$can coords $widgets(profile_info) $x0 [lindex $stored_dims 0]
+			$can itemconfigure $widgets(profile_info) -height [expr {[lindex $stored_dims 1]-[lindex $stored_dims 0]}]
+			$can coords $widgets(info_icon) $info_x0 [lindex $stored_dims 2]
+			$can coords $box_nw $box_nw_x0 [lindex $stored_dims 3] $box_nw_x1 [expr {[lindex $stored_dims 3]+$box_nw_y1-$box_nw_y0}]
+			$can coords $box_n $box_n_x0 [lindex $stored_dims 4] $box_n_x1 [expr {[lindex $stored_dims 4]+$box_n_y1-$box_n_y0}]
+			$can coords $box_ne $box_ne_x0 [lindex $stored_dims 5] $box_ne_x1 [expr {[lindex $stored_dims 5]+$box_ne_y1-$box_ne_y0}]
+			$can coords $box_w $box_w_x0 [lindex $stored_dims 6] $box_w_x1 $box_w_y1
+			$can coords $box_e $box_e_x0 [lindex $stored_dims 7] $box_e_x1 $box_e_y1
+			
+			$widgets(profile_info) see 0.1
+			set data(info_expanded) 0
+		} else {
+			# Expand
+			dui item config $widgets(expand_or_contract_icon) -text [dui symbol get minus-circle]
+			dui item hide $page $show_or_hide_tags 
+			
+			set y [dui::page::calc_y $page 150 1] 
+			$can coords $widgets(profile_info) $x0 $y
+			$can itemconfigure $widgets(profile_info) -height [expr {$y1-$y}]
+			$can coords $widgets(info_icon) $info_x0 155
+			set y [dui::page::calc_y $page 140 1]
+			$can coords $box_nw $box_nw_x0 $y $box_nw_x1 [expr {$y+$box_nw_y1-$box_nw_y0}]
+			$can coords $box_n $box_n_x0 $y $box_n_x1 [expr {$y+$box_n_y1-$box_n_y0}]
+			$can coords $box_ne $box_ne_x0 $y $box_ne_x1 [expr {$y+$box_ne_y1-$box_ne_y0}]
+			$can coords $box_w $box_w_x0 [expr {$y-1+($box_nw_y1-$box_nw_y0)/2}] $box_w_x1 $box_w_y1
+			$can coords $box_e $box_e_x0 [expr {$y-1+($box_ne_y1-$box_ne_y0)/2}] $box_e_x1 $box_e_y1
+			
+			if { $stored_dims eq {} } {
+				set stored_dims [list $y0 $y1 $info_y0 $box_nw_y0 $box_n_y0 $box_ne_y0 $box_w_y0 $box_e_y0]
+			}
+
+			if { $data(selected) ne "" } {
+				set profile [profile::read_legacy profile_file $data(selected)]
+				if { [llength profile] > 0 } {
+					set pdict [::profile::legacy_to_textual $profile]
+					::plugins::DYE::insert_profile_in_tk_text $widgets(profile_info) $pdict {} 0
+				}
+			}
+						
+			set data(info_expanded) 1
+		}
+	}
+	
+	proc page_cancel {} {
+		dui page close_dialog {} {}
+	}
+	
+	# Returns <profile_title> <profile_full_path>
+	proc page_done {} {
+		variable widgets
+		variable data
+		variable profiles
+		
+		set idx [selected_profile_data_index 1]
+		if { $idx eq {} } {
+			dui page close_dialog {} {}
+		} else {
+			if { $data(change_settings_on_exit) } {
+				if { [lindex $profiles(hide) $idx] } {
+					profile::modify_legacy [lindex $profiles(filename) $idx] {profile_hide 0}
+				}
+				set ::settings(profile) [lindex $profiles(title) $idx]
+				fill_profiles_listbox
+				select_profile [file tail [file rootname [lindex $profiles(filename) $idx]]]
+				save_settings
+			}
+			
+			dui page close_dialog [lindex $profiles(title) $idx] [lindex $profiles(filename) $idx]
+		}
+	}
+}
+
 ### "FILTER SHOT HISTORY" PAGE #########################################################################################
 
 namespace eval ::dui::pages::DYE_fsh {
@@ -3091,10 +4570,10 @@ proc ::dui::pages::DYE_fsh::setup {} {
 	
 	# Reset button
 	set y 810
-	dui add dbutton $page $x_left $y -tags reset -label [translate Reset] -style dsx_done
+	dui add dbutton $page $x_left $y -tags reset -label [translate Reset] -style dsx_done -tap_pad 20
 
 	# Search button
-	dui add dbutton $page 2260 $y -tags search -label [translate Search] -style dsx_done
+	dui add dbutton $page 2260 $y -tags search -label [translate Search] -style dsx_done -tap_pad 20
 
 	# Number of search matches
 	set data(n_matched_shots_text) [translate "No shots"]
@@ -5603,3 +7082,84 @@ foreach fn "drinker_name repository_links" {
 	}
 }
 
+
+# Returns a list of key-value pairs (which can be casted to an array) with keys 'filename', 'path', 'title', 'group', 'author',
+#	'hide', 'type', 'bev_type', and, if argument $file_stats is 1, also 'ctime' and 'mtime'. 
+# Each value is a list of equal length.
+proc ::profile::saved_profiles_list { {file_stats 1} } {
+	set file_stats [string is true $file_stats]
+	set files [lsort -dictionary [glob -nocomplain -directory "[homedir]/profiles/" *.tcl]]
+	
+	set filename {}
+	set fullpath {}
+	set title {}
+	set group {}
+	set hide {}
+	set type {}
+	set bev_type {}
+	set ctime {}
+	set mtime {}
+	
+	foreach fn $files {
+		unset -nocomplain profile
+		try {
+			array set profile [encoding convertfrom utf-8 [read_binary_file $fn]]
+		} on error err {
+			msg -ERROR [namespace current] list:: "can't read profile file '$fn': $err"
+			continue
+		}
+		
+		set rootname [file tail [file rootname $fn]]
+		if { $rootname eq "CVS" || $rootname eq "example" } {
+			continue
+		}		
+		
+		if { ![info exists profile(profile_title)] } {
+			msg -ERROR [namespace current] list:: "corrupt profile file '$fn': $err"
+			continue
+		}
+		
+		lappend filename $rootname
+		lappend fullpath "$fn"
+		lappend title $profile(profile_title)
+		
+		set parts [split $profile(profile_title) /]
+		if {[llength $parts] > 1} {
+			lappend group [lindex $parts 0]
+		} else {
+			lappend group ""
+		}
+		
+		lappend hide [value_or_default profile(profile_hide) 0]
+		lappend type [fix_profile_type [value_or_default profile(settings_profile_type) {}]]
+		# Found some profiles like "beverage_type {pourover}" and "beverage_type 0", so we explicitly handle those cases 
+		set this_bev_type [value_or_default [lindex profile(beverage_type) 0] {}]
+		if { $this_bev_type == 0 } {
+			set this_bev_type ""
+		}
+		lappend bev_type $this_bev_type
+		lappend author [value_or_default profile(author) {}]
+		
+		if { $file_stats } {
+			file stat $fn fstats
+			lappend ctime $fstats(ctime)
+			lappend mtime $fstats(mtime)
+		}
+	}
+	
+	set result [list \
+		filename $filename \
+		path $fullpath \
+		title $title \
+		group $group \
+		author $author \
+		hide $hide \
+		type $type \
+		bev_type $bev_type
+	]
+	if { $file_stats } {
+		lappend result ctime $ctime mtime $mtime
+	}
+	
+	return $result
+}

@@ -98,14 +98,15 @@ proc scale_tare {} {
 }
 
 proc scale_enable_weight_notifications {} {
-	::bt::msg -NOTICE scale_enable_weight_notifications
 
 	if {$::settings(scale_type) == "atomaxskale"} {
 		skale_enable_weight_notifications
 	} elseif {$::settings(scale_type) == "decentscale"} {
 		decentscale_enable_notifications
 	} elseif {$::settings(scale_type) == "acaiascale"} {
-		acaia_enable_weight_notifications
+		acaia_enable_weight_notifications $::de1(suuid_acaia_ips) $::de1(cuuid_acaia_ips_age)
+	} elseif {$::settings(scale_type) == "acaiapyxis"} {
+		#acaia_enable_weight_notifications $::de1(suuid_acaia_pyxis) $::de1(cuuid_acaia_pyxis_status)
 	} elseif {$::settings(scale_type) == "felicita"} {
 		felicita_enable_weight_notifications
 	} elseif {$::settings(scale_type) == "hiroiajimmy"} {
@@ -146,7 +147,7 @@ proc skale_timer_start {} {
 	}
 
 	set timeron [binary decode hex "DD"]
-	userdata_append "Skale : timer start" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $timeron] 0
+	userdata_append "SCALE: Skale : timer start" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $timeron] 0
 
 }
 
@@ -161,7 +162,7 @@ proc skale_enable_button_notifications {} {
 	}
 
 
-	userdata_append "enable Skale button notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF82) $::cinstance($::de1(cuuid_skale_EF82))] 1
+	userdata_append "SCALE: enable Skale button notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF82) $::cinstance($::de1(cuuid_skale_EF82))] 1
 }
 
 
@@ -176,7 +177,7 @@ proc skale_enable_grams {} {
 		return
 	}
 
-	userdata_append "Skale : enable grams" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $grams] 1
+	userdata_append "SCALE: Skale : enable grams" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $grams] 1
 }
 
 proc skale_enable_lcd {} {
@@ -191,8 +192,8 @@ proc skale_enable_lcd {} {
 		return
 	}
 
-	userdata_append "Skale : enable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $screenon] 0
-	userdata_append "Skale : display weight on LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $displayweight] 0
+	userdata_append "SCALE: Skale : enable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $screenon] 0
+	userdata_append "SCALE: Skale : display weight on LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $displayweight] 0
 
 }
 
@@ -207,7 +208,7 @@ proc skale_disable_lcd {} {
 		return
 	}
 
-	userdata_append "Skale : disable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $screenoff] 0
+	userdata_append "SCALE: Skale : disable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $screenoff] 0
 }
 
 proc skale_timer_stop {} {
@@ -222,7 +223,7 @@ proc skale_timer_stop {} {
 		return
 	}
 
-	userdata_append "Skale: timer stop" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $tare] 0
+	userdata_append "SCALE: Skale: timer stop" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $tare] 0
 }
 
 proc skale_timer_reset {} {
@@ -237,7 +238,7 @@ proc skale_timer_reset {} {
 		return
 	}
 
-	userdata_append "Skale: timer reset" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $tare] 0
+	userdata_append "SCALE: Skale: timer reset" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $tare] 0
 }
 
 proc skale_tare {} {
@@ -256,7 +257,7 @@ proc skale_tare {} {
 		return
 	}
 
-	userdata_append "Skale: tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $tare] 0
+	userdata_append "SCALE: Skale: tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF80) $::cinstance($::de1(cuuid_skale_EF80)) $tare] 0
 }
 
 proc skale_enable_weight_notifications {} {
@@ -269,7 +270,7 @@ proc skale_enable_weight_notifications {} {
 		return
 	}
 
-	userdata_append "enable Skale weight notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF81) $::cinstance($::de1(cuuid_skale_EF81))] 1
+	userdata_append "SCALE: enable Skale weight notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_skale) $::sinstance($::de1(suuid_skale)) $::de1(cuuid_skale_EF81) $::cinstance($::de1(cuuid_skale_EF81))] 1
 }
 
 
@@ -284,7 +285,7 @@ proc felicita_enable_weight_notifications {} {
 		return
 	}
 
-	userdata_append "enable felicita scale weight notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita))] 1
+	userdata_append "SCALE: enable felicita scale weight notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita))] 1
 }
 
 proc felicita_tare {} {
@@ -300,7 +301,7 @@ proc felicita_tare {} {
 
 	set tare [binary decode hex "54"]
 
-	userdata_append "felicita tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita)) $tare] 0
+	userdata_append "SCALE: felicita tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita)) $tare] 0
 	# The tare is not yet confirmed to us, we can therefore assume it worked out
 }
 
@@ -317,7 +318,7 @@ proc felicita_timer_reset {} {
 
 	set tare [binary decode hex "43"]
 
-	userdata_append "felicita timer reset" [list ble write $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita)) $tare] 0
+	userdata_append "SCALE: felicita timer reset" [list ble write $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita)) $tare] 0
 }
 proc felicita_start_timer {} {
 
@@ -332,7 +333,7 @@ proc felicita_start_timer {} {
 
 	set tare [binary decode hex "52"]
 
-	userdata_append "felicita timer start" [list ble write $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita)) $tare] 0
+	userdata_append "SCALE: felicita timer start" [list ble write $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita)) $tare] 0
 }
 proc felicita_stop_timer {} {
 
@@ -347,7 +348,7 @@ proc felicita_stop_timer {} {
 
 	set tare [binary decode hex "53"]
 
-	userdata_append "felicita timer stop" [list ble write $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita)) $tare] 0
+	userdata_append "SCALE: felicita timer stop" [list ble write $::de1(scale_device_handle) $::de1(suuid_felicita) $::sinstance($::de1(suuid_felicita)) $::de1(cuuid_felicita) $::cinstance($::de1(cuuid_felicita)) $tare] 0
 }
 
 proc felicita_parse_response { value } {
@@ -376,7 +377,7 @@ proc hiroia_enable_weight_notifications {} {
 		return
 	}
 
-	userdata_append "enable hiroiajimmy scale weight notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_hiroiajimmy) $::sinstance($::de1(suuid_hiroiajimmy)) $::de1(cuuid_hiroiajimmy_status) $::cinstance($::de1(cuuid_hiroiajimmy_status))] 1
+	userdata_append "SCALE: enable hiroiajimmy scale weight notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_hiroiajimmy) $::sinstance($::de1(suuid_hiroiajimmy)) $::de1(cuuid_hiroiajimmy_status) $::cinstance($::de1(cuuid_hiroiajimmy_status))] 1
 }
 
 proc hiroia_tare {} {
@@ -392,7 +393,7 @@ proc hiroia_tare {} {
 
 	set tare [binary decode hex "0700"]
 
-	userdata_append "hiroiajimmy tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_hiroiajimmy) $::sinstance($::de1(suuid_hiroiajimmy)) $::de1(cuuid_hiroiajimmy_cmd) $::cinstance($::de1(cuuid_hiroiajimmy_cmd)) $tare] 0
+	userdata_append "SCALE: hiroiajimmy tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_hiroiajimmy) $::sinstance($::de1(suuid_hiroiajimmy)) $::de1(cuuid_hiroiajimmy_cmd) $::cinstance($::de1(cuuid_hiroiajimmy_cmd)) $tare] 0
 	# The tare is not yet confirmed to us, we can therefore assume it worked out
 }
 
@@ -427,89 +428,82 @@ proc acaia_encode {msgType payload} {
 	return $data
 }
 
-proc acaia_tare {} {
+proc acaia_tare {suuid cuuid} {
 
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "acaiascale"} {
-		return
-	}
-
-	if {[ifexists ::sinstance($::de1(suuid_acaia_ips))] == ""} {
+	if {[ifexists ::sinstance($suuid)] == "" || $::de1(scale_device_handle) == 0} {
 		::bt::msg -DEBUG "Acaia Scale not connected, cannot send tare cmd"
 		return
 	}
 
+	set sinstance $::sinstance($suuid)
+	set cinstance $::cinstance($cuuid)
+
 	set tare [acaia_encode 04  0000000000000000000000000000000000]
 
-	userdata_append "send acaia tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_acaia_ips) $::sinstance($::de1(suuid_acaia_ips)) $::de1(cuuid_acaia_ips_age) $::cinstance($::de1(cuuid_acaia_ips_age)) $tare] 1
+	userdata_append "SCALE: send acaia tare" [list ble write $::de1(scale_device_handle) $suuid $sinstance $cuuid $cinstance $tare] 1
 
 	# The tare is not yet confirmed to us, we can therefore assume it worked out
 }
 
-proc acaia_send_heartbeat {} {
+proc acaia_send_heartbeat {suuid cuuid} {
 
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "acaiascale"} {
-		return
-	}
-
-	if {[ifexists ::sinstance($::de1(suuid_acaia_ips))] == ""} {
-		::bt::msg -DEBUG "Acaia Scale not connected, cannot send heartbeat"
+	if {[ifexists ::sinstance($suuid)] == "" || $::de1(scale_device_handle) == 0} {
+		::bt::msg -DEBUG "Acaia Scale not connected ($suuid), cannot send app heartbeat"
 		return
 	}
 	set heartbeat [acaia_encode 00 02000200]
 
-	userdata_append "send acaia heartbeat" [list ble write $::de1(scale_device_handle) $::de1(suuid_acaia_ips) $::sinstance($::de1(suuid_acaia_ips)) $::de1(cuuid_acaia_ips_age) $::cinstance($::de1(cuuid_acaia_ips_age)) $heartbeat] 1
+	set sinstance $::sinstance($suuid)
+	set cinstance $::cinstance($cuuid)
+
+	userdata_append "SCALE: send acaia heartbeat" [list ble write $::de1(scale_device_handle) $suuid $sinstance $cuuid $cinstance $heartbeat] 1
 
 	if { $::settings(force_acaia_heartbeat) == 1 } {
-		after 3000 acaia_send_heartbeat
+		after 2000 [list acaia_send_heartbeat $suuid $cuuid]
 	}
 }
 
-proc acaia_send_ident {} {
+proc acaia_send_ident {suuid cuuid} {
 
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "acaiascale"} {
-		return
-	}
-
-	if {[ifexists ::sinstance($::de1(suuid_acaia_ips))] == ""} {
+	if {[ifexists ::sinstance($suuid)] == "" || $::de1(scale_device_handle) == 0} {
 		::bt::msg -DEBUG "Acaia Scale not connected, cannot send app ident"
 		return
 	}
 
 	set ident [acaia_encode 0B 3031323334353637383930313233349A6D]
+	set sinstance $::sinstance($suuid)
+	set cinstance $::cinstance($cuuid)
 
-	userdata_append "send acaia ident" [list ble write $::de1(scale_device_handle) $::de1(suuid_acaia_ips) $::sinstance($::de1(suuid_acaia_ips)) $::de1(cuuid_acaia_ips_age) $::cinstance($::de1(cuuid_acaia_ips_age)) $ident] 1
+	userdata_append "SCALE: send acaia ident" [list ble write $::de1(scale_device_handle) $suuid $sinstance $cuuid $cinstance $ident] 1
 }
 
-proc acaia_send_config {} {
+proc acaia_send_config {suuid cuuid} {
 
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "acaiascale"} {
-		return
-	}
-
-	if {[ifexists ::sinstance($::de1(suuid_acaia_ips))] == ""} {
+	if {[ifexists ::sinstance($suuid)] == "" || $::de1(scale_device_handle) == 0} {
 		::bt::msg -DEBUG "Acaia Scale not connected, cannot send app config"
 		return
 	}
 
-	set ident [acaia_encode 0C 0900010102020503041506]
+	set ident [acaia_encode 0C 0900010102020103041106]
 
+	set sinstance $::sinstance($suuid)
+	set cinstance $::cinstance($cuuid)
 
-	userdata_append "send acaia comfig" [list ble write $::de1(scale_device_handle) $::de1(suuid_acaia_ips) $::sinstance($::de1(suuid_acaia_ips)) $::de1(cuuid_acaia_ips_age) $::cinstance($::de1(cuuid_acaia_ips_age)) $ident] 1
-
+	userdata_append "SCALE: send acaia config" [list ble write $::de1(scale_device_handle) $suuid $sinstance $cuuid $cinstance $ident] 1
 }
 
 
-proc acaia_enable_weight_notifications {} {
-	if {$::de1(scale_device_handle) == 0 || $::settings(scale_type) != "acaiascale"} {
-		return
-	}
+proc acaia_enable_weight_notifications {suuid cuuid} {
 
-	if {[ifexists ::sinstance($::de1(suuid_acaia_ips))] == ""} {
+	if {[ifexists ::sinstance($suuid)] == "" || $::de1(scale_device_handle) == 0} {
 		::bt::msg -DEBUG "Acaia Scale not connected, cannot enable weight notifications"
 		return
 	}
 
-	userdata_append "enable acaia scale weight notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_acaia_ips) $::sinstance($::de1(suuid_acaia_ips)) $::de1(cuuid_acaia_ips_age) $::cinstance($::de1(cuuid_acaia_ips_age))] 1
+	set sinstance $::sinstance($suuid)
+	set cinstance $::cinstance($cuuid)
+
+	userdata_append "SCALE: enable acaia scale weight notifications" [list ble enable $::de1(scale_device_handle) $suuid $sinstance $cuuid $cinstance] 1
 }
 
 proc acaia_parse_response { value } {
@@ -617,7 +611,7 @@ proc decentscale_enable_notifications {} {
 		return
 	}
 
-	userdata_append "enable decent scale weight notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_read) $::cinstance($::de1(cuuid_decentscale_read))] 1
+	userdata_append "SCALE: enable decent scale weight notifications" [list ble enable $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_read) $::cinstance($::de1(cuuid_decentscale_read))] 1
 }
 
 proc decentscale_enable_lcd {} {
@@ -640,7 +634,7 @@ proc decentscale_enable_lcd {} {
 		set screenon [decent_scale_make_command 0A 01 01 01]
 	}
 	::bt::msg -DEBUG "decent scale screen on: '[::logging::format_asc_bin $screenon]'"
-	userdata_append "decentscale : enable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $screenon] 0
+	userdata_append "SCALE: decentscale : enable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $screenon] 0
 }
 
 proc decentscale_disable_lcd {} {
@@ -654,7 +648,7 @@ proc decentscale_disable_lcd {} {
 		return
 	}
 
-	userdata_append "decentscale : disable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $screenoff] 0
+	userdata_append "SCALE: decentscale : disable LCD" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $screenoff] 0
 }
 
 proc decentscale_timer_start {} {
@@ -672,13 +666,13 @@ proc decentscale_timer_start {} {
 	::bt::msg -DEBUG "decentscale_timer_start"
 	set timeron [decent_scale_make_command 0B 03 00]
 	::bt::msg -DEBUG "decent scale timer on: '[::logging::format_asc_bin $timeron]'"
-	userdata_append "decentscale : timer on" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeron] 0
+	userdata_append "SCALE: decentscale : timer on" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeron] 0
 
 	# decent scale v1.0 occasionally drops commands, which is being fixed in decent scale v1.1.  
 	# So for now we send the same command twice. 
 	# In the future we'll check for the decent scale firmare version
 	# and only send the command twice if needed for the older decent scale firmware.
-	userdata_append "decentscale : timer on" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeron] 0
+	userdata_append "SCALE: decentscale : timer on" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeron] 0
 
 }
 
@@ -699,14 +693,14 @@ proc decentscale_timer_stop {} {
 	set ::de1(decentscale_timer_on) 0
 	set timeroff [decent_scale_make_command 0B 00 00]
 	::bt::msg -DEBUG "decent scale timer stop: '[::logging::format_asc_bin $timeroff]'"
-	userdata_append "decentscale : timer off" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeroff] 0
+	userdata_append "SCALE: decentscale : timer off" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeroff] 0
 
 
 	# decent scale v1.0 occasionally drops commands, which is being fixed in decent scale v1.1.  
 	# So for now we send the same command twice. 
 	# In the future we'll check for the decent scale firmare version
 	# and only send the command twice if needed for the older decent scale firmware.
-	userdata_append "decentscale : timer off" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeroff] 0
+	userdata_append "SCALE: decentscale : timer off" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeroff] 0
 
 }
 
@@ -725,14 +719,14 @@ proc decentscale_timer_reset {} {
 	set timeroff [decent_scale_make_command 0B 02 00]
 
 	::bt::msg -DEBUG "decent scale timer reset: '[::logging::format_asc_bin $timeroff]'"
-	userdata_append "decentscale : timer reset" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeroff] 0
+	userdata_append "SCALE: decentscale : timer reset" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeroff] 0
 
 
 	# decent scale v1.0 occasionally drops commands, which is being fixed in decent scale v1.1.  
 	# So for now we send the same command twice. 
 	# In the future we'll check for the decent scale firmare version
 	# and only send the command twice if needed for the older decent scale firmware.
-	userdata_append "decentscale : timer reset" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeroff] 0
+	userdata_append "SCALE: decentscale : timer reset" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $timeroff] 0
 }
 
 proc decentscale_tare {} {
@@ -751,14 +745,14 @@ proc decentscale_tare {} {
 
 	set tare [decent_scale_tare_cmd]
 
-	userdata_append "decentscale : tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $tare] 0
+	userdata_append "SCALE: decentscale : tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $tare] 0
 
 
 	# decent scale v1.0 occasionally drops commands, which is being fixed in decent scale v1.1.  
 	# So for now we send the same command twice. 
 	# In the future we'll check for the decent scale firmare version
 	# and only send the command twice if needed for the older decent scale firmware.
-	userdata_append "decentscale : tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $tare] 0
+	userdata_append "SCALE: decentscale : tare" [list ble write $::de1(scale_device_handle) $::de1(suuid_decentscale) $::sinstance($::de1(suuid_decentscale)) $::de1(cuuid_decentscale_write) $::cinstance($::de1(cuuid_decentscale_write)) $tare] 0
 
 }
 
@@ -838,10 +832,6 @@ proc app_exit {} {
 
 	after 10000 { ::logging::close_logfiles ; exit 0 }
 }
-
-
-
-
 
 proc de1_read_hotwater {} {
 	::bt::msg -NOTICE de1_read_hotwater
@@ -1139,32 +1129,19 @@ proc ble_connect_to_scale {} {
 		return 0
 	}
 
-	set do_this 0
-	if {$do_this == 1} {
-		if {$::de1(scale_device_handle) != "0"} {
-			::bt::msg -NOTICE "Scale already connected, so disconnecting before reconnecting to it"
-			#return
-			catch {
-				#ble close $::de1(scale_device_handle)
-			}
-
-			catch {
-				set ::de1(scale_device_handle) 0
-				set ::de1(cmdstack) {};
-				set ::currently_connecting_scale_handle 0
-				after 1000 ble_connect_to_scale
-				# when the scale disconnect message occurs, this proc will get re-run and a connection attempt will be made
-				return
-			}
-
-		}
-	}
-
 	if {[llength $::de1(cmdstack)] > 2} {
 		::bt::msg -INFO "Too much backpressure, waiting with the connect"
-		after 300 ble_connect_to_scale
+		::comms::msg -INFO "Current cmd: ([llength $::de1(cmdstack)]) >>>" \
+			[lindex [lindex $::de1(cmdstack) 0] 0] 
+		
+		run_next_userdata_cmd
+
+		after 1000 ble_connect_to_scale
 		return
 	}
+
+	# 2021-11-25 Johanna: Removed to see if it is the cause for the lunar connection issues
+	#remove_matching_ble_queue_entries {^SCALE:}
 
 	if {[catch {
 		set ::currently_connecting_scale_handle [ble connect [string toupper $::settings(scale_bluetooth_address)] de1_ble_handler false]
@@ -1180,7 +1157,7 @@ proc ble_connect_to_scale {} {
 }
 
 proc append_to_peripheral_list {address name connectiontype devicetype devicefamily} {
-	::bt::msg -NOTICE append_to_peripheral_list
+	::bt::msg -NOTICE append_to_peripheral_list $name "at" $address
 
 	foreach { entry } $::peripheral_device_list {
 		if { [dict get $entry address] eq $address} {
@@ -1324,57 +1301,31 @@ proc de1_ble_handler { event data } {
 				} elseif {[string first Skale $name] == 0} {
 					append_to_peripheral_list $address $name "ble" "scale" "atomaxskale"
 
-					if {$address == $::settings(scale_bluetooth_address)} {
-						if {$::currently_connecting_scale_handle == 0} {
-							::bt::msg -INFO "Not currently connecting to scale, so trying now"
-							ble_connect_to_scale
-						}
-					}
-
 				} elseif {[string first "Decent Scale" $name] == 0} {
 					append_to_peripheral_list $address $name "ble" "scale" "decentscale"
 
-					if {$address == $::settings(scale_bluetooth_address)} {
-						if {$::currently_connecting_scale_handle == 0} {
-							::bt::msg -INFO "Not currently connecting to scale, so trying now"
-							ble_connect_to_scale
-						}
-					}
 				} elseif {[string first "FELICITA" $name] == 0} {
 					append_to_peripheral_list $address $name "ble" "scale" "felicita"
 
-					if {$address == $::settings(scale_bluetooth_address)} {
-						if {$::currently_connecting_scale_handle == 0} {
-							::bt::msg -INFO "Not currently connecting to scale, so trying now"
-							ble_connect_to_scale
-						}
-					}
  				} elseif {[string first "HIROIA JIMMY" $name] == 0} {
 					append_to_peripheral_list $address $name "ble" "scale" "hiroiajimmy"
 
-					if {$address == $::settings(scale_bluetooth_address)} {
-						if {$::currently_connecting_scale_handle == 0} {
-							::bt::msg -INFO "Not currently connecting to scale, so trying now"
-							ble_connect_to_scale
-						}
-					}
  				} elseif {[string first "ACAIA" $name] == 0 \
- 					|| [string first "LUNAR" $name]    == 0 \
  					|| [string first "PROCH" $name]    == 0 } {
-
-					if { [string first "PROCH" $name] != -1 } {
-						set ::settings(force_acaia_heartbeat) 1
-					}
 					append_to_peripheral_list $address $name "ble" "scale" "acaiascale"
-
-					if {$address == $::settings(scale_bluetooth_address)} {
-						if {$::currently_connecting_scale_handle == 0} {
-							::bt::msg -INFO "Not currently connecting to scale, so trying now"
-							ble_connect_to_scale
-						}
-					}
+					
+				} elseif {[string first "PEARLS" $name] == 0 \
+ 					|| [string first "LUNAR" $name]    == 0 \
+ 					|| [string first "PYXIS" $name]    == 0 } {
+					append_to_peripheral_list $address $name "ble" "scale" "acaiapyxis"
 				} else {
-					#
+					return
+				}
+				if {$address == $::settings(scale_bluetooth_address)} {
+					if {$::currently_connecting_scale_handle == 0} {
+						::bt::msg -INFO "Not currently connecting to scale, so trying now"
+						ble_connect_to_scale
+					}
 				}
 			}
 			connection {
@@ -1385,9 +1336,6 @@ proc de1_ble_handler { event data } {
 						de1_disconnect_handler $handle
 
 					} elseif {$address == $::settings(scale_bluetooth_address)} {
-
-					#set ::de1(scale_type) ""
-
 						set ::de1(wrote) 0
 						::bt::msg -NOTICE "scale $::settings(scale_type) disconnected $data_for_log"
 						#catch {
@@ -1408,6 +1356,8 @@ proc de1_ble_handler { event data } {
 						}
 
 						set ::currently_connecting_scale_handle 0
+						# 2021-11-25 Johanna: Removed to see if it is the cause for the lunar connection issues
+						#remove_matching_ble_queue_entries {^SCALE:}
 
 						set event_dict [dict create \
 									event_time $event_time \
@@ -1519,10 +1469,27 @@ proc de1_ble_handler { event data } {
 							after 200 hiroia_enable_weight_notifications
 						} elseif {$::settings(scale_type) == "acaiascale"} {
 							append_to_peripheral_list $address $::settings(scale_bluetooth_name) "ble" "scale" "acaiascale"
-							acaia_send_ident
-							after 500 acaia_send_config
-							after 1000 acaia_enable_weight_notifications
-							after 4000 acaia_send_heartbeat
+							set ::settings(force_acaia_heartbeat) 0
+
+							if { [string first "PROCH" $::settings(scale_bluetooth_name)] != -1 } {
+								set ::settings(force_acaia_heartbeat) 1
+							}
+
+							acaia_send_ident $::de1(suuid_acaia_ips) $::de1(cuuid_acaia_ips_age)
+							after 500 [list acaia_send_config $::de1(suuid_acaia_ips) $::de1(cuuid_acaia_ips_age)]
+							after 1000 [list acaia_enable_weight_notifications $::de1(suuid_acaia_ips) $::de1(cuuid_acaia_ips_age)]
+							after 2000 [list acaia_send_heartbeat $::de1(suuid_acaia_ips) $::de1(cuuid_acaia_ips_age)]
+						} elseif {$::settings(scale_type) == "acaiapyxis"} {
+							append_to_peripheral_list $address $::settings(scale_bluetooth_name) "ble" "scale" "acaiapyxis"
+							msg -INFO "Pyxis scale showed up"
+
+							set ::settings(force_acaia_heartbeat) 1
+							set mtu1 [ble mtu $handle 247]
+							msg -INFO "MTU is $mtu1"
+							after 2000 [list acaia_enable_weight_notifications $::de1(suuid_acaia_pyxis) $::de1(cuuid_acaia_pyxis_status)]
+							after 2500  [list acaia_send_ident $::de1(suuid_acaia_pyxis) $::de1(cuuid_acaia_pyxis_cmd)]
+							after 3000 [list acaia_send_config $::de1(suuid_acaia_pyxis) $::de1(cuuid_acaia_pyxis_cmd)]
+							after 4500 [list acaia_send_heartbeat $::de1(suuid_acaia_pyxis) $::de1(cuuid_acaia_pyxis_cmd)]
 						} else {
 							error "unknown scale: '$::settings(scale_type)'"
 						}
@@ -1842,12 +1809,12 @@ proc de1_ble_handler { event data } {
 								::device::scale::process_weight_update $sensorweight $event_time
 							} else {
 								::bt::msg -INFO "decentscale recv: [array get weightarray]"
-
 							}
-														
-
 						} elseif {$cuuid eq $::de1(cuuid_acaia_ips_age)} {
-							# acaia scale
+							# acaia scale (gen 1, fw 2)
+							acaia_parse_response $value
+						} elseif {$cuuid eq $::de1(cuuid_acaia_pyxis_status)} {
+							# acaia scale (gen 2, fw 1)
 							acaia_parse_response $value
 						} elseif {$cuuid eq $::de1(cuuid_felicita)} {
 							# felicita scale
@@ -1998,6 +1965,12 @@ proc de1_ble_handler { event data } {
 
 					    } elseif {$cuuid eq $::de1(cuuid_skale_EF82)} {
 						::bt::msg -INFO "ACK Skale button notifications: $data_for_log"
+
+					    } elseif {$cuuid eq $::de1(cuuid_acaia_ips_age)} {
+						::bt::msg -INFO "ACK Acaia Lunar notifications: $data_for_log"
+
+					    } elseif {$cuuid eq $::de1(cuuid_acaia_pyxis_status)} {
+						::bt::msg -INFO "ACK Acaia Pyxis notifications: $data_for_log"
 
 					    } else {
 						::bt::msg -ERROR "ACK Descriptor unknown write: $data_for_log"

@@ -464,14 +464,17 @@ namespace eval ::logging {
 		enable -
 		disable -
 		read {
-
 		    set retval "$_handle: $_action $_cuuid"
 		}
 
 		write {
-
 		    set _value [::logging::format_asc_bin [lindex $ble_command 7]]
 		    return "$_handle: $_action $_cuuid $_value"
+		}
+
+		mtu {
+			set _mtu [::logging::short_ble_uuid [lindex $ble_command 3]]
+			set retval "$_handle: $_mtu"
 		}
 
 		default {

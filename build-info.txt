@@ -1,7 +1,7 @@
 # DO NOT EDIT - Automatically generated
-version_string	v1.38.5+
-last_commit_hash	546966c
-last_commit_time	2021-11-26 17:38:28 +0100
+version_string	v1.38.5-2-g3cd39c5+
+last_commit_hash	3cd39c5
+last_commit_time	2021-12-19 12:11:27 +0100
 #
 de1plus/plugins/DPx_Screen_Saver/_version_string	v1.3
 de1plus/plugins/DPx_Screen_Saver/_last_commit_hash	d66853f
@@ -35,9 +35,9 @@ de1plus/skins/MimojaCafe/_version_string	v1.4.1-87-ga317707
 de1plus/skins/MimojaCafe/_last_commit_hash	a317707
 de1plus/skins/MimojaCafe/_last_commit_time	2021-11-26 17:17:18 +0100
 #
-misc/_version_string	gc16c061
-misc/_last_commit_hash	c16c061
-misc/_last_commit_time	2021-11-12 14:42:15 +0100
+misc/_version_string	g9273d06
+misc/_last_commit_hash	9273d06
+misc/_last_commit_time	2021-12-19 12:11:10 +0100
 #
 psd/_version_string	gdde006d
 psd/_last_commit_hash	dde006d

@@ -187,6 +187,9 @@ namespace eval ::profile {
         set temp_advanced(final_desired_shot_weight_advanced) $temp_advanced(final_desired_shot_weight)
         set temp_advanced(final_desired_shot_volume_advanced) $temp_advanced(final_desired_shot_volume)
 
+        # On advanced profiles this is a GUI bound variable.
+        # Per step settings are edited with the UI editor
+        # This is not sent to the machine and only set here for compat
         set temp_advanced(maximum_pressure_range_advanced) $temp_advanced(maximum_pressure_range_default)
         set temp_advanced(maximum_flow_range_advanced) $temp_advanced(maximum_flow_range_default)
 
@@ -330,6 +333,9 @@ namespace eval ::profile {
         set temp_advanced(final_desired_shot_weight_advanced) $temp_advanced(final_desired_shot_weight)
         set temp_advanced(final_desired_shot_volume_advanced) $temp_advanced(final_desired_shot_volume)
 
+        # On advanced profiles this is a GUI bound variable.
+        # Per step settings are edited with the UI editor
+        # This is not sent to the machine and only set here for compat
         set temp_advanced(maximum_pressure_range_advanced) $temp_advanced(maximum_pressure_range_default)
         set temp_advanced(maximum_flow_range_advanced) $temp_advanced(maximum_flow_range_default)
 
@@ -650,17 +656,15 @@ namespace eval ::profile {
             set profile(final_desired_shot_volume) $profile(final_desired_shot_weight)
         }
     
-        if { $profile(advanced_shot) eq {} } {
-            # Ensure the profile's advanced_shot variable is always defined
-            switch $profile(settings_profile_type) \
-                settings_2a {
-                    array set temp_profile [pressure_to_advanced_list profile]
-                    set profile(advanced_shot) $temp_profile(advanced_shot)
-                } settings_2b {
-                    array set temp_profile [flow_to_advanced_list profile]
-                    set profile(advanced_shot) $temp_profile(advanced_shot)
-                }
-        }
+        # Ensure the profile's advanced_shot variable is always defined. Overwrite it if already defined.
+        switch $profile(settings_profile_type) \
+            settings_2a {
+                array set temp_profile [pressure_to_advanced_list profile]
+                set profile(advanced_shot) $temp_profile(advanced_shot)
+            } settings_2b {
+                array set temp_profile [flow_to_advanced_list profile]
+                set profile(advanced_shot) $temp_profile(advanced_shot)
+            }
         
         return [array get profile]
     }
@@ -835,7 +839,7 @@ namespace eval ::profile {
 
         # Temperature steps
         set temp_steps [string is true [value_or_default profile(espresso_temperature_steps_enabled) 0]]
-        if { $temp_steps } {
+        if { $is_basic_profile && $temp_steps } {
             dict set pdict 0 temp_steps [list "Per-step temperatures enabled"]
         }
         

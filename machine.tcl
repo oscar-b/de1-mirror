@@ -203,6 +203,8 @@ array set ::settings {
 	log_fast 0
 	use_finger_down_for_tap 1
 	linear_resistance_adjustment 1
+	resistance_curve 0
+	weight_detail_curve 0
 	language en
 	display_time_in_screen_saver 0
 	insert_preinfusion_pause 0
@@ -219,7 +221,7 @@ array set ::settings {
 	active_settings_tab settings_2a
 	espresso_temperature_steps_enabled 0
 	chart_total_shot_weight 1
-	calibration_flow_multiplier 1
+	calibration_flow_multiplier "1.000"
 	phase_1_flow_rate 20
 	phase_2_flow_rate 40
 	ghc_mode 0
@@ -988,6 +990,37 @@ proc start_idle {} {
 		#ble_connect_to_scale
 	}
 }
+
+proc start_schedIdle {} {
+	msg -NOTICE "Tell DE1 to start to go IDLE from a scheduler call"
+
+	# Ensure we are not locking the screen during use.
+	# This is only relevant when waking up the machine
+	if  {[sdltk screensaver] == 1} {
+		sdltk screensaver off
+	}
+
+	if {$::de1(device_handle) == 0} {
+		start_idle
+	}
+
+	set idlecmd $::de1_state(Idle)
+	catch {
+		if {$::settings(firmware_version_number) >= 1293} {
+			# new firmware scheduled-wake command was only working as of v1293 firmware
+			set idlecmd $::de1_state(SchedIdle)
+		}
+	}
+
+	de1_send_state "go idle" $idlecmd
+
+	
+	if {$::de1(scale_device_handle) != 0} {
+		scale_enable_lcd
+	}
+}
+
+
 
 
 proc start_sleep {} {

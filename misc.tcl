@@ -814,6 +814,7 @@ proc make_de1_dir {srcdir destdirs} {
         saver/2560x1600/three_women.jpg *
         saver/2560x1600/rainbow_dj.jpg *
 
+        profiles/I_got_your_back.tcl *
         profiles/adaptive_allonge.tcl *
         profiles/easy_blooming_active_pressure_decline.tcl *
         profiles/TurboBloom.tcl *
@@ -879,17 +880,13 @@ proc make_de1_dir {srcdir destdirs} {
         profiles/Damian's\ LRv3.tcl *
 
         plugins/visualizer_upload/plugin.tcl *
-
+        plugins/D_Flow_Espresso_Profile/plugin.tcl *
         plugins/log_upload/plugin.tcl *
-
         plugins/old_lcd_disable/plugin.tcl *
-
         plugins/DPx_Screen_Saver/plugin.tcl *
         plugins/DPx_Steam_Stop/plugin.tcl *
-
         plugins/keyboard_control/plugin.tcl *
         plugins/keyboard_control/settings.tdb *
-
         plugins/log_debug/plugin.tcl *
 
         allcerts.pem *

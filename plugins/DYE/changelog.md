@@ -2,6 +2,40 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.23] - 2021-12-09
+
+### Changed
+- Fix bug showing the wrong shot duration on the Shot Selector when using a string filter. Reported by JoeD.
+
+## [2.22] - 2021-12-08
+
+### New
+- Added setting `reset_next_plan` to auto-clear the next shot plan data after pulling each shot. It is exposed in the DYE settings page and can only be enabled when propagation is disabled. Should handle the workflow/use case presented by Bob Stern.
+- New setting `date_input_format`, exposed in the DYE settings page, can take values "MDY", "DMY" or "YMD", with "MDY" as default. Replaces the previous `date_input_formats`. It is initialized to the closest matching format of the first item in `date_input_formats`, if it exists. Setting `date_input_formats` is removed.
+- New setting `roast_date_format` defines how to show the roast date after it's entered.
+
+### Changed
+- Read from previous now ignores zero-valued fields for determining blank shots.
+- Profiles imported from Visualizer whose title already include a folder ("&lt;folder&gt;/&lt;profile_name&gt;") now get the correct title ("Visualizer/&lt;profile_name&gt;"). Reported by Ricco Rosini.
+- New more user-friendly roast date parser, using the new date settings. Allows entering partial dates (only day or day+month), using any field separator (spaces, hyphens, dashes...), month numbers or 3-letter abbreviations, full or abbreviated years ("21" or "2021"), and adding extra text after the date (e.g. "21/12/2021 Roast 2") while still correctly parsing the date for computing days off-roast.
+- Update DYE page calculated/derived fields (days off-roast, enable/disable grinder setting, TDS) when data is cleared or imported.
+
+## [2.21] - 2021-12-05
+
+### New
+- The Visualizer dialog, when on the next shot plan, now allows downloading any of the "Recently selected shots" in Visualizer. A summary of the shots is shown when the "Shared" option is selected.
+
+### Changed
+- Selecting shots in the Shot Selector dialog now works correctly irrespective of the values of settings variables `use_finger_down_for_tap` and `disable_long_press`. 
+- Filtering shots in the Shot Selector by a search string is now performed in Tcl instead of passing it to SQLite like in previous versions. This is done because SQLite cannot perform case-insensitive searches on concatenated fields on the tablet build of Androwish (whereas on PC it works). This also improves responsiveness, but has the drawback that the search is performed only on the subset of shots downloaded in current filter and within the maximum number of rows (currently 500).
+- Selection of shots in the Shot Selector when the preview panel is collapsed is now slightly faster, as the summary info is now not written to the preview Tk Text panel when not needed.
+
+## [2.20] - 2021-11-30
+
+### New
+- New "Shot Selector" page dialog (`dye_shot_select_dlg`), replaces the plain listbox-based selector used previously in all instances where a shot can be selected in DYE.
+- New option "Copy to next shot plan" in the "Edit data menu" allows to send data from the currently viewed shot in DYE to be used in the next shot plan.
+
 ## [2.19] - 2021-11-24
 
 ### New

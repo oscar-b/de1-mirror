@@ -18,7 +18,7 @@ proc ::plugins::DYE::setup_ui_Insight {} {
 		-label [translate DYE] -label_font_size 12 -label_pos {0.5 0.8} -label_anchor center -label_justify center -label_fill "#8991cc" \
 		-label_width 130 -command [list ::plugins::DYE::open -which_shot default -coords {2400 975} -anchor e] \
 		-label_font_family notosansuibold  -longpress_cmd [::list ::plugins::DYE::open -which_shot dialog -coords \{2400 975\} -anchor e] \
-		-tap_pad {4 4 40 4}]
+		-tap_pad {4 4 40 4} -page_title [translate {Select a shot to describe}]]
 	
 	### SCREENSAVER ###
 	# Makes the left side of the app screensaver clickable so that you can describe your last shot without waking up 

@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.15
+	variable version 1.18
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -1059,7 +1059,9 @@ proc ::plugins::SDB::get_shot_file_path { filename {relative_path 0} } {
 	return $filename
 }
 
-# Loads from a shot file the data we use in the DYE plugin. Returns an array.
+# Loads from a shot file the data we use in the DYE plugin. Returns a flat array which has graph series
+# (with names prefixed by "_graph", if read_series=1), the settings variables that correspond to shot descriptive 
+# metadata (if read_description=1) and the profile variables (if read_profile=1).
 # Input can be a filename, with or without .shot extension, a clock value, or a full path to a shot file.
 proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {read_profile 0} } {
 	set path [get_shot_file_path $filename]
@@ -1098,13 +1100,15 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	}
 	
 	if { [string is true $read_series] } {
-		foreach field_name {espresso_pressure espresso_weight espresso_flow espresso_flow_weight \
+		# We need the "graph_" prefix because all variables are in the same array, and some overlap between the
+		# settings and graph (i.e. espresso_pressure is both a chart series name and a profile variable) 
+		foreach field_name {espresso_elapsed espresso_pressure espresso_weight espresso_flow espresso_flow_weight \
 				espresso_temperature_basket espresso_temperature_mix espresso_flow_weight_raw espresso_water_dispensed \
 				espresso_temperature_goal espresso_pressure_goal espresso_flow_goal espresso_state_change } {
 			if { [info exists file_props($field_name)] } {
-				set shot_data($field_name) $file_props($field_name)
+				set shot_data(graph_$field_name) $file_props($field_name)
 			} else {
-				set shot_data($field_name) {0.0}
+				set shot_data(graph_$field_name) {0.0}
 			}
 		}
 	}
@@ -1121,6 +1125,12 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	
 	if { [string is true $read_description] } {
 		set text_fields [metadata fields -domain shot -category description -data_type {category text long_text date complex}]
+		# We need to treat grinder_setting differently because it's declared as a category, but treated as number by some skins
+		# (with empty=zero)
+		set idx [lsearch -exact $text_fields grinder_setting]
+		if { $idx > -1 } {
+			set text_fields [lreplace $text_fields $idx $idx]
+		}
 	} else {
 		set text_fields {}
 	}
@@ -1140,7 +1150,7 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	}
 	
 	if { [string is true $read_description] } {	
-		foreach field_name [metadata fields -domain shot -category description -data_type {number boolean}] {
+		foreach field_name [concat grinder_setting [metadata fields -domain shot -category description -data_type {number boolean}]] {
 			if { [info exists file_sets($field_name)]  && $file_sets($field_name) > 0 } {
 				set shot_data($field_name) $file_sets($field_name)
 			} else {
@@ -1438,10 +1448,11 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 			
 		db eval {
 		CREATE TABLE IF NOT EXISTS shot (clock INTEGER PRIMARY KEY, filename TEXT(15) UNIQUE NOT NULL, 
-			file_modification_date INTEGER, archived INTEGER DEFAULT 0, profile_title TEXT, bean_weight REAL, 
-			drink_weight REAL, extraction_time REAL, bean_brand TEXT, bean_type TEXT, 
-			bean_notes TEXT, roast_date TEXT, roast_level TEXT, grinder_model TEXT, grinder_setting TEXT,
-			drink_tds REAL, drink_ey REAL, espresso_enjoyment INT, espresso_notes TEXT, my_name TEXT, scentone TEXT,
+			file_modification_date INTEGER, archived INTEGER DEFAULT 0, profile_title TEXT COLLATE NOCASE, bean_weight REAL, 
+			drink_weight REAL, extraction_time REAL, bean_brand TEXT COLLATE NOCASE, bean_type TEXT COLLATE NOCASE, 
+			bean_notes TEXT COLLATE NOCASE, roast_date TEXT COLLATE NOCASE, roast_level TEXT COLLATE NOCASE, 
+			grinder_model TEXT COLLATE NOCASE, grinder_setting TEXT COLLATE NOCASE, drink_tds REAL, drink_ey REAL, 
+			espresso_enjoyment INT, espresso_notes TEXT COLATE NOCASE, my_name TEXT COLLATE NOCASE, scentone TEXT COLLATE NOCASE,
 			beverage_type TEXT, skin TEXT, visualizer_link TEXT);
 
 		CREATE TABLE IF NOT EXISTS shot_series (shot_clock INTEGER, elapsed REAL,
@@ -1573,41 +1584,41 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 		set progress_msg [translate "Upgrading DB to v5"]
 		if { $update_screen == 1 } update
 		
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_country TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_region TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_altitude TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_producer TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_variety TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_processing TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_harvest TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_country TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_region TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_altitude TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_producer TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_variety TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_processing TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_harvest TEXT COLLATE NOCASE} }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_price REAL } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_quality_score INTEGER } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_freeze_date DATE } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_unfreeze_date DATE } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_open_date DATE } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN grinder_burrs TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN grinder_rpm TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN portafilter_model TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN portafilter_basket TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN filter_top TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN filter_bottom TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN distribution_tool TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN distribution_technique TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN tamper TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN tamping_technique TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN grinder_burrs TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN grinder_rpm TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN portafilter_model TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN portafilter_basket TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN filter_top TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN filter_bottom TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN distribution_tool TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN distribution_technique TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tamper TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tamping_technique TEXT COLLATE NOCASE} }
 		catch { db eval { ALTER TABLE shot ADD COLUMN calc_ey_from_tds INTEGER } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN drink_brix REAL } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN refractometer_model TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN refractometer_model TEXT COLLATE NOCASE} }
 		catch { db eval { ALTER TABLE shot ADD COLUMN refractometer_temp REAL } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN final_beverage_type TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_type TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN final_beverage_type TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_type TEXT COLLATE NOCASE} }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_weight REAL } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_temp REAL } }
 	
 		db eval {			
-			CREATE TABLE IF NOT EXISTS country (code TEXT(2) PRIMARY KEY, bean_country TEXT(50) UNIQUE NOT NULL);
-			CREATE TABLE IF NOT EXISTS variety (bean_variety TEXT(50) PRIMARY KEY, species TEXT(20), regions TEXT);
-			CREATE TABLE IF NOT EXISTS processing (bean_processing TEXT(50) PRIMARY KEY, sort INTEGER);
+			CREATE TABLE IF NOT EXISTS country (code TEXT(2) PRIMARY KEY, bean_country TEXT(50) UNIQUE NOT NULL COLLATE NOCASE);
+			CREATE TABLE IF NOT EXISTS variety (bean_variety TEXT(50) PRIMARY KEY COLLATE NOCASE, species TEXT(20) COLLATE NOCASE, regions TEXT COLLATE NOCASE);
+			CREATE TABLE IF NOT EXISTS processing (bean_processing TEXT(50) PRIMARY KEY COLLATE NOCASE, sort INTEGER);
 			
 			CREATE VIEW IF NOT EXISTS V_country_all AS
 			SELECT DISTINCT bean_country FROM 
@@ -1615,7 +1626,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 				GROUP BY bean_country
 				UNION ALL
 				SELECT bean_country FROM country)
-			ORDER BY bean_country;
+			ORDER BY bean_country COLLATE NOCASE;
 			
 			CREATE VIEW IF NOT EXISTS V_variety_all AS
 			SELECT DISTINCT bean_variety FROM 
@@ -1623,7 +1634,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 				GROUP BY bean_variety
 				UNION ALL
 				SELECT bean_variety FROM variety)
-			ORDER BY bean_variety;
+			ORDER BY bean_variety COLLATE NOCASE;
 			
 			CREATE VIEW IF NOT EXISTS V_processing_all AS
 			SELECT DISTINCT bean_processing FROM 
@@ -1635,7 +1646,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 				AND p.bean_processing IS NULL
 			GROUP BY s.bean_processing
 			)
-			ORDER BY sort;
+			ORDER BY sort COLLATE NOCASE;
 		}
 		
 		# See https://3.basecamp.com/3671212/buckets/7351439/messages/3793185604
@@ -2181,54 +2192,54 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 	# Only make series inserts, never updates
 	if { $persist_series == 1 && [db exists {SELECT 1 FROM shot_series WHERE shot_clock=$shot(clock) LIMIT 1}] == 0 } {
 		# Sometimes we have longer elapsed_time series than pressure or flow series			
-		set n [::min [llength $shot(espresso_elapsed)] [llength $shot(espresso_pressure)] [llength $shot(espresso_flow)]]
+		set n [::min [llength $shot(graph_espresso_elapsed)] [llength $shot(graph_espresso_pressure)] [llength $shot(graph_espresso_flow)]]
 		if { $n > 1 } {
 			set sql "INSERT INTO shot_series (shot_clock,elapsed,pressure,weight,flow,flow_weight,flow_weight_raw,\
 temperature_basket,temperature_mix,water_dispensed,pressure_goal,flow_goal,temperature_goal) VALUES "
 			for {set i 0} { $i < $n } {incr i} {
 				# I can't make embedding the [lindex ...] statement in the SQL string work, so I need to create each variable
-				set elapsed [lindex $shot(espresso_elapsed) $i]
-				set pressure [lindex $shot(espresso_pressure) $i]
+				set elapsed [lindex $shot(graph_espresso_elapsed) $i]
+				set pressure [lindex $shot(graph_espresso_pressure) $i]
 				if { $pressure eq {} } {
 					set pressure "NULL"
 				}
-				set flow [lindex $shot(espresso_flow) $i]
+				set flow [lindex $shot(graph_espresso_flow) $i]
 				if { $flow eq {} } {
 					set flow "NULL"
 				}
-				set weight [lindex $shot(espresso_weight) $i]
+				set weight [lindex $shot(graph_espresso_weight) $i]
 				if { $weight eq {} } {
 					set weigth "NULL"
 				}
-				set flow_weight [lindex $shot(espresso_flow_weight) $i]
+				set flow_weight [lindex $shot(graph_espresso_flow_weight) $i]
 				if { $flow_weight eq {} } {
 					set flow_weight "NULL"
 				}
-				set flow_weight_raw [lindex $shot(espresso_flow_weight_raw) $i]
+				set flow_weight_raw [lindex $shot(graph_espresso_flow_weight_raw) $i]
 				if { $flow_weight_raw eq {} } {
 					set flow_weight_raw "NULL"
 				}
-				set temperature_basket [lindex $shot(espresso_temperature_basket) $i]
+				set temperature_basket [lindex $shot(graph_espresso_temperature_basket) $i]
 				if { $temperature_basket eq {} } {
 					set temperature_basket "NULL"
 				}
-				set temperature_mix [lindex $shot(espresso_temperature_mix) $i]
+				set temperature_mix [lindex $shot(graph_espresso_temperature_mix) $i]
 				if { $temperature_mix eq {} } {
 					set temperature_mix "NULL"
 				}
-				set water_dispensed [lindex $shot(espresso_water_dispensed) $i]
+				set water_dispensed [lindex $shot(graph_espresso_water_dispensed) $i]
 				if { $water_dispensed eq {} } {
 					set water_dispensed "NULL"
 				}				
-				set pressure_goal [lindex $shot(espresso_pressure_goal) $i]
+				set pressure_goal [lindex $shot(graph_espresso_pressure_goal) $i]
 				if { $pressure_goal eq {} } {
 					set pressure_goal "NULL"
 				}
-				set flow_goal [lindex $shot(espresso_flow_goal) $i]
+				set flow_goal [lindex $shot(graph_espresso_flow_goal) $i]
 				if { $flow_goal eq {} } {
 					set flow_goal "NULL"
 				}
-				set temperature_goal [lindex $shot(espresso_temperature_goal) $i]
+				set temperature_goal [lindex $shot(graph_espresso_temperature_goal) $i]
 				if { $temperature_goal eq {} } { 
 					set temperature_goal "NULL"
 				}
@@ -2357,7 +2368,7 @@ proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 #	is requested, a list is returned. If more than one column is returned, returns an array with one list per 
 #	column.
 # 'args' provide 'type' values that must be matched in the target db table (e.g. for an equipment item, its equipment type).
-proc ::plugins::SDB::shots { {return_columns clock} {exc_removed 1} {filter {}} {max_rows 500} } {
+proc ::plugins::SDB::shots { {return_columns clock} {exc_removed 1} {filter {}} {max_rows 500} {order_by "clock DESC"} } {
 	set db [get_db]
 	
 	if { $return_columns eq "count" } { 
@@ -2372,8 +2383,12 @@ proc ::plugins::SDB::shots { {return_columns clock} {exc_removed 1} {filter {}} 
 		if { $filter ne "" } { append sql "$filter AND " }
 		set sql [string range $sql 0 end-4]
 	}
-	append sql " ORDER BY clock DESC LIMIT $max_rows"
+	if { $order_by ne {} } {
+		append sql " ORDER BY $order_by"
+	}
+	append sql " LIMIT $max_rows COLLATE NOCASE"
 		
+	msg -INFO [namespace current] shots: "SQL: $sql"
 	if { [llength $return_columns] == 1 } {
 		return [db eval "$sql"]
 	} else {

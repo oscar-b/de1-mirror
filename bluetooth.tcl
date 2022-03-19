@@ -459,6 +459,7 @@ proc acaia_send_heartbeat {suuid cuuid} {
 	userdata_append "SCALE: send acaia heartbeat" [list ble write $::de1(scale_device_handle) $suuid $sinstance $cuuid $cinstance $heartbeat] 1
 
 	if { $::settings(force_acaia_heartbeat) == 1 } {
+		after 1000 [list acaia_send_config $suuid $cuuid]
 		after 2000 [list acaia_send_heartbeat $suuid $cuuid]
 	}
 }
@@ -1491,6 +1492,13 @@ proc de1_ble_handler { event data } {
 							append_to_peripheral_list $address $::settings(scale_bluetooth_name) "ble" "scale" "acaiapyxis"
 							msg -INFO "Pyxis scale showed up"
 
+							if {[ifexists ::sinstance($::de1(suuid_acaia_pyxis))] == {}} {
+								msg -NOTICE "fake connction to acaia scale. Closing handle again"
+								#ble close $handle
+								#ble_connect_to_scale
+								#return
+							}
+
 							set ::settings(force_acaia_heartbeat) 1
 							set mtu1 [ble mtu $handle 247]
 							msg -INFO "MTU is $mtu1"
@@ -1933,7 +1941,7 @@ proc de1_ble_handler { event data } {
 							} else {
 								::bt::msg -ERROR "ACK for write to" \
 									[::logging::short_ble_uuid $cuuid] \
-									"of unknown device: '$event_for_log'"
+									"of unknown device: '$value_for_log'"
 							}
 						}
 

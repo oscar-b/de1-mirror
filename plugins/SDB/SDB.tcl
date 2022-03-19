@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.18
+	variable version 1.20
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -149,7 +149,7 @@ proc ::plugins::SDB::check_settings {} {
 	ifexists settings(backup_modified_shot_files) 0	
 	ifexists settings(db_persist_desc) 1	
 	ifexists settings(db_persist_series) 0
-	ifexists settings(sync_on_startup) 1
+	ifexists settings(sync_on_startup) 0
 	ifexists settings(log_sql_statements) 0
 	ifexists settings(github_latest_url) "https://api.github.com/repos/ebengoechea/de1app_plugin_SDB/releases/latest"
 	
@@ -1125,20 +1125,16 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	
 	if { [string is true $read_description] } {
 		set text_fields [metadata fields -domain shot -category description -data_type {category text long_text date complex}]
+		lappend text_fields profile_title skin beverage_type
 		# We need to treat grinder_setting differently because it's declared as a category, but treated as number by some skins
 		# (with empty=zero)
+		
 		set idx [lsearch -exact $text_fields grinder_setting]
 		if { $idx > -1 } {
 			set text_fields [lreplace $text_fields $idx $idx]
 		}
 	} else {
 		set text_fields {}
-	}
-	if { [string is true $read_profile] } {
-		lappend text_fields profile profile_filename profile_title original_profile_title profile_to_save beverage_type \
-			advanced_shot author settings_profile_type profile_notes profile_language
-	} elseif { [string is true $read_description] } {
-		lappend text_fields profile_title skin beverage_type
 	}
 	
 	foreach field_name $text_fields {
@@ -1181,16 +1177,9 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	}
 	
 	if { [string is true $read_profile] } {
-		foreach field_name [concat profile profile_filename profile_to_save original_profile_title profile_has_changed [::profile_vars]] {  
-			if { [info exists file_sets($field_name)] } {
-				set shot_data($field_name) $file_sets($field_name)
-			} else {
-				set shot_data($field_name) 0
-			}
-		}
-		
-		if { $shot_data(settings_profile_type) eq "settings_2c2" } {
-			set ::settings(settings_profile_type) "settings_2c"
+		array set profile [::profile::read_legacy array_name file_sets 1]
+		foreach field_name [array names profile] {
+			set shot_data($field_name) $profile($field_name)
 		}
 	}
 
@@ -1365,7 +1354,8 @@ proc ::plugins::SDB::create { {recreate 0} {make_backup 1} {update_screen 0} } {
 		}
 	}
 	
-	dui say [translate "Creating shots database"] {}
+	borg toast [translate "Creating shots database"] 1
+	dui say [translate "Creating shots database"] page_in
 	msg "Creating shots database"
 	
 	set progress_msg [translate "Creating DB"]
@@ -1444,7 +1434,11 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 
 	if { $disk_db_version <= 0 } {
 		set progress_msg [translate "Upgrading DB to v1"]
-		if { $update_screen == 1 } update
+		if { $update_screen == 1 } {
+			update
+		} else {
+			borg toast $progress_msg 1
+		}
 			
 		db eval {
 		CREATE TABLE IF NOT EXISTS shot (clock INTEGER PRIMARY KEY, filename TEXT(15) UNIQUE NOT NULL, 
@@ -1484,13 +1478,21 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 	
 	if { $disk_db_version <= 1 } {
 		set progress_msg [translate "Upgrading DB to v2"]
-		if { $update_screen == 1 } update		
+		if { $update_screen == 1 } {
+			update
+		} else {
+			borg toast $progress_msg 1
+		}
 		rename_columns shot bean_weight grinder_dose_weight
 	}
 		
 	if { $disk_db_version <= 2 } {
 		set progress_msg [translate "Upgrading DB to v3"]
-		if { $update_screen == 1 } update		
+		if { $update_screen == 1 } {
+			update
+		} else {
+			borg toast $progress_msg 1
+		}
 		catch { db eval { ALTER TABLE shot ADD COLUMN drinker_name TEXT} }
 		catch { db eval { ALTER TABLE shot ADD COLUMN removed INTEGER DEFAULT 0} }
 		
@@ -1534,7 +1536,11 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 	# then shot_desc was NULL. Also on the very first .shot files in DE1 the profile_title could be empty.
 	if { $disk_db_version <= 3 } {
 		set progress_msg [translate "Upgrading DB to v4"]
-		if { $update_screen == 1 } update
+		if { $update_screen == 1 } {
+			update
+		} else {
+			borg toast $progress_msg 1
+		}
 		
 		db eval {
 		DROP VIEW IF EXISTS V_shot;
@@ -1582,7 +1588,11 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 	# v5 adds the many new description fields.
 	if { $disk_db_version <= 4 } {
 		set progress_msg [translate "Upgrading DB to v5"]
-		if { $update_screen == 1 } update
+		if { $update_screen == 1 } {
+			update
+		} else {
+			borg toast $progress_msg 1
+		}
 		
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_country TEXT COLLATE NOCASE} }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_region TEXT COLLATE NOCASE} }
@@ -1908,6 +1918,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	set updating_db 1	
 	set screen_msg [translate "Synchronizing DB"]
 	set progress_msg $screen_msg
+	msg $screen_msg
 	
 	set last_sync_start [clock seconds]
 	foreach fn "analyzed inserted modified archived unarchived removed unremoved errors" { set "cnt_$fn" 0 }
@@ -1921,9 +1932,17 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	set files [lsort -dictionary [glob -nocomplain -tails -directory "[homedir]/history/" *.shot]]
 	set afiles [lsort -dictionary [glob -nocomplain -tails -directory "[homedir]/history_archive/" *.shot]]
 	set n [expr {[llength $files]+[llength $afiles]}]
+	set msg_every [expr {int($n/10)}]
+	if { $msg_every > 10 } {
+		set msg_every 10
+	}
 	set cnt 1
 	set progress_msg "$screen_msg: 0/$n (0\%)"
-	if { $update_screen == 1 } { update }
+	if { $update_screen == 1 } { 
+		update 		
+	} else {
+		borg toast $progress_msg 1
+	}
 	
 	foreach f $files {
 		if { [info exists db_shots($f)] } {
@@ -1991,10 +2010,14 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 		}
 		
 		incr cnt
-		if {[expr {$cnt % 10}] == 0 } {
+		if {[expr {$cnt % $msg_every}] == 0 } {
 			set perc [expr {int($cnt*100.0/$n)}]
 			set progress_msg "$screen_msg: $cnt/$n ($perc\%)"
-			if { $update_screen == 1 } { update }
+			if { $update_screen == 1 } { 
+				update
+			} else {
+				borg toast $progress_msg 1
+			}
 		}
 	}
 	
@@ -2062,10 +2085,14 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 		}
 		
 		incr cnt
-		if {[expr {$cnt % 10}] == 0 } {
+		if {[expr {$cnt % $msg_every}] == 0 } {
 			set perc [expr {int($cnt*100.0/$n)}]			
 			set progress_msg "$screen_msg: $cnt/$n ($perc\%)"
-			if { $update_screen == 1 } { update }
+			if { $update_screen == 1 } { 
+				update 
+			} else {
+				borg toast $progress_msg 1
+			}
 		}
 	}
 
@@ -2084,7 +2111,11 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	}
 
 	set progress_msg "$screen_msg: $n/$n (100\%)"
-	if { $update_screen == 1} update
+	if { $update_screen == 1} {
+		update
+	} else {
+		borg toast $progress_msg 1
+	}
 #	after 3000 { set progress_msg "" } 
 	
 	update_last_updated
@@ -2094,9 +2125,10 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	foreach fn "inserted modified archived unarchived removed unremoved errors" {
 		set settings(last_sync_$fn) [subst \$cnt_$fn]
 	}	
-	
+		
 	plugins save_settings SDB
 	set updating_db 0
+	msg "DB synchronization finished"
 }
 
 proc ::plugins::SDB::update_last_updated {} {

@@ -1535,7 +1535,7 @@ proc skin_directories {} {
 	set dd {}
 
 	# overriding settings to include Insight Dark now
-	set ::settings(most_popular_skins) [list Insight "Insight Dark" MimojaCafe Metric DSx SWDark4]
+	set ::settings(most_popular_skins) [list Insight "Insight Dark" MimojaCafe Metric DSx SWDark4 MiniMetric]
 
 	foreach d $dirs {
 		if {$d == "CVS" || $d == "example"} {
@@ -1672,6 +1672,13 @@ proc profile_directories {} {
 		#	continue
 		#}
 
+		set dflow_test [string tolower [string range $d 0 5]]
+		if {$dflow_test == "d-flow"} {
+			if {[plugin_enabled "D_Flow_Espresso_Profile"] != true} {
+				continue
+			}
+		}
+
 		set filecontents [encoding convertfrom utf-8 [read_binary_file "[homedir]/profiles/$d"]]
 	    if {[string first "settings_profile_type settings_2b" $filecontents] != -1 || [string first "settings_profile_type settings_2c" $filecontents] != -1 || [string first "settings_profile_type settings_profile_flow" $filecontents] != -1 || [string first "settings_profile_type settings_profile_advanced" $filecontents] != -1} {
 
@@ -1707,9 +1714,12 @@ proc profile_directories {} {
 }
 
 proc delete_selected_profile {} {
+
 	set w $::globals(profiles_listbox)
-	#$w selection set $::current_profile_number
-	#set profile [lindex [profile_directories] [lindex [$w curselection] 0]]
+	if {[$w curselection] == ""} {
+		msg -NOTICE "No profile has yet been tapped by the user to delete, so doing nothing"
+		return
+	}
 	set profile $::profile_number_to_directory([$w curselection]) 
 
 	set fn "[homedir]/profiles/${profile}.tcl"
@@ -2268,8 +2278,11 @@ proc load_advanced_profile_step {{force 0}} {
 	unset -nocomplain ::current_adv_step
 	# max flow / max pressure are not always set, so we set it now
 	array set ::current_adv_step {max_flow_or_pressure 0 max_flow_or_pressure_range 0.6}
-	array set ::current_adv_step [lindex $::settings(advanced_shot) $stepnum]
 
+	# Max weight is not always set, so we set it here
+	array set ::current_adv_step {weight 0.0}
+
+	array set ::current_adv_step [lindex $::settings(advanced_shot) $stepnum]
 
 	make_current_listbox_item_blue $::advanced_shot_steps_widget
 

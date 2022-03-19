@@ -2,6 +2,17 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.25] - 2022-02-16
+
+### Changed
+- Ensure the description of the last shot on DSx home page persists through app restarts. Bug [reported by GrahamC](https://3.basecamp.com/3671212/buckets/7351439/messages/4141407262#__recording_4637235467).
+
+## [2.24] - 2022-02-03
+
+### Changed
+- Show correct extension of shot filenames (`.shot` instead of `.tcl`) in shot previewer.
+- Fix wrong clearing of `grinder_setting` when copying from next to last metadata and DYE settings had `propagate_previous_shot_desc=0` and `reset_next_plan=0`. Reported by Bob Stern.
+
 ## [2.23] - 2021-12-09
 
 ### Changed

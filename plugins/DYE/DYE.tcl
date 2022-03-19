@@ -27,7 +27,7 @@ try {
 namespace eval ::plugins::DYE {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 2.23
+	variable version 2.25
 	variable github_repo ebengoechea/de1app_plugin_DYE
 	variable name [translate "Describe Your Espresso"]
 	variable description [translate "Describe any shot from your history and plan the next one: beans, grinder, extraction parameters and people."]
@@ -537,7 +537,7 @@ proc ::plugins::DYE::reset_gui_starting_espresso_leave_hook { args } {
 
 	set reset_next [expr { !$settings(propagate_previous_shot_desc) && $settings(reset_next_plan) }]
 		
-	foreach field [concat [metadata fields -domain shot -category description -propagate 1] espresso_notes grinder_setting] {
+	foreach field [concat [metadata fields -domain shot -category description -propagate 1] espresso_notes] {
 		set type [metadata get $field data_type]
 		if { ($type eq "number" || $field eq "grinder_setting") && $settings(next_$field) eq "" } {
 			set ::settings($field) 0
@@ -550,7 +550,6 @@ proc ::plugins::DYE::reset_gui_starting_espresso_leave_hook { args } {
 		}
 	}
 
-	
 #	if { $skin eq "DSx" } {
 #		if { [info exists ::DSx_settings(live_graph_beans)] && $::DSx_settings(live_graph_beans) > 0 } {
 #			set ::settings(grinder_dose_weight) $::DSx_settings(live_graph_beans)
@@ -608,6 +607,7 @@ proc ::plugins::DYE::reset_gui_starting_espresso_leave_hook { args } {
 proc ::plugins::DYE::save_espresso_to_history_hook { args } {
 	msg -INFO [namespace current] save_espresso_to_history_hook
 	::plugins::DYE::define_last_shot_desc
+	plugins save_settings DYE
 }
 
 
@@ -651,7 +651,7 @@ proc ::plugins::DYE::shot_description_summary { {bean_brand {}} {bean_type {}} {
 # Needs the { args } as this is being used in a trace add execution.
 # BEWARE this should ONLY be invoked just after finishing a shot, otherwise the settings variables may contain
 # 	the plan for the next shot instead of the last one.
-proc ::plugins::DYE::define_last_shot_desc { args } {
+proc ::plugins::DYE::define_last_shot_desc { args } {	
 	variable settings
 	if { $::plugins::DYE::settings(show_shot_desc_on_home) == 1 } {
 		if { $::settings(history_saved) == 1 } {		
@@ -5441,7 +5441,7 @@ FROM V_shot WHERE removed=0 "
 		
 		
 		# Show shot info
-		$tw insert insert "[translate Filename]:" field " $selected_shot(filename).tcl\n"
+		$tw insert insert "[translate Filename]:" field " $selected_shot(filename).shot\n"
 		if { $selected_shot(bean_notes) ne "" } {
 			$tw insert insert "[translate {Bean notes}]:" field " $selected_shot(bean_notes)\n"
 		}

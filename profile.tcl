@@ -44,6 +44,7 @@ namespace eval ::profile {
                 flow $temp_advanced(preinfusion_flow_rate) \
                 seconds $first_frame_len \
                 volume 0 \
+                weight 0 \
                 exit_if "1" \
                 exit_type "pressure_over" \
                 exit_pressure_over $temp_advanced(preinfusion_stop_pressure) \
@@ -66,6 +67,7 @@ namespace eval ::profile {
                 flow $temp_advanced(preinfusion_flow_rate) \
                 seconds $second_frame_len \
                 volume 0 \
+                weight 0 \
                 exit_if "1" \
                 exit_type "pressure_over" \
                 exit_pressure_over $temp_advanced(preinfusion_stop_pressure) \
@@ -89,6 +91,7 @@ namespace eval ::profile {
                     pressure $temp_advanced(espresso_pressure) \
                     seconds 3 \
                     volume 0 \
+                    weight 0 \
                     exit_if 0 \
                     exit_pressure_over 0 \
                     exit_pressure_under 0 \
@@ -107,6 +110,7 @@ namespace eval ::profile {
                 pressure $temp_advanced(espresso_pressure) \
                 seconds $temp_advanced(espresso_hold_time) \
                 volume 0 \
+                weight 0 \
                 exit_if 0 \
                 exit_pressure_over 0 \
                 exit_pressure_under 0 \
@@ -133,6 +137,7 @@ namespace eval ::profile {
                     pressure $temp_advanced(espresso_pressure) \
                     seconds 3 \
                     volume 0 \
+                    weight 0 \
                     exit_if 0 \
                     exit_pressure_over 0 \
                     exit_pressure_under 0 \
@@ -152,6 +157,7 @@ namespace eval ::profile {
                 pressure $temp_advanced(pressure_end) \
                 seconds $temp_advanced(espresso_decline_time) \
                 volume 0 \
+                weight 0 \
                 exit_if 0 \
                 exit_pressure_over 0 \
                 exit_pressure_under 0 \
@@ -175,6 +181,7 @@ namespace eval ::profile {
                 flow 0 \
                 seconds 0 \
                 volume 0 \
+                weight 0 \
                 exit_if 0 \
                 exit_pressure_over 0 \
                 exit_pressure_under 0 \
@@ -232,6 +239,7 @@ namespace eval ::profile {
                 flow $temp_advanced(preinfusion_flow_rate) \
                 seconds $first_frame_len \
                 volume 0 \
+                weight 0 \
                 exit_if "1" \
                 exit_type "pressure_over" \
                 exit_pressure_over $temp_advanced(preinfusion_stop_pressure) \
@@ -254,6 +262,7 @@ namespace eval ::profile {
                 flow $temp_advanced(preinfusion_flow_rate) \
                 seconds $second_frame_len \
                 volume 0 \
+                weight 0 \
                 exit_if "1" \
                 exit_type "pressure_over" \
                 exit_pressure_over $temp_advanced(preinfusion_stop_pressure) \
@@ -275,6 +284,7 @@ namespace eval ::profile {
                 flow $temp_advanced(flow_profile_hold) \
                 seconds $temp_advanced(espresso_hold_time) \
                 volume 0 \
+                weight 0 \
                 exit_if 0 \
                 exit_pressure_over 0 \
                 exit_pressure_under 0 \
@@ -298,6 +308,7 @@ namespace eval ::profile {
                 flow $temp_advanced(flow_profile_decline) \
                 seconds $temp_advanced(espresso_decline_time) \
                 volume 0 \
+                weight 0 \
                 exit_if 0 \
                 exit_pressure_over 0 \
                 exit_pressure_under 0 \
@@ -321,6 +332,7 @@ namespace eval ::profile {
                 flow 0 \
                 seconds 0 \
                 volume 0 \
+                weight 0 \
                 exit_if 0 \
                 exit_pressure_over 0 \
                 exit_pressure_under 0 \
@@ -366,6 +378,7 @@ namespace eval ::profile {
         foreach step $legacy_profile(advanced_shot) {
             unset -nocomplain props
             array set props $step
+            ifexists props(weight) 0
 
             set huddle_step [huddle create \
                 name [ifexists props(name)] \
@@ -377,7 +390,9 @@ namespace eval ::profile {
                 flow [ifexists props(flow)] \
                 seconds [ifexists props(seconds)] \
                 volume [ifexists props(volume)] \
+                weight [ifexists props(weight)] \
             ]
+            
             if {[ifexists props(exit_if)] == 1} {
                 if {[ifexists props(exit_type)] == "pressure_under"} {
                     set exit_type "pressure"
@@ -542,6 +557,8 @@ namespace eval ::profile {
             pourover {
                 set beverage_type "pour-over "
             } tea_portafilter {
+                set beverage_type "tea "
+            } tea {
                 set beverage_type "tea "
             } {} {
                 set beverage_type ""
@@ -824,19 +841,6 @@ namespace eval ::profile {
             dict set pdict 0 preheat [list "Preheat water tank at \\1 ºC" [round_to_one_digits $profile(tank_desired_water_temperature)]]
         }
     
-        # Limiters
-        set ndef [expr {($profile(maximum_pressure_range_advanced)>0)+($profile(maximum_flow_range_advanced)>0)}]
-        if { $ndef == 1 } {
-            if { $profile(maximum_flow_range_advanced) > 0 } {
-                dict set pdict 0 limiter [list "Limiter range of action: \\1 mL/s" [round_to_one_digits $profile(maximum_flow_range_advanced)]]
-            } elseif { $profile(maximum_pressure_range_advanced) > 0 } {
-                dict set pdict 0 limiter [list "Limiter range of action: \\1 bar" [round_to_one_digits $profile(maximum_pressure_range_advanced)]]
-            }
-        } elseif { $ndef == 2 } {
-            dict set pdict 0 limiter [list "Limiter ranges of action: \\1 mL/s and \\2 bar" \
-                [round_to_one_digits $profile(maximum_flow_range_advanced)] [round_to_one_digits $profile(maximum_pressure_range_advanced)]]
-        }
-
         # Temperature steps
         set temp_steps [string is true [value_or_default profile(espresso_temperature_steps_enabled) 0]]
         if { $is_basic_profile && $temp_steps } {
@@ -872,7 +876,8 @@ namespace eval ::profile {
         set prev_pressure_or_flow 0.0 
         set prev_pump ""
         set time_adjust 0.0
-        
+        set uses_limiters 0
+		
         foreach stepl $profile(advanced_shot) {
             array set step $stepl
             if { $is_basic_profile } {
@@ -925,6 +930,7 @@ namespace eval ::profile {
                 if { $step(max_flow_or_pressure) > 0 } {
                     append txt " with a pressure limit of \\3 bar"
                     lappend items [round_to_one_digits $step(max_flow_or_pressure)]
+                    set uses_limiters 1
                 }
             } elseif { $step(pump) eq "pressure" } {
                 if { $stepn == 1 || ($prev_pump ne "pressure" && $step(pressure) > 0) || \
@@ -942,7 +948,8 @@ namespace eval ::profile {
                 if { $step(max_flow_or_pressure) > 0 } {
                     append txt " with a flow limit of \\3 mL/s"
                     lappend items [round_to_one_digits $step(max_flow_or_pressure)]
-                }                
+                    set uses_limiters 1
+                }
             }
             
             dict set pdict $stepn flow_or_pressure [list $txt {*}$items]
@@ -1006,6 +1013,21 @@ namespace eval ::profile {
         }
     
         dict set pdict 0 nsteps [expr {$stepn-1}]
+
+        # Limiters
+        if { $uses_limiters } {
+            set ndef [expr {($profile(maximum_pressure_range_advanced)>0)+($profile(maximum_flow_range_advanced)>0)}]
+            if { $ndef == 1 } {
+                if { $profile(maximum_flow_range_advanced) > 0 } {
+                    dict set pdict 0 limiter [list "Limiter range of action: \\1 mL/s" [round_to_one_digits $profile(maximum_flow_range_advanced)]]
+                } elseif { $profile(maximum_pressure_range_advanced) > 0 } {
+                    dict set pdict 0 limiter [list "Limiter range of action: \\1 bar" [round_to_one_digits $profile(maximum_pressure_range_advanced)]]
+                }
+            } elseif { $ndef == 2 } {
+                dict set pdict 0 limiter [list "Limiter ranges of action: \\1 mL/s and \\2 bar" \
+                    [round_to_one_digits $profile(maximum_flow_range_advanced)] [round_to_one_digits $profile(maximum_pressure_range_advanced)]]
+            }
+        }
         
         return $pdict
     }

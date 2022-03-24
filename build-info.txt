@@ -1,5 +1,5 @@
 # DO NOT EDIT - Automatically generated
-version_string	v1.39.0+
+version_string	v1.39.0
 last_commit_hash	47f7b80
 last_commit_time	2022-03-11 16:46:06 +0100
 #

@@ -1,7 +1,7 @@
 # DO NOT EDIT - Automatically generated
-version_string	v1.39.0
-last_commit_hash	47f7b80
-last_commit_time	2022-03-11 16:46:06 +0100
+version_string	v1.39.0-1-gd758b48
+last_commit_hash	d758b48
+last_commit_time	2022-04-06 20:54:32 +0200
 #
 de1plus/plugins/DPx_Screen_Saver/_version_string	v1.3
 de1plus/plugins/DPx_Screen_Saver/_last_commit_hash	d66853f
@@ -43,9 +43,9 @@ de1plus/skins/Mini Metric/_version_string	g1776d9f
 de1plus/skins/Mini Metric/_last_commit_hash	1776d9f
 de1plus/skins/Mini Metric/_last_commit_time	2022-01-28 12:45:08 +0000
 #
-misc/_version_string	gf358bc5
-misc/_last_commit_hash	f358bc5
-misc/_last_commit_time	2022-02-06 01:16:14 +0100
+misc/_version_string	g72c46b8
+misc/_last_commit_hash	72c46b8
+misc/_last_commit_time	2022-04-06 20:53:20 +0200
 #
 psd/_version_string	gdde006d
 psd/_last_commit_hash	dde006d
